@@ -14,6 +14,9 @@ const EFFECT_KINDS: readonly string[] = ['earthquake', 'tornado', 'acid-rain', '
 const MAX_EFFECTS = 24;
 const MAX_HELD = 30;
 const MAX_LEVEL = 8;
+const BOAT_KINDS = 2;
+const BOAT_STATES = 3;
+const MAX_PASSENGERS = 16;
 /** Recurso que se lleva + 1 (0 = nada). */
 const MAX_CARRY = RESOURCE_COUNT + 1;
 
@@ -108,6 +111,20 @@ function validatePowers(sim: Simulation): void {
   checkSave(p.held.every(isInt), 'criaturas sujetas');
 }
 
+function validateBoats(sim: Simulation): void {
+  const civ = sim.civ;
+  const w = sim.world;
+  for (const b of civ.boats) {
+    checkSave(inRange(b.kind, 0, BOAT_KINDS) && inRange(b.village, 0, civ.villages.length) && inRange(b.kingdom, -1, civ.kingdoms.kingdoms.length) && inRange(b.target, -1, civ.villages.length), 'barco');
+    checkSave(inRange(b.dock, 0, civ.buildings.length) && inRange(b.home, 0, w.size) && inRange(b.landing, 0, w.size), 'puertos de barco');
+    checkSave([b.x, b.y, b.px, b.py, b.dir, b.timer].every(isNum) && b.x >= 0 && b.y >= 0 && b.x < w.width && b.y < w.height, 'posición de barco');
+    checkSave(inRange(b.state, 0, BOAT_STATES) && typeof b.alive === 'boolean' && typeof b.wrecked === 'boolean', 'estado de barco');
+    checkSave(intList(b.route, 0, w.size) && b.route.length > 0 && inRange(b.routeIdx, 0, b.route.length + 1), 'ruta de barco');
+    checkSave(!b.alive || b.state === 0 || b.routeIdx < b.route.length, 'ruta de barco');
+    checkSave(Array.isArray(b.passengers) && b.passengers.length <= MAX_PASSENGERS && b.passengers.every(isInt), 'pasaje de barco');
+  }
+}
+
 /** Comprueba todas las referencias cruzadas de una partida cargada. */
 export function validateLoaded(sim: Simulation): void {
   validateVillages(sim);
@@ -116,4 +133,5 @@ export function validateLoaded(sim: Simulation): void {
   validateMap(sim);
   validateUnits(sim);
   validatePowers(sim);
+  validateBoats(sim);
 }

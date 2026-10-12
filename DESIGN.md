@@ -2,9 +2,9 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes) y E (rasgos y partidas guardadas) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas) y F (mar: muelles, pesca y barcos) implementadas.**
 >
-> Pendiente de B, trasladado a fases posteriores para no dejarlo a medias: más biomas (nieve, pantano, selva, sabana), peces/pescadores y muelles (llegarán con los barcos). En la Fase C quedan pendientes los barcos y muelles para colonizar islas, y los clanes.
+> Pendiente para fases posteriores (para no dejarlo a medias): más biomas (nieve, pantano, selva, sabana) y los clanes. Los muelles, la pesca y los barcos llegaron en la Fase F.
 
 ---
 
@@ -155,7 +155,7 @@ Leyenda: **N** = Núcleo (sin esto no hay juego) · **I** = Importante (da profu
 | Crecimiento territorial (comprar o reclamar zonas vecinas) | N | B |
 | Colonos que fundan aldeas nuevas | I | B |
 | Pescador, cazador, herrero (equipo que sube el daño y la armadura) | I | B/C |
-| Muelles y barcos para colonizar islas | I | C |
+| Muelles y barcos para colonizar islas | I | F |
 | Caminos | E | post-E |
 | Cultura con rasgos y tecnología, idioma, religión | E | post-E |
 
@@ -354,7 +354,15 @@ Unos 20 rasgos heredables y por eventos, stats completas, inspector de unidad, a
 
 **Rasgos**: máscara de bits por criatura (`traits`). Al nacer, cada rasgo heredable de los padres pasa con un 50 % y hay un 12 % de mutación; las criaturas creadas con el pincel reciben 0-2 al azar. Los opuestos se excluyen. Veterano (5 bajas) y Superviviente (sobrevivir a la plaga) se ganan y no se heredan.
 
-### Después de E (opcional)
+### Fase F — El mar: muelles, pesca y barcos
+- **Mares**: el mapa etiqueta cada masa de agua conectada (`world.sea`) igual que las islas; un muelle necesita un mar de al menos 150 casillas (un estanque no vale).
+- **Muelle** (2×2, ayuntamiento de nivel 2, 10 habitantes, 15 de madera y 4 de piedra): en la costa del territorio propio. Da pescado: los **pescadores** trabajan en él y cada captura gasta peces, que se reponen solos (`growth` del muelle).
+- **Barcos de colonos**: si una aldea quiere enviar colonos y no queda sitio en su isla, bota un barco (12 de madera) hacia una costa fértil y libre de otra isla. El pasaje camina al muelle, embarca (sale del mundo: bit ABOARD), navega por una ruta de agua (búsqueda en anchura + línea de visión), desembarca y funda una aldea del mismo reino. El barco vuelve a puerto y se desarma.
+- **Flotas de guerra**: en guerra, si no hay enemigos en su isla, el ejército elige la aldea enemiga más cercana a la que se llega por mar; hasta 8 guerreros embarcan y desembarcan junto a ella para asediarla. Los que quedan lejos de casa sin misión dejan su aldea y se unen a otra o fundan una para su reino.
+- **Naufragios**: rayos, meteoritos, bombas, terremotos y tornados hunden barcos (el pasaje se ahoga). Si el agua bajo un barco se vuelve tierra, el pasaje baja a la orilla.
+- **Guardado**: formato MBX versión 2 (mares y barcos); las partidas de la versión 1 se migran al cargar.
+
+### Después de F (opcional)
 Cultura, idioma y religión; clanes; eras; caminos; sonido; editor de estandartes; mods.
 
 ---

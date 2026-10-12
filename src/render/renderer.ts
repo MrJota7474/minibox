@@ -8,6 +8,7 @@ import { BACKGROUND } from './palette';
 import type { PowerSystem } from '../powers/disasters';
 import type { HazardSystem } from '../powers/hazards';
 import { Status } from '../powers/status';
+import { BoatLayer } from './boat-layer';
 import { CivLayer } from './civ-layer';
 import { FxLayer } from './fx';
 import { buildSpriteAtlas, type SpriteAtlas } from './sprites';
@@ -38,6 +39,7 @@ export class Renderer {
   private readonly speciesColors: string[];
   private readonly adultTicks: number[];
   private readonly civLayer: CivLayer;
+  private readonly boats: BoatLayer;
   private readonly civ: CivSystem;
   private readonly fx: FxLayer;
   private readonly powers: PowerSystem;
@@ -65,6 +67,7 @@ export class Renderer {
     this.speciesColors = SPECIES.map((s) => s.color);
     this.adultTicks = SPECIES.map((s) => s.adultTicks);
     this.civLayer = new CivLayer(world, civ, camera);
+    this.boats = new BoatLayer(civ, camera);
     this.civ = civ;
     this.powers = powers;
     this.fx = new FxLayer(powers, hazards, world, camera);
@@ -104,6 +107,7 @@ export class Renderer {
     this.civLayer.drawBuildings(ctx);
     if (overlay.selectedTile >= 0) this.drawTileMarker(overlay.selectedTile);
     this.fx.drawFire(ctx);
+    this.boats.draw(ctx, alpha);
     this.drawUnits(alpha, tick);
     if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
     this.fx.drawOver(ctx, now);
@@ -140,7 +144,7 @@ export class Renderer {
     const atlas = this.atlas;
 
     for (let i = 0; i < u.highWater; i++) {
-      if (u.alive[i] === 0 || (u.status[i] & Status.HELD) !== 0) continue;
+      if (u.alive[i] === 0 || (u.status[i] & (Status.HELD | Status.ABOARD)) !== 0) continue;
       const wx = u.px[i] + (u.x[i] - u.px[i]) * alpha;
       const wy = u.py[i] + (u.y[i] - u.py[i]) * alpha;
       if (wx < left - 2 || wy < top - 2 || wx > right + 2 || wy > bottom + 2) continue;

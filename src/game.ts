@@ -8,6 +8,7 @@ import { StrokeController } from './powers/stroke';
 import type { ToolDef } from './powers/tools';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
+import { BoatLayer } from './render/boat-layer';
 import { buildSpriteAtlas, type SpriteAtlas } from './render/sprites';
 import type { Command } from './sim/commands';
 import { Simulation } from './sim/simulation';
@@ -75,6 +76,8 @@ export class Game {
   private hoverTile: { x: number; y: number } | null = null;
   private selectedHandle = -1;
   private selectedTile = -1;
+  /** Barco seleccionado (id) o -1. */
+  private selectedBoat = -1;
   private following = false;
   private lastSpeed: Speed = 1;
   private pendingUpdate: (() => void) | null = null;
@@ -419,7 +422,13 @@ export class Game {
     const tx0 = Math.floor(p.x);
     const ty0 = Math.floor(p.y);
     const building = sim.world.inBounds(tx0, ty0) ? sim.world.buildingAt[sim.world.idx(tx0, ty0)] : 0;
-    if (i >= 0) {
+    const boat = this.boatAt(sim, p.x, p.y, radius);
+    this.selectedBoat = boat;
+    if (boat >= 0) {
+      this.selectedHandle = -1;
+      this.selectedTile = -1;
+      this.inspector.showBoat(boat);
+    } else if (i >= 0) {
       this.selectedHandle = sim.units.handleOf(i);
       this.selectedTile = -1;
       this.inspector.showUnit(this.selectedHandle);
@@ -438,6 +447,22 @@ export class Game {
     this.inspector.update(sim);
   }
 
+  /** Barco más cercano al punto (en casillas), o -1. */
+  private boatAt(sim: Simulation, x: number, y: number, radius: number): number {
+    let best = -1;
+    let bestD = (radius + 0.6) * (radius + 0.6);
+    for (const b of sim.civ.boats) {
+      if (!b.alive) continue;
+      const pos = BoatLayer.position(b, this.clock.alpha());
+      const d = (pos.x - x) * (pos.x - x) + (pos.y - y) * (pos.y - y);
+      if (d < bestD) {
+        bestD = d;
+        best = b.id;
+      }
+    }
+    return best;
+  }
+
   /** Avisos de la simulación (fundaciones, mejoras, abandonos) como toasts. */
   private showCivEvents(sim: Simulation): void {
     const events = sim.civ.events;
@@ -447,6 +472,7 @@ export class Game {
 
   private clearSelection(): void {
     this.selectedHandle = -1;
+    this.selectedBoat = -1;
     this.selectedTile = -1;
     this.following = false;
     this.inspector.setFollowing(false);
@@ -460,12 +486,22 @@ export class Game {
   }
 
   private toggleFollow(): void {
-    this.following = !this.following && this.selectedHandle >= 0;
+    this.following = !this.following && (this.selectedHandle >= 0 || this.selectedBoat >= 0);
     this.inspector.setFollowing(this.following);
   }
 
   private followSelected(): void {
     if (!this.following || !this.sim || !this.camera) return;
+    if (this.selectedBoat >= 0) {
+      const b = this.sim.civ.boats[this.selectedBoat];
+      if (!b || !b.alive) {
+        this.stopFollowing();
+        return;
+      }
+      const pos = BoatLayer.position(b, this.clock.alpha());
+      this.camera.centerOn(pos.x, pos.y);
+      return;
+    }
     const i = this.sim.units.resolve(this.selectedHandle);
     if (i < 0) {
       this.following = false;

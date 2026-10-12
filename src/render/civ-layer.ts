@@ -1,6 +1,7 @@
 import type { CivSystem } from '../civ/civ-system';
 import { BUILDING_DEFS, BuildingType, FARM_RIPE, VILLAGE_COLORS, type Building } from '../civ/model';
 import { ZONE_SIZE, type World } from '../world/world';
+import { dockWaterTile } from '../civ/boats';
 import type { Camera } from './camera';
 import { buildBuildingAtlas, type BuildingAtlas } from './civ-sprites';
 
@@ -94,6 +95,7 @@ export class CivLayer {
       const h = b.h * cam.zoom;
       if (b.type === BuildingType.FARM && b.level >= 1) this.drawFarm(ctx, b, p.x, p.y, w, h);
       else if (b.level >= 1) this.drawSprite(ctx, b, p.x, p.y);
+      if (b.type === BuildingType.DOCK && b.level >= 1) this.drawPier(ctx, b);
       if (b.underConstruction) this.drawSite(ctx, b, p.x, p.y, w, h);
     }
   }
@@ -111,6 +113,18 @@ export class CivLayer {
     const scale = z / PX_PER_TILE;
     // El contorno sobresale 1 px de la huella del edificio.
     ctx.drawImage(this.atlas.canvas, r.sx, r.sy, r.w, r.h, x - scale, y - scale, r.w * scale, r.h * scale);
+  }
+
+  /** Pasarela de tablones del muelle sobre su casilla de agua. */
+  private drawPier(ctx: CanvasRenderingContext2D, b: Building): void {
+    const water = dockWaterTile(this.world, b);
+    if (water < 0) return;
+    const z = this.camera.zoom;
+    const p = this.camera.worldToScreen(water % this.world.width, Math.floor(water / this.world.width));
+    ctx.fillStyle = '#8a5a2a';
+    ctx.fillRect(p.x + z * 0.1, p.y + z * 0.25, z * 0.8, z * 0.5);
+    ctx.fillStyle = '#5a3a1a';
+    for (let k = 0; k < 3; k++) ctx.fillRect(p.x + z * (0.15 + k * 0.27), p.y + z * 0.25, Math.max(1, z * 0.06), z * 0.5);
   }
 
   private drawFarm(ctx: CanvasRenderingContext2D, b: Building, x: number, y: number, w: number, h: number): void {

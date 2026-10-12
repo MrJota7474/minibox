@@ -14,12 +14,12 @@ export function emptyResources(): Resources {
 }
 
 /** Oficios de los aldeanos. */
-export const Job = { NONE: 0, GATHERER: 1, WOODCUTTER: 2, MINER: 3, FARMER: 4, BUILDER: 5, HUNTER: 6, SETTLER: 7, WARRIOR: 8 } as const;
+export const Job = { NONE: 0, GATHERER: 1, WOODCUTTER: 2, MINER: 3, FARMER: 4, BUILDER: 5, HUNTER: 6, SETTLER: 7, WARRIOR: 8, FISHER: 9 } as const;
 export type JobId = (typeof Job)[keyof typeof Job];
-export const JOB_COUNT = 9;
-export const JOB_NAMES: readonly string[] = ['Sin oficio', 'Recolector', 'Leñador', 'Minero', 'Granjero', 'Constructor', 'Cazador', 'Colono', 'Guerrero'];
+export const JOB_COUNT = 10;
+export const JOB_NAMES: readonly string[] = ['Sin oficio', 'Recolector', 'Leñador', 'Minero', 'Granjero', 'Constructor', 'Cazador', 'Colono', 'Guerrero', 'Pescador'];
 
-export const BuildingType = { HALL: 0, HOUSE: 1, STORAGE: 2, FARM: 3 } as const;
+export const BuildingType = { HALL: 0, HOUSE: 1, STORAGE: 2, FARM: 3, DOCK: 4 } as const;
 export type BuildingTypeId = (typeof BuildingType)[keyof typeof BuildingType];
 
 export interface BuildingDef {
@@ -86,11 +86,26 @@ export const BUILDING_DEFS: readonly BuildingDef[] = [
     hallLevel: [1],
     minPop: [5],
   },
+  {
+    names: ['Muelle'],
+    w: 2,
+    h: 2,
+    cost: [[0, 15, 4, 0, 0]],
+    work: [120],
+    housing: [0],
+    storage: [0],
+    hallLevel: [2],
+    minPop: [10],
+  },
 ];
 
 /** Crecimiento de una granja hasta la cosecha. */
 export const FARM_RIPE = 100;
 export const FARM_HARVEST_FOOD = 14;
+/** Peces de un muelle: `growth` (0-100) se repone solo y cada captura gasta FISH_CATCH. */
+export const FISH_MAX = 100;
+export const FISH_CATCH = 15;
+export const FISH_FOOD = 5;
 
 export interface Building {
   readonly id: number;
@@ -105,7 +120,7 @@ export interface Building {
   /** true mientras se construye o mejora. */
   underConstruction: boolean;
   progress: number;
-  /** Crecimiento del cultivo (sólo granjas). */
+  /** Crecimiento del cultivo (granjas) o peces disponibles (muelles). */
   growth: number;
   /** Daño acumulado por fuego o lava. */
   burn: number;

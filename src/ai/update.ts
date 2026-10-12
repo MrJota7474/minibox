@@ -3,7 +3,8 @@ import { SPECIES } from '../entities/species';
 import { updateAnimal } from './animal-ai';
 import type { AiContext } from './context';
 import { updateLife } from './life';
-import { Status, updateMadness, updatePlague } from '../powers/status';
+import { OFFMAP_FLAGS } from '../entities/units';
+import { updateMadness, updatePlague } from '../powers/status';
 
 /** Actualiza todas las criaturas un tick, en orden de índice (determinista). */
 export function updateUnits(ctx: AiContext): void {
@@ -15,8 +16,8 @@ export function updateUnits(ctx: AiContext): void {
   }
   for (let i = 0; i < u.highWater; i++) {
     if (u.alive[i] === 0) continue;
-    // Las criaturas sujetas por el imán divino quedan en suspenso.
-    if ((u.status[i] & Status.HELD) !== 0) continue;
+    // Las criaturas sujetas por el imán divino o a bordo de un barco quedan en suspenso.
+    if ((u.status[i] & OFFMAP_FLAGS) !== 0) continue;
     const def = SPECIES[u.species[i]];
     if (!updateLife(ctx, i, def)) continue;
     if (!updatePlague(ctx, i)) continue;

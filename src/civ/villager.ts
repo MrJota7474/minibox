@@ -7,7 +7,7 @@ import { SPECIES, type RaceTraits, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
 import { actFight, actFlee, actMarch, fleeIfThreatened, thinkWarrior } from './combat';
-import { BuildingType, FARM_HARVEST_FOOD, FARM_RIPE, Job, Resource, type Building, type Village } from './model';
+import { BuildingType, FARM_HARVEST_FOOD, FARM_RIPE, FISH_CATCH, FISH_FOOD, Job, Resource, type Building, type Village } from './model';
 
 const CIV_TIMEOUT_TICKS = 600;
 /** Los colonos hacen viajes largos: su límite es mayor. */
@@ -29,6 +29,7 @@ const HUNT_SIGHT = 14;
 const SETTLE_ARRIVE = 3;
 const SETTLE_GROUP_RADIUS = 8;
 const FARM_SHIFT_TICKS = 120;
+const FISH_SHIFT_TICKS = 90;
 
 /** Duración base (ticks) y botín de cada tipo de trabajo sobre una casilla. */
 const TILE_WORK: Readonly<Record<number, { ticks: number; resource: number; amount: number; deplete: number; trait: keyof RaceTraits }>> = {
@@ -45,7 +46,7 @@ export function updateVillager(ctx: AiContext, i: number, def: SpeciesDef): void
   u.think[i]--;
   if (u.think[i] === 0) {
     u.think[i] = THINK_INTERVAL;
-    const limit = u.state[i] === UnitState.SETTLE ? SETTLE_TIMEOUT_TICKS : CIV_TIMEOUT_TICKS;
+    const limit = u.state[i] === UnitState.SETTLE || u.state[i] === UnitState.BOARD ? SETTLE_TIMEOUT_TICKS : CIV_TIMEOUT_TICKS;
     if (u.stateTicks[i] > limit) {
       abandonTask(ctx, i);
       if (u.job[i] === Job.SETTLER) ctx.civ.leaveVillage(i);
@@ -67,6 +68,12 @@ function isAdult(u: UnitStore, i: number, def: SpeciesDef): boolean {
 function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   const u = ctx.units;
   const home = ctx.civ.villageOf(i);
+  if (home && strandedAbroad(ctx, i, home)) {
+    // Lejos de su isla y sin misión: deja la aldea (se unirá a otra o fundará una para su reino).
+    ctx.civ.leaveVillage(i);
+    u.homeKingdom[i] = home.kingdom;
+    return;
+  }
   // Los guerreros también comen: si tienen hambre y hay comida, vuelven a casa antes de seguir luchando.
   const warriorHungry = home !== null && u.job[i] === Job.WARRIOR && u.hunger[i] < def.maxHunger * HUNGRY_FRACTION && home.resources[Resource.FOOD] > 0;
   if (home && warriorHungry && u.state[i] !== UnitState.EAT_GO && u.state[i] !== UnitState.FIGHT) {
@@ -76,7 +83,7 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (home && u.job[i] === Job.WARRIOR && u.state[i] !== UnitState.EAT_GO && thinkWarrior(ctx, i, home)) return;
   if (home && u.job[i] !== Job.WARRIOR && fleeIfThreatened(ctx, i, home)) return;
   const s = u.state[i];
-  if (s === UnitState.WORK || s === UnitState.DELIVER || s === UnitState.EAT_GO || s === UnitState.SETTLE || s === UnitState.MATE || s === UnitState.HUNT) return;
+  if (s === UnitState.WORK || s === UnitState.DELIVER || s === UnitState.EAT_GO || s === UnitState.SETTLE || s === UnitState.MATE || s === UnitState.HUNT || s === UnitState.BOARD) return;
   if (s === UnitState.FIGHT || s === UnitState.MARCH || s === UnitState.FLEE) return;
   const v = ctx.civ.villageOf(i);
   const canForage = u.carry[i] === 0 && s !== UnitState.WORK_GO && u.workTimer[i] === 0;
@@ -103,6 +110,21 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (u.workTimer[i] === 0 && startJob(ctx, i, v)) return;
   if (u.job[i] !== Job.NONE && u.workTimer[i] === 0) u.workTimer[i] = SEARCH_BACKOFF_TICKS;
   wanderNear(ctx, i, v.cx, v.cy, HOME_WANDER);
+}
+
+/** ¿Es un guerrero en otra isla que su aldea, sin flota en camino ni aldea que asaltar allí? */
+function strandedAbroad(ctx: AiContext, i: number, home: Village): boolean {
+  const u = ctx.units;
+  const s = u.state[i];
+  if (u.job[i] !== Job.WARRIOR || s === UnitState.BOARD || s === UnitState.SETTLE) return false;
+  // Mientras su flota siga en el mar (o volviendo a buscarlos) no se dan por perdidos.
+  if (ctx.civ.boats.some((b) => b.alive && b.village === home.id)) return false;
+  const w = ctx.world;
+  const here = w.regionAt(u.x[i], u.y[i]);
+  const homeRegion = w.regionAt(home.cx, home.cy);
+  if (here === 0 || homeRegion === 0 || here === homeRegion) return false;
+  const raid = home.armyTarget >= 0 ? ctx.civ.villages[home.armyTarget] : null;
+  return !(raid && raid.alive && w.regionAt(raid.cx, raid.cy) === here);
 }
 
 function wanderNear(ctx: AiContext, i: number, cx: number, cy: number, radius: number): void {
@@ -148,6 +170,8 @@ function startJob(ctx: AiContext, i: number, v: Village): boolean {
       return startBuildingWork(ctx, i, v, (b) => b.type === BuildingType.FARM && b.level >= 1);
     case Job.HUNTER:
       return startHunt(ctx, i);
+    case Job.FISHER:
+      return startBuildingWork(ctx, i, v, (b) => b.type === BuildingType.DOCK && b.level >= 1 && !b.underConstruction && b.growth >= FISH_CATCH);
     default:
       return false;
   }
@@ -266,6 +290,10 @@ function act(ctx: AiContext, i: number, def: SpeciesDef): void {
     case UnitState.MARCH:
       actMarch(ctx, i, def);
       break;
+    case UnitState.BOARD:
+      // Camina hasta el muelle; el barco lo sube a bordo al llegar (ver boats.ts).
+      navigateTo(ctx, i, u.tx[i], u.ty[i], def.speed);
+      break;
     case UnitState.FLEE:
       actFlee(ctx, i, def);
       break;
@@ -295,7 +323,8 @@ function beginWork(ctx: AiContext, i: number, def: SpeciesDef): void {
     if (!spec) return abandonTask(ctx, i);
     u.workTimer[i] = Math.max(5, Math.round(spec.ticks / (traitFor(def, spec.trait) * traitMods(u.traits[i]).work)));
   } else {
-    u.workTimer[i] = FARM_SHIFT_TICKS;
+    const b = ctx.civ.buildings[w - ctx.world.size];
+    u.workTimer[i] = b && b.type === BuildingType.DOCK && !b.underConstruction ? FISH_SHIFT_TICKS : FARM_SHIFT_TICKS;
   }
   u.state[i] = UnitState.WORK;
 }
@@ -342,6 +371,7 @@ function workBuilding(ctx: AiContext, i: number, def: SpeciesDef, id: number): v
   const u = ctx.units;
   const b = ctx.civ.building(id);
   if (!b) return abandonTask(ctx, i);
+  if (b.type === BuildingType.DOCK && !b.underConstruction) return fish(ctx, i, def, b);
   if (b.type === BuildingType.FARM && !b.underConstruction) {
     if (b.growth >= FARM_RIPE) {
       b.growth = 0;
@@ -361,6 +391,21 @@ function workBuilding(ctx: AiContext, i: number, def: SpeciesDef, id: number): v
   }
   if (u.workTimer[i] > 0) u.workTimer[i]--;
   else abandonTask(ctx, i);
+}
+
+/** Pesca desde el muelle: al acabar la jornada se lleva pescado si quedan peces. */
+function fish(ctx: AiContext, i: number, def: SpeciesDef, b: Building): void {
+  const u = ctx.units;
+  if (u.workTimer[i] > 0) {
+    u.workTimer[i]--;
+    return;
+  }
+  ctx.civ.releaseWork(i);
+  if (b.growth < FISH_CATCH) return abandonTask(ctx, i);
+  b.growth -= FISH_CATCH;
+  setCarry(u, i, Resource.FOOD, Math.round(FISH_FOOD * traitFor(def, 'gather')));
+  u.state[i] = UnitState.IDLE;
+  u.think[i] = 1;
 }
 
 function deliver(ctx: AiContext, i: number): void {

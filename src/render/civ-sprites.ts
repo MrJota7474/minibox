@@ -50,9 +50,10 @@ export const BUILDING_TEMPLATES: Readonly<Record<string, readonly string[]>> = {
   house2: ['..rrrr..', '.rrrrrr.', 'rrrrrrrr', '.wwwwww.', '.wkwwkw.', '.wwwwww.', '.wwddww.', '.wwddww.'],
   house3: ['s..rr...', 's.rrrr..', '.rrrrrr.', 'rrrrrrrr', '.wkwwkw.', '.wwwwww.', '.wkddkw.', '.wwddww.'],
   storage: ['..rrrr..', '.rrrrrr.', 'rrrrrrrr', 'pppppppp', 'ppddddpp', 'ppddddpp', 'ppddddpp', 'pppppppp'],
+  dock: ['.rrr..a.', 'rrrrr.a.', '.wdw..d.', '.wdw..d.', 'pppppppp', 'pdppdppd', 'pppppppp', 'd..d..d.'],
 };
 
-const VARIANTS = ['hall1', 'hall2', 'hall3', 'house1', 'house2', 'house3', 'storage'] as const;
+const VARIANTS = ['hall1', 'hall2', 'hall3', 'house1', 'house2', 'house3', 'storage', 'dock'] as const;
 type Variant = (typeof VARIANTS)[number];
 
 const FIRE = { f: '#e86a2a', y: '#f5d04a', b: '#6a4a2a' };
@@ -79,6 +80,7 @@ function variantFor(type: number, level: number): Variant | null {
   if (type === BuildingType.HALL) return (`hall${Math.min(3, l)}` as Variant);
   if (type === BuildingType.HOUSE) return (`house${Math.min(3, l)}` as Variant);
   if (type === BuildingType.STORAGE) return 'storage';
+  if (type === BuildingType.DOCK) return 'dock';
   return null;
 }
 

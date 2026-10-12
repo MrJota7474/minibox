@@ -1,10 +1,11 @@
 import type { AiContext } from '../ai/context';
 import { TICKS_PER_YEAR } from '../core/time';
 import { SPECIES } from '../entities/species';
-import { NO_VILLAGE, Sex, UnitState } from '../entities/units';
+import { NO_VILLAGE, OFFMAP_FLAGS, Sex, UnitState } from '../entities/units';
 import { isFertileTerrain } from '../world/terrain';
 import type { CivSystem } from './civ-system';
 import { BUILDING_DEFS, BuildingType, JOB_COUNT, Job, Resource, canAfford, pay, type Building, type JobId, type Village } from './model';
+import { enlistSettler, findDockSpot, isCoastal, launchSettlers, launchWarFleet } from './boats';
 
 const BUILD_RADIUS = 14;
 const POP_PER_ZONE = 2.5;
@@ -13,26 +14,35 @@ const SETTLER_MIN_POP = 28;
 const SETTLER_GROUP = 4;
 const SETTLER_FOOD = 10;
 const SETTLER_COOLDOWN = 5 * TICKS_PER_YEAR;
+/** Si no se encontró destino por mar, se vuelve a intentar pasado este tiempo. */
+const NAVAL_RETRY_TICKS = TICKS_PER_YEAR;
+/** Las flotas de guerra se preparan con esta cadencia (buscar desembarco y ruta cuesta). */
+const FLEET_CHECK_TICKS = 300;
 const SETTLER_MIN_DIST = 30;
 const SETTLER_MAX_DIST = 45;
 const SETTLER_ATTEMPTS = 24;
 const MAX_VILLAGES = 40;
 const MAX_STORAGES = 3;
+/** Cada cuántos ticks mira una aldea si puede construir un muelle (buscar sitio en la costa cuesta). */
+const DOCK_CHECK_TICKS = 300;
+const CENSUS_TICKS = 30;
 /** Prioridad al repartir oficios (de más a menos importante). */
-const JOB_PRIORITY: readonly JobId[] = [Job.FARMER, Job.WARRIOR, Job.BUILDER, Job.GATHERER, Job.WOODCUTTER, Job.MINER, Job.HUNTER];
+const JOB_PRIORITY: readonly JobId[] = [Job.FARMER, Job.FISHER, Job.WARRIOR, Job.BUILDER, Job.GATHERER, Job.WOODCUTTER, Job.MINER, Job.HUNTER];
 
 /** Decisiones periódicas de una aldea (cada censo). */
 export function planVillage(civ: CivSystem, v: Village, ctx: AiContext): void {
   const hall = civ.building(v.hallId);
   if (!hall) return;
-  if (v.sites < 1 + Math.floor(v.population / 15)) chooseConstruction(civ, v, hall);
+  if (v.sites < 1 + Math.floor(v.population / 15)) chooseConstruction(civ, v, hall, ctx);
   assignJobs(civ, v, ctx, hall);
   if (v.population > v.zones * POP_PER_ZONE && v.zones < MAX_ZONES) civ.claimZone(v);
   maybeSendSettlers(civ, v, ctx);
+  if (civ.kingdoms.isAtWar(v.kingdom) && (ctx.tick + v.id * CENSUS_TICKS) % FLEET_CHECK_TICKS === 0) launchWarFleet(civ, v, ctx);
 }
 
-function chooseConstruction(civ: CivSystem, v: Village, hall: Building): void {
+function chooseConstruction(civ: CivSystem, v: Village, hall: Building, ctx: AiContext): void {
   if (tryUpgrade(v, hall)) return;
+  if ((ctx.tick + v.id * CENSUS_TICKS) % DOCK_CHECK_TICKS === 0 && tryBuildDock(civ, v, hall, ctx)) return;
   if (v.population >= v.housing - 1) {
     // Primero se mejoran las chozas (más plazas por casa y progreso visible); si no, se construye otra.
     if (tryUpgradeHouse(civ, v, hall)) return;
@@ -42,6 +52,29 @@ function chooseConstruction(civ: CivSystem, v: Village, hall: Building): void {
   if (countOfType(civ, v, BuildingType.FARM) < farmsWanted && v.resources[Resource.FOOD] < v.population * 3 && tryBuild(civ, v, BuildingType.FARM, hall)) return;
   const fullest = Math.max(...v.resources);
   if (fullest >= v.storageCap * 0.8 && countOfType(civ, v, BuildingType.STORAGE) < MAX_STORAGES) tryBuild(civ, v, BuildingType.STORAGE, hall);
+}
+
+/** Un muelle por aldea costera: da pescado y permite botar barcos. */
+function tryBuildDock(civ: CivSystem, v: Village, hall: Building, ctx: AiContext): boolean {
+  const def = BUILDING_DEFS[BuildingType.DOCK];
+  if (countOfType(civ, v, BuildingType.DOCK) > 0 || hall.level < def.hallLevel[0] || v.population < def.minPop[0] || !canAfford(v.resources, def.cost[0])) return false;
+  if (!isCoastal(ctx.world, v)) return false;
+  const spot = findDockSpot(ctx.world, v);
+  if (!spot) return false;
+  pay(v.resources, def.cost[0]);
+  civ.placeBuilding(v, BuildingType.DOCK, spot.x, spot.y);
+  v.sites++;
+  return true;
+}
+
+/** Muelles terminados de la aldea. */
+function finishedDocks(civ: CivSystem, v: Village): number {
+  let n = 0;
+  for (const id of v.buildingIds) {
+    const b = civ.buildings[id];
+    if (b.type === BuildingType.DOCK && b.level >= 1) n++;
+  }
+  return n;
 }
 
 /** Edificios de un tipo, terminados o en obra. */
@@ -86,7 +119,7 @@ function tryUpgradeHouse(civ: CivSystem, v: Village, hall: Building): boolean {
 }
 
 /** Cuántos aldeanos quiere la aldea en cada oficio. */
-function desiredJobs(v: Village, hall: Building, atWar: boolean): number[] {
+function desiredJobs(v: Village, hall: Building, atWar: boolean, docks: number): number[] {
   const a = v.adults;
   const want = new Array<number>(JOB_COUNT).fill(0);
   want[Job.WARRIOR] = atWar ? Math.ceil(a * 0.35) : a >= 6 ? Math.max(1, Math.ceil(a * 0.1)) : 0;
@@ -97,12 +130,13 @@ function desiredJobs(v: Village, hall: Building, atWar: boolean): number[] {
   want[Job.WOODCUTTER] = Math.max(1, Math.ceil(a * 0.25));
   want[Job.MINER] = hall.level >= 2 || v.population >= 8 ? Math.max(1, Math.ceil(a * 0.15)) : 0;
   want[Job.HUNTER] = a >= 6 ? 1 : 0;
+  want[Job.FISHER] = docks > 0 ? Math.min(docks * 2, Math.max(1, Math.ceil(a * (foodLow ? 0.2 : 0.1)))) : 0;
   return want;
 }
 
 function assignJobs(civ: CivSystem, v: Village, ctx: AiContext, hall: Building): void {
   const u = ctx.units;
-  const want = desiredJobs(v, hall, civ.kingdoms.isAtWar(v.kingdom));
+  const want = desiredJobs(v, hall, civ.kingdoms.isAtWar(v.kingdom), finishedDocks(civ, v));
   const have = new Array<number>(JOB_COUNT).fill(0);
   const free: number[] = [];
   for (let i = 0; i < u.highWater; i++) {
@@ -112,6 +146,11 @@ function assignJobs(civ: CivSystem, v: Village, ctx: AiContext, hall: Building):
       continue;
     }
     const job = u.job[i];
+    if (u.state[i] === UnitState.BOARD || (u.status[i] & OFFMAP_FLAGS) !== 0) {
+      // De viaje: conserva su oficio.
+      have[job]++;
+      continue;
+    }
     if (job !== Job.NONE && have[job] < want[job]) have[job]++;
     else free.push(i);
   }
@@ -151,17 +190,24 @@ function maybeSendSettlers(civ: CivSystem, v: Village, ctx: AiContext): void {
   if (v.resources[Resource.FOOD] < SETTLER_FOOD * 2 || ctx.tick - v.lastSettlers < SETTLER_COOLDOWN) return;
   if (civ.villages.filter((x) => x.alive).length >= MAX_VILLAGES) return;
   const dest = findSettlementSite(civ, v, ctx);
-  if (!dest) return;
+  if (!dest) {
+    // Sin sitio en su isla: si tiene muelle, los colonos se van en barco.
+    const group = pickSettlers(v, ctx);
+    if (launchSettlers(civ, v, group, ctx)) {
+      v.lastSettlers = ctx.tick;
+      v.resources[Resource.FOOD] -= SETTLER_FOOD;
+    } else {
+      v.lastSettlers = ctx.tick - SETTLER_COOLDOWN + NAVAL_RETRY_TICKS;
+    }
+    return;
+  }
   const group = pickSettlers(v, ctx);
   if (group.length < 2) return;
   v.lastSettlers = ctx.tick;
   v.resources[Resource.FOOD] -= SETTLER_FOOD;
   const u = ctx.units;
   for (const i of group) {
-    civ.leaveVillage(i);
-    u.stateTicks[i] = 0;
-    u.homeKingdom[i] = v.kingdom;
-    u.job[i] = Job.SETTLER;
+    enlistSettler(civ, u, i, v.kingdom);
     u.state[i] = UnitState.SETTLE;
     u.tx[i] = dest.x + 0.5;
     u.ty[i] = dest.y + 0.5;

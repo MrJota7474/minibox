@@ -20,6 +20,8 @@ export const UnitState = {
   /** Guerreros: marchar hacia una aldea enemiga y combatir. */
   MARCH: 12,
   FIGHT: 13,
+  /** Va al muelle a subir a un barco. */
+  BOARD: 14,
 } as const;
 export type UnitStateId = (typeof UnitState)[keyof typeof UnitState];
 
@@ -38,6 +40,7 @@ export const STATE_LABELS: readonly string[] = [
   'Emigrando',
   'En marcha',
   'Combatiendo',
+  'Embarcando',
 ];
 
 export const Sex = { FEMALE: 0, MALE: 1 } as const;
@@ -48,6 +51,10 @@ export const MAX_CAPACITY = 0x10000;
 export const NO_VILLAGE = -1;
 /** Bit de `status`: criatura sujeta por el imán divino (fuera del mundo). */
 export const HELD_FLAG = 8;
+/** Bit de `status`: viaja a bordo de un barco (fuera del mundo). */
+export const ABOARD_FLAG = 16;
+/** Criaturas fuera del mundo: no se actualizan, no ocupan sitio ni reciben daño. */
+export const OFFMAP_FLAGS = HELD_FLAG | ABOARD_FLAG;
 /** Waypoints máximos guardados por criatura (ruta de A*). */
 export const PATH_MAX = 24;
 /** Bajas necesarias para ganarse el rasgo «Veterano». */

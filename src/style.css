@@ -416,6 +416,10 @@ img {
 .chronicle-year {
   color: var(--muted);
 }
+.chronicle-voyage span:last-child {
+  color: #8ac4f0;
+}
+.chronicle-shipwreck span:last-child,
 .chronicle-war span:last-child,
 .chronicle-conquest span:last-child {
   color: #f08a8a;

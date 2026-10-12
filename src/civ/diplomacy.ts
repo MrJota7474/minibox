@@ -4,6 +4,7 @@ import { SPECIES } from '../entities/species';
 import { totalStored, Job, type Village } from './model';
 import { Personality, type Kingdom, type KingdomSystem } from './kingdoms';
 import { personName } from './names';
+import { navalReach } from './boats';
 
 const WAR_OPINION = -25;
 const ALLY_OPINION = 45;
@@ -11,6 +12,8 @@ const BREAK_ALLY_OPINION = 5;
 const MAX_ALLIES = 2;
 const REACH = 110;
 const ARMY_REACH = 100;
+/** Aldeas enemigas de otras islas que se comprueban como destino de una flota. */
+const NAVAL_CANDIDATES = 3;
 const MIN_WAR_TICKS = 2 * TICKS_PER_YEAR;
 const MAX_WAR_TICKS = 12 * TICKS_PER_YEAR;
 const REBEL_LOYALTY = 10;
@@ -235,12 +238,27 @@ function assignArmies(ks: KingdomSystem, K: Kingdom, villages: Village[], ctx: A
     const region = ctx.world.regionAt(v.cx, v.cy);
     let best = -1;
     let bestD = ARMY_REACH;
+    const overseas: Village[] = [];
     for (const e of ks.civ.villages) {
-      if (!e.alive || !ks.areHostile(K.id, e.kingdom) || ctx.world.regionAt(e.cx, e.cy) !== region) continue;
+      if (!e.alive || !ks.areHostile(K.id, e.kingdom)) continue;
       const d = dist(v, e);
+      if (ctx.world.regionAt(e.cx, e.cy) !== region) {
+        if (d < ARMY_REACH) overseas.push(e);
+        continue;
+      }
       if (d < bestD) {
         bestD = d;
         best = e.id;
+      }
+    }
+    // Sin enemigos en su isla: la aldea enemiga más cercana a la que se pueda llegar por mar.
+    if (best < 0 && overseas.length > 0) {
+      overseas.sort((a, b) => dist(v, a) - dist(v, b) || a.id - b.id);
+      for (const e of overseas.slice(0, NAVAL_CANDIDATES)) {
+        if (navalReach(ks.civ, ctx.world, v, e)) {
+          best = e.id;
+          break;
+        }
       }
     }
     v.armyTarget = best;

@@ -50,8 +50,12 @@ export function thinkWarrior(ctx: AiContext, i: number, v: Village): boolean {
   }
   const raid = v.armyTarget >= 0 ? ctx.civ.villages[v.armyTarget] : null;
   if (raid && raid.alive && ctx.civ.kingdoms.areHostile(v.kingdom, raid.kingdom)) {
-    siege(ctx, i, raid);
-    return true;
+    // Si está en otra isla, se llega en barco: mientras tanto, a embarcar o a defender.
+    if (ctx.world.regionAt(raid.cx, raid.cy) === ctx.world.regionAt(u.x[i], u.y[i])) {
+      siege(ctx, i, raid);
+      return true;
+    }
+    if (u.state[i] === UnitState.BOARD) return true;
   }
   // Defensa: enemigos cerca de casa.
   const intruder = nearestEnemy(ctx, i, v.cx + 0.5, v.cy + 0.5, DEFEND_RADIUS, true);

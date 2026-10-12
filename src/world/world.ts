@@ -34,6 +34,10 @@ export class World {
   readonly reserved: Uint8Array;
   /** Región (isla) conectada a la que pertenece cada casilla pisable (0 = no pisable). */
   readonly region: Int32Array;
+  /** Mar (masa de agua conectada) de cada casilla de agua (0 = tierra). */
+  readonly sea: Int32Array;
+  /** Casillas de cada mar (índice = etiqueta); se deriva de `sea`. */
+  seaSizes: number[] = [0];
   regionsDirty = true;
   readonly zonesX: number;
   readonly zonesY: number;
@@ -60,6 +64,7 @@ export class World {
     this.buildingAt = new Int32Array(this.size);
     this.reserved = new Uint8Array(this.size);
     this.region = new Int32Array(this.size);
+    this.sea = new Int32Array(this.size);
     this.zonesX = Math.ceil(width / ZONE_SIZE);
     this.zonesY = Math.ceil(height / ZONE_SIZE);
     this.zoneOwner = new Uint16Array(this.zonesX * this.zonesY);
@@ -106,7 +111,7 @@ export class World {
     this.heightMap[i] = clamped;
     const t = terrainFromHeight(clamped);
     if (this.terrain[i] !== t) {
-      if (isWalkableTerrain(this.terrain[i]) !== isWalkableTerrain(t)) this.regionsDirty = true;
+      if (isWalkableTerrain(this.terrain[i]) !== isWalkableTerrain(t) || isWaterTerrain(this.terrain[i]) !== isWaterTerrain(t)) this.regionsDirty = true;
       this.terrain[i] = t;
       if (isWaterTerrain(t)) {
         this.flora[i] = Flora.NONE;
@@ -152,7 +157,7 @@ export class World {
 
   /** Todos los datos por casilla en orden fijo (para guardar partidas). */
   dataViews(): ArrayBufferView[] {
-    return [this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.region, this.zoneOwner, this.fire, this.lava];
+    return [this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.region, this.zoneOwner, this.fire, this.lava, this.sea];
   }
 
   markAllDirty(): void {
@@ -194,37 +199,66 @@ export class World {
     return this.inBounds(tx, ty) ? this.region[ty * this.width + tx] : 0;
   }
 
-  /** Etiqueta las islas pisables con un relleno por inundación (BFS, 4 vecinos). */
+  /** Etiqueta las islas pisables y los mares con un relleno por inundación (BFS, 4 vecinos). */
   computeRegions(): void {
-    const { width: w, height: h, region } = this;
-    region.fill(0);
     const queue = new Int32Array(this.size);
+    this.label(this.region, (t) => isWalkableTerrain(t), queue);
+    this.seaSizes = this.label(this.sea, (t) => isWaterTerrain(t), queue);
+    this.regionsDirty = false;
+  }
+
+  /** Sólo los mares (para partidas antiguas que no los guardaban). */
+  computeSeas(): void {
+    this.seaSizes = this.label(this.sea, (t) => isWaterTerrain(t), new Int32Array(this.size));
+  }
+
+  /** Recalcula el tamaño de cada mar a partir de `sea` (al cargar una partida). */
+  rebuildSeaSizes(): void {
+    const sizes = [0];
+    for (let i = 0; i < this.size; i++) {
+      const s = this.sea[i];
+      while (sizes.length <= s) sizes.push(0);
+      sizes[s]++;
+    }
+    sizes[0] = 0;
+    this.seaSizes = sizes;
+  }
+
+  /** Relleno por inundación genérico; devuelve el tamaño de cada etiqueta. */
+  private label(out: Int32Array, accept: (terrain: number) => boolean, queue: Int32Array): number[] {
+    const { width: w, height: h, terrain } = this;
+    out.fill(0);
+    const sizes = [0];
     let label = 0;
     for (let start = 0; start < this.size; start++) {
-      if (region[start] !== 0 || !isWalkableTerrain(this.terrain[start])) continue;
+      if (out[start] !== 0 || !accept(terrain[start])) continue;
       label++;
       let head = 0;
       let tail = 0;
       queue[tail++] = start;
-      region[start] = label;
+      out[start] = label;
+      const visit = (j: number): void => {
+        if (out[j] !== 0 || !accept(terrain[j])) return;
+        out[j] = label;
+        queue[tail++] = j;
+      };
       while (head < tail) {
         const i = queue[head++];
         const x = i % w;
         const y = (i - x) / w;
-        if (x > 0) tail = this.visit(i - 1, label, queue, tail);
-        if (x < w - 1) tail = this.visit(i + 1, label, queue, tail);
-        if (y > 0) tail = this.visit(i - w, label, queue, tail);
-        if (y < h - 1) tail = this.visit(i + w, label, queue, tail);
+        if (x > 0) visit(i - 1);
+        if (x < w - 1) visit(i + 1);
+        if (y > 0) visit(i - w);
+        if (y < h - 1) visit(i + w);
       }
+      sizes.push(tail);
     }
-    this.regionsDirty = false;
+    return sizes;
   }
 
-  private visit(j: number, label: number, queue: Int32Array, tail: number): number {
-    if (this.region[j] !== 0 || !isWalkableTerrain(this.terrain[j])) return tail;
-    this.region[j] = label;
-    queue[tail] = j;
-    return tail + 1;
+  /** Mar de la casilla (0 si es tierra o está fuera del mapa). */
+  seaAt(x: number, y: number): number {
+    return this.inBounds(x, y) ? this.sea[this.idx(x, y)] : 0;
   }
 
   stateHash(): number {

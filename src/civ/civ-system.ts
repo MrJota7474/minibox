@@ -2,12 +2,13 @@ import type { AiContext } from '../ai/context';
 import { hashMix } from '../core/hash';
 import type { Rng } from '../core/rng';
 import { SPECIES, isCivilized, type SpeciesId } from '../entities/species';
-import { NO_VILLAGE, UnitState, type UnitStore } from '../entities/units';
+import { NO_VILLAGE, OFFMAP_FLAGS, UnitState, type UnitStore } from '../entities/units';
 import { isWalkableTerrain } from '../world/terrain';
 import { ZONE_SIZE, type World } from '../world/world';
 import {
   BUILDING_DEFS,
   BuildingType,
+  FISH_MAX,
   JOB_COUNT,
   Job,
   RESOURCE_COUNT,
@@ -17,11 +18,12 @@ import {
   type Village,
 } from './model';
 import { KingdomSystem } from './kingdoms';
+import { boatsHash, updateBoats, wreckBoatsIn, type Boat } from './boats';
 import { villageName } from './names';
 import { canPlace, clearFootprint, findBuildSpot } from './placement';
 import { planVillage } from './planner';
 
-export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen';
+export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck';
 
 export interface ChronicleEntry {
   readonly tick: number;
@@ -49,6 +51,9 @@ const MAX_CHRONICLE = 200;
 /** Ticks de fuego que aguanta un edificio. */
 const BURN_LIMIT = 40;
 const STARTING_RESOURCES: readonly number[] = [12, 8, 0, 0, 0];
+const BOAT_FRAGILITY = 10;
+const SAME_KINGDOM_PULL = 0.25;
+const FISH_REGEN = 2;
 
 /**
  * Estado y reglas de las civilizaciones: aldeas, edificios, territorio y censo.
@@ -63,6 +68,8 @@ export class CivSystem {
   /** Crónica del mundo: los últimos acontecimientos con su fecha. */
   readonly chronicle: ChronicleEntry[] = [];
   readonly kingdoms: KingdomSystem;
+  /** Barcos (los hundidos o desarmados quedan con alive = false). */
+  readonly boats: Boat[] = [];
   tick = 0;
 
   constructor(
@@ -75,6 +82,7 @@ export class CivSystem {
   update(ctx: AiContext): void {
     const t = ctx.tick;
     this.tick = t;
+    updateBoats(this, ctx);
     if (t % FARM_GROWTH_INTERVAL === 0) this.growFarms();
     if (t % CENSUS_INTERVAL === 0) {
       this.checkIntegrity();
@@ -212,6 +220,7 @@ export class CivSystem {
     this.resetTask(i);
     u.village[i] = v.id;
     u.job[i] = Job.NONE;
+    u.homeKingdom[i] = -1;
     v.population++;
   }
 
@@ -284,10 +293,17 @@ export class CivSystem {
 
   destroyBuildingsIn(x: number, y: number, r: number): void {
     for (const b of this.buildingsInCircle(x, y, r)) this.ruin(b);
+    wreckBoatsIn(this, x, y, r, 1, null);
   }
 
   damageBuildingsIn(x: number, y: number, r: number, chance: number, rng: Rng): void {
     for (const b of this.buildingsInCircle(x, y, r)) if (rng.chance(chance)) this.ruin(b);
+    // Los barcos son más frágiles que los edificios.
+    wreckBoatsIn(this, x, y, r, Math.min(1, chance * BOAT_FRAGILITY), rng);
+  }
+
+  wreckBoatsIn(x: number, y: number, r: number, chance: number, rng: Rng): void {
+    wreckBoatsIn(this, x, y, r, chance, rng);
   }
 
   private buildingsInCircle(x: number, y: number, r: number): Building[] {
@@ -342,8 +358,13 @@ export class CivSystem {
     return true;
   }
 
+  /** Crecen los cultivos y vuelven los peces a los muelles. */
   private growFarms(): void {
-    for (const b of this.buildings) if (b.alive && b.type === BuildingType.FARM && b.level >= 1 && b.growth < 100) b.growth++;
+    for (const b of this.buildings) {
+      if (!b.alive || b.level < 1) continue;
+      if (b.type === BuildingType.FARM && b.growth < 100) b.growth++;
+      else if (b.type === BuildingType.DOCK) b.growth = Math.min(FISH_MAX, b.growth + FISH_REGEN);
+    }
   }
 
   /** ¿Se puede colocar este edificio en el territorio de la aldea? (para el planificador) */
@@ -479,28 +500,34 @@ export class CivSystem {
     const u = this.units;
     for (let i = 0; i < u.highWater; i++) {
       if (u.alive[i] === 0 || u.village[i] !== NO_VILLAGE || !isCivilized(u.species[i])) continue;
-      if (u.state[i] === UnitState.SETTLE || u.age[i] < SPECIES[u.species[i]].adultTicks) continue;
+      if (u.state[i] === UnitState.SETTLE || u.state[i] === UnitState.BOARD || (u.status[i] & OFFMAP_FLAGS) !== 0) continue;
+      if (u.age[i] < SPECIES[u.species[i]].adultTicks) continue;
       const near = this.nearestJoinable(i);
       if (near) {
         this.joinVillage(i, near);
         continue;
       }
       const group = this.groupAround(i, ctx);
-      if (group.length >= FOUND_MIN_GROUP) this.foundVillage(u.species[i] as SpeciesId, u.x[i], u.y[i], group, ctx);
+      // Los colonos o soldados que se quedaron lejos de casa fundan para su reino de origen.
+      if (group.length >= FOUND_MIN_GROUP) this.foundVillage(u.species[i] as SpeciesId, u.x[i], u.y[i], group, ctx, u.homeKingdom[i]);
     }
   }
 
   private nearestJoinable(i: number): Village | null {
     const u = this.units;
     const region = this.world.regionAt(u.x[i], u.y[i]);
+    const origin = u.homeKingdom[i];
     let best: Village | null = null;
     let bestD = JOIN_RADIUS * JOIN_RADIUS;
     for (const v of this.villages) {
       if (!v.alive || v.race !== u.species[i] || v.population >= v.housing) continue;
       if (this.world.regionAt(v.cx, v.cy) !== region) continue;
+      // Nadie se pasa al enemigo de su reino de origen.
+      if (origin >= 0 && this.kingdoms.areHostile(origin, v.kingdom)) continue;
       const dx = v.cx - u.x[i];
       const dy = v.cy - u.y[i];
-      const d = dx * dx + dy * dy;
+      // Las aldeas del propio reino cuentan como si estuvieran más cerca.
+      const d = (dx * dx + dy * dy) * (origin >= 0 && v.kingdom === origin ? SAME_KINGDOM_PULL : 1);
       if (d < bestD) {
         bestD = d;
         best = v;
@@ -513,7 +540,7 @@ export class CivSystem {
     const u = this.units;
     const group: number[] = [];
     ctx.spatial.forEachInRadius(u, u.x[i], u.y[i], FOUND_GROUP_RADIUS, (j) => {
-      if (u.species[j] === u.species[i] && u.village[j] === NO_VILLAGE && u.state[j] !== UnitState.SETTLE) group.push(j);
+      if (u.species[j] === u.species[i] && u.village[j] === NO_VILLAGE && u.state[j] !== UnitState.SETTLE && u.state[j] !== UnitState.BOARD) group.push(j);
     });
     return group;
   }
@@ -533,6 +560,7 @@ export class CivSystem {
       h = hashMix(h, b.progress);
       h = hashMix(h, b.growth);
     }
+    h = hashMix(h, boatsHash(this.boats));
     return hashMix(h, this.kingdoms.stateHash());
   }
 }

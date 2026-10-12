@@ -49,6 +49,8 @@ export interface Effect {
 export interface BuildingDamage extends BuildingHazards {
   destroyBuildingsIn(x: number, y: number, r: number): void;
   damageBuildingsIn(x: number, y: number, r: number, chance: number, rng: Rng): void;
+  /** Hunde los barcos del radio (con `chance` < 1, sólo a algunos). */
+  wreckBoatsIn(x: number, y: number, r: number, chance: number, rng: Rng): void;
 }
 
 const MAX_EFFECTS = 24;
@@ -87,6 +89,7 @@ export class PowerSystem {
       case 'lightning': {
         const r = 1 + brush * 0.25;
         damageInRadius(ctx, cx, cy, r, LIGHTNING_DAMAGE);
+        civ.wreckBoatsIn(cx, cy, r, 0.5, rng);
         this.forTiles(x, y, r, (i) => {
           if (rng.chance(0.6)) this.hazards.ignite(i);
         });

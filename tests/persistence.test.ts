@@ -140,6 +140,58 @@ describe('partidas guardadas', () => {
   });
 });
 
+describe('migración de partidas antiguas', () => {
+  it('carga una partida de la versión 1 (sin mares, barcos ni pescadores)', () => {
+    const sim = busyWorld();
+    const v2 = serialize(sim, meta(sim));
+    const v1 = toVersion1(v2);
+    const loaded = deserialize(v1);
+    expect(loaded.units.count).toBe(sim.units.count);
+    expect(loaded.civ.boats).toHaveLength(0);
+    expect(loaded.civ.villages.every((v) => v.jobCounts.length === 10)).toBe(true);
+    // Los mares se recalculan al cargar.
+    expect(Array.from(loaded.world.sea)).toEqual(Array.from(sim.world.sea));
+    expect(loaded.world.seaSizes).toEqual(sim.world.seaSizes);
+    for (let t = 0; t < 200; t++) loaded.step();
+  });
+});
+
+/** Convierte una partida actual al formato de la versión 1 (Fase E). */
+function toVersion1(bytes: Uint8Array): Uint8Array {
+  const view = new DataView(bytes.buffer, bytes.byteOffset);
+  const len = view.getUint32(4, true);
+  const h = JSON.parse(new TextDecoder().decode(bytes.subarray(8, 8 + len))) as {
+    version: number;
+    views: number[];
+    civ: { boats?: unknown; villages: { jobCounts: number[] }[] };
+  };
+  const align = (n: number): number => Math.ceil(n / 8) * 8;
+  // Trozos de datos de cada array; se quita el 12.º (los mares).
+  let off = align(8 + len);
+  const chunks = h.views.map((n) => {
+    const c = bytes.subarray(off, off + align(n));
+    off += align(n);
+    return c;
+  });
+  chunks.splice(11, 1);
+  h.views.splice(11, 1);
+  h.version = 1;
+  delete h.civ.boats;
+  for (const v of h.civ.villages) v.jobCounts = v.jobCounts.slice(0, 9);
+  const json = new TextEncoder().encode(JSON.stringify(h));
+  const start = align(8 + json.length);
+  const out = new Uint8Array(start + chunks.reduce((n, c) => n + c.length, 0));
+  out.set(bytes.subarray(0, 4));
+  new DataView(out.buffer).setUint32(4, json.length, true);
+  out.set(json, 8);
+  let p = start;
+  for (const c of chunks) {
+    out.set(c, p);
+    p += c.length;
+  }
+  return out;
+}
+
 /** Reescribe la cabecera JSON de una partida (para probar validaciones). */
 function patchHeader(bytes: Uint8Array, fn: (h: Record<string, unknown>) => Record<string, unknown>): Uint8Array {
   const len = new DataView(bytes.buffer, bytes.byteOffset).getUint32(4, true);

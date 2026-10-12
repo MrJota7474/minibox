@@ -1,5 +1,6 @@
 import { PERSONALITY_NAMES } from '../civ/kingdoms';
-import { BUILDING_DEFS, JOB_NAMES, RESOURCE_NAMES, VILLAGE_COLORS, hallLevelName, type Village } from '../civ/model';
+import { BUILDING_DEFS, BuildingType, JOB_NAMES, RESOURCE_NAMES, VILLAGE_COLORS, hallLevelName, type Village } from '../civ/model';
+import { BOAT_KIND_NAMES, BOAT_STATE_NAMES } from '../civ/boats';
 import type { DiplomacyAction } from '../sim/commands';
 import { Status, damageMultiplier, damageTakenMultiplier } from '../powers/status';
 import { TRAITS, hasTrait, traitMods } from '../entities/traits';
@@ -22,7 +23,7 @@ export interface InspectorActions {
 
 const MAX_DIPLOMACY_ROWS = 6;
 
-type Target = { kind: 'unit'; handle: number } | { kind: 'tile'; index: number } | { kind: 'village'; id: number } | null;
+type Target = { kind: 'unit'; handle: number } | { kind: 'tile'; index: number } | { kind: 'village'; id: number } | { kind: 'boat'; id: number } | null;
 type Row = readonly [string, string | HTMLElement];
 
 /** Panel de inspección: criatura, aldea o casilla. Lateral en PC, hoja inferior en móvil. */
@@ -73,6 +74,10 @@ export class Inspector {
     this.open({ kind: 'village', id });
   }
 
+  showBoat(id: number): void {
+    this.open({ kind: 'boat', id });
+  }
+
   private open(target: Target): void {
     this.target = target;
     this.root.hidden = false;
@@ -93,6 +98,7 @@ export class Inspector {
     if (t.kind !== 'village') this.hideDiplomacy();
     if (t.kind === 'unit') this.renderUnit(sim, t.handle);
     else if (t.kind === 'village') this.renderVillage(sim, t.id);
+    else if (t.kind === 'boat') this.renderBoat(sim, t.id);
     else this.renderTile(sim, t.index);
   }
 
@@ -150,6 +156,7 @@ export class Inspector {
       u.plague[i] > 0 ? 'Con plaga' : '',
       u.mad[i] > 0 ? 'Enloquecido' : '',
       u.status[i] & Status.IMMUNE ? 'Inmune a la plaga' : '',
+      u.status[i] & Status.ABOARD ? 'A bordo de un barco' : '',
     ].filter(Boolean);
     if (states.length > 0) rows.push(['Condición', states.join(' · ')]);
     rows.push(['Rasgos', this.traitChips(u.traits[i])]);
@@ -182,6 +189,37 @@ export class Inspector {
     return rows;
   }
 
+  private dockCount(sim: Simulation, v: Village): number {
+    return v.buildingIds.filter((id) => sim.civ.buildings[id].type === BuildingType.DOCK && sim.civ.buildings[id].level >= 1).length;
+  }
+
+  private renderBoat(sim: Simulation, id: number): void {
+    const b = sim.civ.boats[id];
+    this.followBtn.hidden = !b || !b.alive;
+    this.setPortrait(null);
+    if (!b || !b.alive) {
+      this.title.textContent = 'Barco';
+      this.body.replaceChildren(el('p', { class: 'insp-note', text: 'Este barco ya no navega (llegó a puerto o se hundió).' }));
+      return;
+    }
+    this.title.textContent = BOAT_KIND_NAMES[b.kind];
+    const v = sim.civ.villages[b.village];
+    const K = b.kingdom >= 0 ? sim.civ.kingdoms.kingdoms[b.kingdom] : null;
+    const target = b.target >= 0 ? sim.civ.villages[b.target] : null;
+    const aboard = b.passengers.filter((h) => {
+      const i = sim.units.resolve(h);
+      return i >= 0 && (sim.units.status[i] & Status.ABOARD) !== 0;
+    }).length;
+    const rows: Row[] = [
+      ['Puerto', v.name],
+      ['Reino', K ? K.name : '—'],
+      ['Estado', BOAT_STATE_NAMES[b.state]],
+      ['A bordo', String(aboard)],
+    ];
+    if (target) rows.push(['Objetivo', target.name]);
+    this.rows(rows);
+  }
+
   private renderVillage(sim: Simulation, id: number): void {
     const v = sim.civ.villages[id];
     this.followBtn.hidden = true;
@@ -200,7 +238,7 @@ export class Inspector {
       ['Nivel', hall ? `${hallLevelName(hall.level)}${hall.underConstruction ? ' (mejorando)' : ''}` : '—'],
       ['Población', this.bar(v.population, Math.max(1, v.housing), 'bar-pop')],
       ...v.resources.map((r, k): Row => [RESOURCE_NAMES[k], `${Math.floor(r)} / ${v.storageCap}`]),
-      ['Edificios', `${v.houses} viviendas · ${v.storages} almacenes · ${v.farms} granjas`],
+      ['Edificios', `${v.houses} viviendas · ${v.storages} almacenes · ${v.farms} granjas${this.dockCount(sim, v) > 0 ? ' · muelle' : ''}`],
       ['En obras', String(v.sites)],
       ['Territorio', `${v.zones} zonas`],
       ['Fundada', `Año ${founded.year}`],

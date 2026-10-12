@@ -1,4 +1,4 @@
-import { HELD_FLAG, type UnitStore } from './units';
+import { OFFMAP_FLAGS, type UnitStore } from './units';
 
 export const SPATIAL_CELL = 8;
 
@@ -22,7 +22,7 @@ export class SpatialHash {
   rebuild(units: UnitStore): void {
     this.heads.fill(-1);
     for (let i = 0; i < units.highWater; i++) {
-      if (units.alive[i] === 0 || (units.status[i] & HELD_FLAG) !== 0) continue;
+      if (units.alive[i] === 0 || (units.status[i] & OFFMAP_FLAGS) !== 0) continue;
       const c = this.cellOf(units.x[i], units.y[i]);
       this.next[i] = this.heads[c];
       this.heads[c] = i;

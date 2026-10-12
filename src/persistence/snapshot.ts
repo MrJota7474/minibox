@@ -1,4 +1,5 @@
-import { MAX_CAPACITY } from '../entities/units';
+import { JOB_COUNT } from '../civ/model';
+import { ABOARD_FLAG, MAX_CAPACITY } from '../entities/units';
 import { LAW_IDS, type WorldLaws } from '../sim/laws';
 import { Simulation } from '../sim/simulation';
 import { checkSave, validateLoaded } from './validate';
@@ -10,14 +11,16 @@ import { checkSave, validateLoaded } from './validate';
  * `world.dataViews()` + `units.dataViews()`. El conjunto se comprime con gzip.
  */
 const MAGIC = [0x4d, 0x42, 0x58, 0x31];
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
+/** Versiones que se pueden cargar (la 1, de la Fase E, se migra al cargar). */
+const SUPPORTED_VERSIONS: readonly number[] = [1, 2];
 const ALIGN = 8;
 const MIN_SIZE = 32;
 const MAX_SIZE = 1024;
 /** Tope de datos descomprimidos (una partida real ocupa unos pocos MB). */
 const MAX_UNPACKED_BYTES = 128 * 1024 * 1024;
-/** Arrays del mapa (`world.dataViews()`): el primero de las criaturas va justo detrás. */
-const WORLD_VIEW_COUNT = 11;
+/** Arrays del mapa (`world.dataViews()`) según la versión: la 2 añadió los mares. */
+const worldViewCount = (version: number): number => (version >= 2 ? 12 : 11);
 
 /** Resumen visible de una partida (lista de ranuras). */
 export interface SaveMeta {
@@ -55,13 +58,15 @@ interface Header {
     chronicle: Civ['chronicle'];
     kingdoms: Civ['kingdoms']['kingdoms'];
     wars: Civ['kingdoms']['wars'];
+    /** Desde la versión 2. */
+    boats?: Civ['boats'];
   };
   /** Longitud en bytes de cada array (comprobación al cargar). */
   views: number[];
 }
 
-function allViews(sim: Simulation): ArrayBufferView[] {
-  return [...sim.world.dataViews(), ...sim.units.dataViews()];
+function allViews(sim: Simulation, version = SAVE_VERSION): ArrayBufferView[] {
+  return [...sim.world.dataViews().slice(0, worldViewCount(version)), ...sim.units.dataViews()];
 }
 
 function bytesOf(v: ArrayBufferView): Uint8Array {
@@ -103,7 +108,7 @@ export function serialize(sim: Simulation, meta: SaveMeta): Uint8Array {
     units: sim.units.getCounters(),
     hazards: sim.hazards.getLists(),
     powers: { effects: sim.powers.effects, held: sim.powers.held },
-    civ: { tick: civ.tick, villages: civ.villages, buildings: civ.buildings, chronicle: civ.chronicle, kingdoms: civ.kingdoms.kingdoms, wars: civ.kingdoms.wars },
+    civ: { tick: civ.tick, villages: civ.villages, buildings: civ.buildings, chronicle: civ.chronicle, kingdoms: civ.kingdoms.kingdoms, wars: civ.kingdoms.wars, boats: civ.boats },
     views: views.map((v) => v.byteLength),
   };
   const json = new TextEncoder().encode(JSON.stringify(header));
@@ -135,7 +140,7 @@ function readHeader(bytes: Uint8Array): { header: Header; dataStart: number } {
   } catch {
     fail('cabecera dañada');
   }
-  if (header.version !== SAVE_VERSION) fail(`versión ${String(header.version)} no compatible`);
+  if (!SUPPORTED_VERSIONS.includes(header.version)) fail(`versión ${String(header.version)} no compatible`);
   return { header, dataStart: align(8 + len) };
 }
 
@@ -154,7 +159,8 @@ function validateHeader(h: Header): void {
   const c = h.civ;
   if (!c || !Array.isArray(c.villages) || !Array.isArray(c.buildings) || !Array.isArray(c.kingdoms) || !Array.isArray(c.wars) || !Array.isArray(c.chronicle)) fail('civilizaciones');
   const indexed = (list: readonly { id: number }[]): boolean => list.every((x, k) => x && x.id === k);
-  if (!indexed(c.villages) || !indexed(c.buildings) || !indexed(c.kingdoms) || !indexed(c.wars)) fail('identificadores de civilización');
+  if (h.version >= 2 && !Array.isArray(c.boats)) fail('barcos');
+  if (!indexed(c.villages) || !indexed(c.buildings) || !indexed(c.kingdoms) || !indexed(c.wars) || !indexed(c.boats ?? [])) fail('identificadores de civilización');
   if (!Array.isArray(h.deaths) || !h.deaths.every(isCount) || !isCount(h.births)) fail('estadísticas');
   if (!Array.isArray(h.powers?.effects) || !Array.isArray(h.powers?.held)) fail('efectos');
   if (!Array.isArray(h.hazards?.burning) || !Array.isArray(h.hazards?.molten)) fail('fuego y lava');
@@ -168,9 +174,17 @@ const isCount = (v: unknown): v is number => Number.isInteger(v) && (v as number
 /** Antes de reservar memoria: los datos deben existir y cuadrar con el tamaño declarado. */
 function checkDataSize(h: Header, bytes: Uint8Array, dataStart: number): void {
   const { size, capacity } = h.options;
-  if (h.views[0] !== size * size || h.views[WORLD_VIEW_COUNT] !== capacity) fail('tamaño de los datos');
+  if (h.views[0] !== size * size || h.views[worldViewCount(h.version)] !== capacity) fail('tamaño de los datos');
   const total = h.views.reduce((n, len) => n + align(len), 0);
   if (dataStart + total > bytes.length) fail('archivo cortado');
+}
+
+/** Una criatura marcada «a bordo» que no viaja en ningún barco vivo vuelve al mundo. */
+function releaseOrphanPassengers(sim: Simulation): void {
+  const u = sim.units;
+  const aboard = new Set<number>();
+  for (const b of sim.civ.boats) if (b.alive) for (const h of b.passengers) aboard.add(u.resolve(h));
+  for (let i = 0; i < u.highWater; i++) if (u.alive[i] === 1 && (u.status[i] & ABOARD_FLAG) !== 0 && !aboard.has(i)) u.status[i] &= ~ABOARD_FLAG;
 }
 
 /** Reconstruye una simulación a partir de una partida sin comprimir. */
@@ -179,7 +193,7 @@ export function deserialize(bytes: Uint8Array): Simulation {
   validateHeader(h);
   checkDataSize(h, bytes, dataStart);
   const sim = new Simulation({ seedText: h.options.seedText, size: h.options.size, capacity: h.options.capacity, populate: false, blank: true });
-  const views = allViews(sim);
+  const views = allViews(sim, h.version);
   if (views.length !== h.views.length || views.some((v, k) => v.byteLength !== h.views[k])) fail('datos del mapa o de las criaturas');
   let off = dataStart;
   for (const v of views) {
@@ -189,6 +203,9 @@ export function deserialize(bytes: Uint8Array): Simulation {
   }
   sim.units.setCounters(h.units);
   sim.world.regionsDirty = h.regionsDirty === true;
+  // Los mares se guardan desde la versión 2; antes se calculan al cargar.
+  if (h.version < 2) sim.world.computeSeas();
+  else sim.world.rebuildSeaSizes();
   sim.world.markAllDirty();
   sim.hazards.setLists(h.hazards);
   sim.tick = h.tick;
@@ -207,7 +224,11 @@ export function deserialize(bytes: Uint8Array): Simulation {
   civ.chronicle.push(...h.civ.chronicle);
   civ.kingdoms.kingdoms.push(...h.civ.kingdoms);
   civ.kingdoms.wars.push(...h.civ.wars);
+  civ.boats.push(...(h.civ.boats ?? []));
+  // Versión 1: aún no existía el oficio de pescador.
+  for (const v of civ.villages) while (Array.isArray(v.jobCounts) && v.jobCounts.length < JOB_COUNT) v.jobCounts.push(0);
   validateLoaded(sim);
+  releaseOrphanPassengers(sim);
   civ.kingdoms.rebuildHostility();
   // El registro de comandos no viaja con la partida: ya no se puede repetir desde la semilla.
   sim.logTruncated = true;

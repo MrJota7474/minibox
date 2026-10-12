@@ -2,10 +2,10 @@ import { DeathCause, giveUp, killUnit, type AiContext } from '../ai/context';
 import { Move, moveToward, pickWanderTarget } from '../ai/movement';
 import type { SpeciesDef } from '../entities/species';
 import { Trait, addTrait, traitMods } from '../entities/traits';
-import { HELD_FLAG, NO_UNIT, UnitState, type UnitStore } from '../entities/units';
+import { ABOARD_FLAG, HELD_FLAG, NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 
 /** Estados permanentes (bits de `units.status`). */
-export const Status = { BLESSED: 1, CURSED: 2, IMMUNE: 4, HELD: HELD_FLAG } as const;
+export const Status = { BLESSED: 1, CURSED: 2, IMMUNE: 4, HELD: HELD_FLAG, ABOARD: ABOARD_FLAG } as const;
 
 export const PLAGUE_DURATION = 900;
 const PLAGUE_DAMAGE_INTERVAL = 20;
