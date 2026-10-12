@@ -1,0 +1,34 @@
+{
+  "name": "minibox",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MiniBox: simulador de dios 2D por píxeles para navegador (PC y móvil).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "build:itch": "npm run build && node scripts/build-itch.mjs",
+    "preview": "vite preview --host",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@vitest/coverage-v8": "^5.0.4",
+    "eslint": "^9.39.5",
+    "fflate": "^0.8.3",
+    "globals": "^17.13.0",
+    "typescript": "~6.0",
+    "typescript-eslint": "^8.71.2",
+    "vite": "^8.3.4",
+    "vite-plugin-pwa": "^2.0.0",
+    "vitest": "^5.0.4",
+    "workbox-window": "^7.4.1"
+  },
+  "dependencies": {
+    "@fontsource/pixelify-sans": "^5.3.0"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dev-dist/
+release/
+coverage/
+.vercel/
+*.log
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
