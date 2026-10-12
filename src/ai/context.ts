@@ -3,11 +3,12 @@ import type { Rng } from '../core/rng';
 import type { SpatialHash } from '../entities/spatial';
 import { NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 import type { World } from '../world/world';
+import type { WorldLaws } from '../sim/laws';
 import type { Pathfinder } from './pathfinder';
 
-export const DeathCause = { AGE: 0, HUNGER: 1, KILLED: 2, DROWNED: 3, DIVINE: 4 } as const;
+export const DeathCause = { AGE: 0, HUNGER: 1, KILLED: 2, DROWNED: 3, DIVINE: 4, PLAGUE: 5, DISASTER: 6 } as const;
 export type DeathCauseId = (typeof DeathCause)[keyof typeof DeathCause];
-export const DEATH_CAUSE_COUNT = 5;
+export const DEATH_CAUSE_COUNT = 7;
 
 export interface SimStats {
   births: number;
@@ -26,6 +27,7 @@ export interface AiContext {
   stats: SimStats;
   pathfinder: Pathfinder;
   civ: CivSystem;
+  laws: WorldLaws;
 }
 
 /** Cada cuántos ticks «piensa» una criatura (escalonado por índice). */

@@ -2,6 +2,9 @@ import { DEATH_CAUSE_COUNT, type AiContext, type SimStats } from '../ai/context'
 import { Pathfinder } from '../ai/pathfinder';
 import { updateUnits } from '../ai/update';
 import { CivSystem } from '../civ/civ-system';
+import { PowerSystem } from '../powers/disasters';
+import { HazardSystem } from '../powers/hazards';
+import { defaultLaws, lawsHash, type WorldLaws } from './laws';
 import { hashMix } from '../core/hash';
 import { Rng, hashString } from '../core/rng';
 import { Species, type SpeciesId } from '../entities/species';
@@ -48,6 +51,9 @@ export class Simulation {
   readonly vegetation: VegetationSystem;
   readonly civ: CivSystem;
   readonly pathfinder: Pathfinder;
+  readonly hazards: HazardSystem;
+  readonly powers: PowerSystem;
+  readonly laws: WorldLaws = defaultLaws();
   readonly stats: SimStats = { births: 0, deaths: new Uint32Array(DEATH_CAUSE_COUNT) };
   readonly commandLog: LoggedCommand[] = [];
   /** true si el registro superó su tamaño máximo (la repetición ya no sería exacta). */
@@ -59,6 +65,7 @@ export class Simulation {
   private readonly rngAi: Rng;
   private readonly rngVeg: Rng;
   private readonly rngCmd: Rng;
+  private readonly rngPower: Rng;
   private readonly ctx: AiContext;
 
   constructor(options: SimulationOptions) {
@@ -70,11 +77,14 @@ export class Simulation {
     this.vegetation = new VegetationSystem(this.world);
     this.civ = new CivSystem(this.world, this.units);
     this.pathfinder = new Pathfinder(this.world);
+    this.hazards = new HazardSystem(this.world);
+    this.powers = new PowerSystem(this.world, this.units, this.hazards);
     this.unitLimit = options.capacity;
     const root = new Rng(this.seed);
     this.rngAi = root.fork(1);
     this.rngVeg = root.fork(2);
     this.rngCmd = root.fork(3);
+    this.rngPower = root.fork(5);
     this.ctx = {
       world: this.world,
       units: this.units,
@@ -85,6 +95,7 @@ export class Simulation {
       stats: this.stats,
       pathfinder: this.pathfinder,
       civ: this.civ,
+      laws: this.laws,
     };
     if (options.populate) this.populate(root.fork(4));
   }
@@ -95,6 +106,26 @@ export class Simulation {
     else this.logTruncated = true;
     if (command.type === 'brush') {
       applyBrush(this.world, this.rngCmd, command.tool, command.x, command.y, command.size);
+      return { spawned: 0, limited: false };
+    }
+    if (command.type === 'power') {
+      // El spatial hash puede estar desfasado si se aplica en pausa: se reconstruye.
+      this.spatial.rebuild(this.units);
+      this.ctx.tick = this.tick;
+      this.powers.apply(command.power, command.x, command.y, command.size, this.ctx, this.rngCmd, this.civ);
+      return { spawned: 0, limited: false };
+    }
+    if (command.type === 'grab') {
+      this.spatial.rebuild(this.units);
+      this.powers.grab(command.x, command.y, command.size, this.ctx);
+      return { spawned: 0, limited: false };
+    }
+    if (command.type === 'drop') {
+      this.powers.drop(command.x, command.y);
+      return { spawned: 0, limited: false };
+    }
+    if (command.type === 'law') {
+      this.laws[command.law] = command.value;
       return { spawned: 0, limited: false };
     }
     if (command.type === 'diplomacy') {
@@ -111,10 +142,12 @@ export class Simulation {
   step(): void {
     this.ctx.tick = this.tick;
     this.ctx.unitLimit = Math.min(this.unitLimit, this.units.capacity);
-    this.vegetation.step(this.rngVeg);
+    if (this.laws.vegetation) this.vegetation.step(this.rngVeg);
     if (this.world.regionsDirty && this.tick % REGION_RECOMPUTE_TICKS === 0) this.world.computeRegions();
     this.pathfinder.resetBudget();
     this.spatial.rebuild(this.units);
+    this.hazards.step(this.ctx, this.rngPower, this.laws.fireSpread, this.civ);
+    this.powers.step(this.ctx, this.rngPower, this.civ);
     this.civ.update(this.ctx);
     updateUnits(this.ctx);
     this.tick++;
@@ -123,10 +156,12 @@ export class Simulation {
   stateHash(): number {
     let h = hashMix(this.world.stateHash(), this.units.stateHash());
     h = hashMix(h, this.civ.stateHash());
+    h = hashMix(h, this.powers.stateHash());
+    h = hashMix(h, lawsHash(this.laws));
     h = hashMix(h, this.tick);
     h = hashMix(h, this.vegetation.getCursor());
     h = hashMix(h, this.unitLimit);
-    for (const rng of [this.rngAi, this.rngVeg, this.rngCmd]) {
+    for (const rng of [this.rngAi, this.rngVeg, this.rngCmd, this.rngPower]) {
       for (const v of rng.getState()) h = hashMix(h, v);
     }
     return h;

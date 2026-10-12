@@ -45,6 +45,8 @@ export const NO_UNIT = -1;
 export const MAX_CAPACITY = 0x10000;
 /** Sin aldea. */
 export const NO_VILLAGE = -1;
+/** Bit de `status`: criatura sujeta por el imán divino (fuera del mundo). */
+export const HELD_FLAG = 8;
 /** Waypoints máximos guardados por criatura (ruta de A*). */
 export const PATH_MAX = 24;
 
@@ -108,6 +110,11 @@ export class UnitStore {
   readonly gear: Uint8Array;
   /** Reino de origen de los colonos (para que la aldea nueva sea suya). */
   readonly homeKingdom: Int16Array;
+  /** Estados permanentes (bendición, maldición, inmunidad, sujeta por el imán): ver powers/status.ts. */
+  readonly status: Uint8Array;
+  /** Ticks de plaga y de locura que quedan. */
+  readonly plague: Uint16Array;
+  readonly mad: Uint16Array;
   readonly pathLen: Uint8Array;
   readonly pathIdx: Uint8Array;
   /** Waypoints (x, y) de la ruta: PATH_MAX pares por criatura. */
@@ -150,6 +157,9 @@ export class UnitStore {
     this.nameSeed = new Uint32Array(capacity);
     this.gear = new Uint8Array(capacity);
     this.homeKingdom = new Int16Array(capacity).fill(-1);
+    this.status = new Uint8Array(capacity);
+    this.plague = new Uint16Array(capacity);
+    this.mad = new Uint16Array(capacity);
     this.pathLen = new Uint8Array(capacity);
     this.pathIdx = new Uint8Array(capacity);
     this.path = new Int16Array(capacity * PATH_MAX * 2);
@@ -193,6 +203,9 @@ export class UnitStore {
     this.nameSeed[i] = opts.nameSeed ?? 0;
     this.gear[i] = 0;
     this.homeKingdom[i] = -1;
+    this.status[i] = 0;
+    this.plague[i] = 0;
+    this.mad[i] = 0;
     this.pathLen[i] = 0;
     this.pathIdx[i] = 0;
     this.count++;
@@ -258,6 +271,9 @@ export class UnitStore {
       this.nameSeed,
       this.gear,
       this.homeKingdom,
+      this.status,
+      this.plague,
+      this.mad,
     ]);
   }
 }

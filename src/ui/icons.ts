@@ -18,6 +18,13 @@ const ICON_COLORS: Readonly<Record<string, string>> = {
   y: '#e8c34a',
   a: '#e8a33d',
   k: '#1a1410',
+  R: '#e84a1a',
+  Y: '#ffd04a',
+  O: '#f08a1a',
+  P: '#a35ce8',
+  L: '#8be04a',
+  W: '#f3f3f3',
+  C: '#8a929c',
 };
 
 const GRIDS: Readonly<Record<string, readonly string[]>> = {
@@ -36,6 +43,21 @@ const GRIDS: Readonly<Record<string, readonly string[]>> = {
   follow: ['....o.....', '...ooo....', '..o.o.o...', '....o.....', 'ooo.a.ooo.', '....o.....', '..o.o.o...', '...ooo....', '....o.....', '..........'],
   house: ['....aa....', '...aaaa...', '..aaaaaa..', '.aaaaaaaa.', 'aaaaaaaaaa', '.oooooooo.', '.oobbbooo.', '.oobbbooo.', '.oobbbooo.', '..........'],
   sword: ['........ss', '.......sss', '......sss.', '.....sss..', '.b..sss...', '..bsss....', '...bb.....', '..bttb....', '.tt..b....', 'tt........'],
+  lightning: ['....YYY...', '...YYY....', '..YYY.....', '.YYYYYY...', '....YYY...', '...YYY....', '..YY......', '.YY.......', '.Y........', '..........'],
+  meteor: ['........RR', '.......RR.', '......RR..', '....OOO...', '...OYYYO..', '..OYYYYO..', '..OYYYO...', '...OOO....', '..........', '..........'],
+  bomb: ['......YO..', '.....O....', '....kk....', '..kkkkkk..', '.kkkkkkkk.', '.kkWkkkkk.', '.kkkkkkkk.', '.kkkkkkkk.', '..kkkkkk..', '...kkkk...'],
+  earthquake: ['..........', 'gggggggggg', 'ddddkddddd', 'ddddkkdddd', 'dddddkkddd', 'ddddkkdddd', 'dddkkddddd', 'ddddkddddd', 'dddddddddd', '..........'],
+  tornado: ['CCCCCCCCC.', '.CCCCCCC..', '..CCCCCC..', '...CCCC...', '...CCC....', '....CCC...', '....CC....', '...CC.....', '....C.....', '..........'],
+  'acid-rain': ['..CCCCC...', '.CCCCCCC..', 'CCCCCCCCC.', '.CCCCCCC..', '..........', '.L..L..L..', '..L..L..L.', '.L..L..L..', '..L..L....', '..........'],
+  volcano: ['...C..C...', '....RR....', '....RR....', '...sRRs...', '..ssRRss..', '..sssssss.', '.sssssssss', 'ssssssssss', 'ssssssssss', '..........'],
+  fire: ['....R.....', '...RR..R..', '...RRR.RR.', '..RROR.RR.', '..ROOORRR.', '.RROYYORR.', '.ROYYYYOR.', '.ROYYYYOR.', '..ROOOOR..', '...RRRR...'],
+  lava: ['..........', '..........', 'RRRRRRRRRR', 'ROORRROORR', 'OYYOROYYOR', 'ROORRROORR', 'RRRROORRRR', 'RRROYYORRR', 'RRRROORRRR', 'RRRRRRRRRR'],
+  plague: ['...LLLL...', '..LLLLLL..', '.LL.LL.LL.', '.LL.LL.LL.', '.LLLLLLLL.', '..LL..LL..', '...LLLL...', '...L.L.L..', '..........', '..........'],
+  bless: ['....YY....', '..Y.YY.Y..', '...YYYY...', 'YYYYYYYYYY', '...YYYY...', '..Y.YY.Y..', '....YY....', '....YY....', '....YY....', '..........'],
+  curse: ['...PPPP...', '..PPPPPP..', '.PP.PP.PP.', '.PPPPPPPP.', '.PPP..PPP.', '..PPPPPP..', '...P.P.P..', '..........', '..........', '..........'],
+  madness: ['..RRRRRR..', '.RR....RR.', '.R..RR..R.', '.R.R..R.R.', '.R.R.RR.R.', '.R..R...R.', '.RR....R..', '..RRRRR...', '..........', '..........'],
+  heal: ['....WW....', '..W.WW.W..', '...WWWW...', 'WWWWWWWWWW', '...WWWW...', '..W.WW.W..', '....WW....', '..........', '..........', '..........'],
+  magnet: ['.RR....RR.', '.RR....RR.', '.WW....WW.', '.RR....RR.', '.RR....RR.', '.RRR..RRR.', '..RRRRRR..', '...RRRR...', '..........', '..........'],
   chevron: ['..........', '..........', '.o......o.', '..o....o..', '...o..o...', '....oo....', '..........', '..........', '..........', '..........'],
 };
 
@@ -119,6 +141,8 @@ const GRID_FOR_BRUSH: Partial<Record<BrushToolId, string>> = {
 };
 
 export function toolIcon(tool: ToolDef, atlas: SpriteAtlas): string {
+  if (tool.kind === 'power') return gridIcon(tool.power);
+  if (tool.kind === 'magnet') return gridIcon('magnet');
   if (tool.kind === 'spawn') {
     const key = `species-${tool.species}`;
     const cached = cache.get(key);

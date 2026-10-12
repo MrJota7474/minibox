@@ -1,4 +1,6 @@
 import type { SpeciesId } from '../entities/species';
+import type { PowerId } from '../powers/disasters';
+import type { LawId } from './laws';
 
 /** Pinceles que modifican el mapa. */
 export type BrushToolId =
@@ -29,7 +31,14 @@ export type Command =
   /** Cambia el límite de criaturas (p. ej. el ajuste automático de rendimiento). */
   | { readonly type: 'limit'; readonly value: number }
   /** Poderes de dios sobre la diplomacia: a y b son reinos (en 'rebellion', a es una aldea). */
-  | { readonly type: 'diplomacy'; readonly action: DiplomacyAction; readonly a: number; readonly b: number };
+  | { readonly type: 'diplomacy'; readonly action: DiplomacyAction; readonly a: number; readonly b: number }
+  /** Desastres y poderes de dios. */
+  | { readonly type: 'power'; readonly power: PowerId; readonly x: number; readonly y: number; readonly size: number }
+  /** Imán divino: coger criaturas y soltarlas en otro sitio. */
+  | { readonly type: 'grab'; readonly x: number; readonly y: number; readonly size: number }
+  | { readonly type: 'drop'; readonly x: number; readonly y: number }
+  /** Leyes del mundo. */
+  | { readonly type: 'law'; readonly law: LawId; readonly value: boolean };
 
 export type DiplomacyAction = 'war' | 'peace' | 'alliance' | 'rebellion';
 

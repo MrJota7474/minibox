@@ -122,6 +122,8 @@ export class Game {
       toggleFullscreen: () => this.toggleFullscreen(),
       togglePerf: () => this.perf.toggle(),
       chronicle: () => this.sim?.civ.chronicle ?? [],
+      laws: () => this.sim?.laws ?? null,
+      setLaw: (law, value) => this.applyCommand({ type: 'law', law, value }),
     });
     this.perf = new PerfPanel({ stress: (k) => this.stress(k) });
     root.append(this.canvas, this.hud.root, this.inspector.root, this.perf.root, this.toasts.root, this.toolbar.root, this.menu.root, this.startMenu.root);
@@ -172,7 +174,7 @@ export class Game {
     const camera = new Camera(opts.size, opts.size);
     this.sim = sim;
     this.camera = camera;
-    this.renderer = new Renderer(this.canvas, sim.world, sim.units, camera, sim.civ, this.device.dprCap, this.atlas);
+    this.renderer = new Renderer(this.canvas, sim.world, sim.units, camera, sim.civ, sim.powers, sim.hazards, this.device.dprCap, this.atlas);
     this.renderer.resize();
     camera.fitWorld();
     camera.zoomAt(INITIAL_ZOOM_FACTOR, camera.viewW / 2, camera.viewH / 2);
@@ -203,6 +205,7 @@ export class Game {
       brush: this.brushPreview(),
       selected: this.selectedHandle >= 0 ? sim.units.resolve(this.selectedHandle) : -1,
       selectedTile: this.selectedTile,
+      heldAt: sim.powers.held.length > 0 ? this.hoverTile : null,
     });
     if (now - this.lastUi >= UI_INTERVAL_MS) {
       this.lastUi = now;
@@ -217,7 +220,7 @@ export class Game {
     const sim = this.sim;
     if (!sim || !this.renderer) return;
     for (let t = 0; t < ticks; t++) sim.step();
-    this.renderer.draw(1, sim.tick, { brush: null, selected: -1, selectedTile: -1 });
+    this.renderer.draw(1, sim.tick, { brush: null, selected: -1, selectedTile: -1, heldAt: null });
     this.updateUi(sim);
   }
 
@@ -401,9 +404,10 @@ export class Game {
   }
 
   private selectTool(tool: ToolDef | null): void {
+    // Primero se cierra el trazo con la herramienta anterior (el imán suelta lo que lleva).
+    this.stroke.end();
     this.tool = tool;
     this.stroke.tool = tool;
-    this.stroke.end();
     this.updateInputMode();
   }
 

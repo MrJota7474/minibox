@@ -27,6 +27,12 @@ export class StrokeController {
 
   move(x: number, y: number, now: number): void {
     if (!this.active || !this.tool) return;
+    // El imán sólo sigue al cursor; los desastres puntuales sólo se repiten en el sitio.
+    if (this.tool.kind === 'magnet' || (this.tool.kind === 'power' && !this.tool.continuous)) {
+      this.lastX = x;
+      this.lastY = y;
+      return;
+    }
     const spacing = this.spacing();
     const dx = x - this.lastX;
     const dy = y - this.lastY;
@@ -40,12 +46,13 @@ export class StrokeController {
   }
 
   end(): void {
+    if (this.active && this.tool?.kind === 'magnet') this.emit({ type: 'drop', x: this.lastX, y: this.lastY });
     this.active = false;
   }
 
   /** Repite la herramienta en el sitio si así lo define (p. ej. elevar terreno). */
   update(now: number): void {
-    const repeat = this.tool?.repeatMs;
+    const repeat = this.tool && this.tool.kind !== 'magnet' ? this.tool.repeatMs : undefined;
     if (!this.active || !repeat) return;
     if (now - this.lastStampTime >= repeat) this.stamp(this.lastX, this.lastY, now);
   }

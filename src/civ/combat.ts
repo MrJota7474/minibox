@@ -3,6 +3,7 @@ import { Move, moveToward, pickWanderTarget } from '../ai/movement';
 import { Nav, clearPath, navigateTo } from '../ai/navigation';
 import type { SpeciesDef } from '../entities/species';
 import { NO_UNIT, UnitState } from '../entities/units';
+import { damageMultiplier, damageTakenMultiplier } from '../powers/status';
 import { Job, type Village } from './model';
 
 /** Los guerreros sólo combaten contra guerreros: las guerras cambian fronteras, no exterminan pueblos. */
@@ -137,7 +138,7 @@ export function actFight(ctx: AiContext, i: number, def: SpeciesDef): void {
   }
   if (u.attackCd[i] > 0) return;
   u.attackCd[i] = ATTACK_COOLDOWN;
-  const damage = def.damage * (u.gear[i] ? GEAR_DAMAGE : 1) * (u.gear[enemy] ? GEAR_ARMOR : 1);
+  const damage = def.damage * (u.gear[i] ? GEAR_DAMAGE : 1) * (u.gear[enemy] ? GEAR_ARMOR : 1) * damageMultiplier(u, i) * damageTakenMultiplier(u, enemy);
   u.hp[enemy] -= Math.max(1, Math.round(damage));
   if (u.hp[enemy] > 0) return;
   ks.recordLoss(ks.kingdomOfUnit(enemy));

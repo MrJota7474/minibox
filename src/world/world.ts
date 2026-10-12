@@ -39,6 +39,9 @@ export class World {
   readonly zonesY: number;
   /** Aldea dueña de cada zona (id + 1; 0 = libre). */
   readonly zoneOwner: Uint16Array;
+  /** Fuego y lava por casilla (0 = nada; si no, intensidad o calor restante). */
+  readonly fire: Uint8Array;
+  readonly lava: Uint8Array;
 
   readonly chunksX: number;
   readonly chunksY: number;
@@ -60,6 +63,8 @@ export class World {
     this.zonesX = Math.ceil(width / ZONE_SIZE);
     this.zonesY = Math.ceil(height / ZONE_SIZE);
     this.zoneOwner = new Uint16Array(this.zonesX * this.zonesY);
+    this.fire = new Uint8Array(this.size);
+    this.lava = new Uint8Array(this.size);
     this.chunksX = Math.ceil(width / CHUNK_SIZE);
     this.chunksY = Math.ceil(height / CHUNK_SIZE);
     this.dirty = new Uint8Array(this.chunksX * this.chunksY);
@@ -78,7 +83,8 @@ export class World {
     const tx = Math.floor(x);
     const ty = Math.floor(y);
     if (!this.inBounds(tx, ty)) return false;
-    return isWalkableTerrain(this.terrain[ty * this.width + tx]);
+    const i = ty * this.width + tx;
+    return isWalkableTerrain(this.terrain[i]) && this.lava[i] === 0;
   }
 
   isWaterIdx(i: number): boolean {
@@ -105,6 +111,8 @@ export class World {
       if (isWaterTerrain(t)) {
         this.flora[i] = Flora.NONE;
         this.grass[i] = 0;
+        this.fire[i] = 0;
+        this.lava[i] = 0;
       } else if (!isFertileTerrain(t)) {
         this.grass[i] = 0;
         if (this.flora[i] !== Flora.TREE && !isDeposit(this.flora[i])) this.flora[i] = Flora.NONE;
@@ -215,6 +223,6 @@ export class World {
   }
 
   stateHash(): number {
-    return hashViews([this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.zoneOwner]);
+    return hashViews([this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.zoneOwner, this.fire, this.lava]);
   }
 }

@@ -79,9 +79,17 @@ function baseColor(world: World, i: number): [number, number, number] {
 }
 
 /** Color final empaquetado de una casilla. */
+const LAVA_RGB: Rgb = hexToRgb('#f05a1a');
+const FIRE_RGB: Rgb = hexToRgb('#7a2a12');
+
 export function tileColor(world: World, i: number): number {
   const f = world.flora[i];
   let c: [number, number, number];
+  if (world.lava[i] > 0) {
+    const t = Math.min(1, world.lava[i] / 60);
+    return pack(120 + LAVA_RGB[0] * t * 0.5, 40 + LAVA_RGB[1] * t, 20 + LAVA_RGB[2] * t * 0.3);
+  }
+  if (world.fire[i] > 0) return pack(FIRE_RGB[0], FIRE_RGB[1], FIRE_RGB[2]);
   if (f === Flora.TREE) {
     const tree = TREE_RGB[world.biome[i]];
     c = [tree[0], tree[1], tree[2]];

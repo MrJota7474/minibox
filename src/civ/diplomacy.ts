@@ -114,9 +114,9 @@ export function runKingdomAi(ks: KingdomSystem, ctx: AiContext): void {
     }
     ensureKing(ks, K, ctx);
     for (const v of villages) v.loyalty = loyaltyOf(ks, v);
-    if (handleRebellions(ks, K, villages, ctx)) continue;
+    if (ctx.laws.rebellions && handleRebellions(ks, K, villages, ctx)) continue;
     considerPeace(ks, K, ctx);
-    considerWar(ks, K, touching);
+    if (ctx.laws.wars) considerWar(ks, K, touching);
     considerAlliances(ks, K, touching);
     assignArmies(ks, K, villages, ctx);
   }

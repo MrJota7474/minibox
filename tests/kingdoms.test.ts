@@ -1,3 +1,4 @@
+import { defaultLaws } from '../src/sim/laws';
 import { describe, expect, it } from 'vitest';
 import { DEATH_CAUSE_COUNT, killUnit, DeathCause, type AiContext } from '../src/ai/context';
 import { Pathfinder } from '../src/ai/pathfinder';
@@ -34,6 +35,7 @@ function makeCtx(): AiContext {
     stats: { births: 0, deaths: new Uint32Array(DEATH_CAUSE_COUNT) },
     pathfinder: new Pathfinder(w),
     civ: new CivSystem(w, units),
+    laws: defaultLaws(),
   };
 }
 

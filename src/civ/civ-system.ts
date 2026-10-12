@@ -1,5 +1,6 @@
 import type { AiContext } from '../ai/context';
 import { hashMix } from '../core/hash';
+import type { Rng } from '../core/rng';
 import { SPECIES, isCivilized, type SpeciesId } from '../entities/species';
 import { NO_VILLAGE, UnitState, type UnitStore } from '../entities/units';
 import { isWalkableTerrain } from '../world/terrain';
@@ -45,6 +46,8 @@ const FOUND_MIN_GROUP = 3;
 const HALL_SEARCH_RADIUS = 6;
 const MAX_EVENTS = 50;
 const MAX_CHRONICLE = 200;
+/** Ticks de fuego que aguanta un edificio. */
+const BURN_LIMIT = 40;
 const STARTING_RESOURCES: readonly number[] = [12, 8, 0, 0, 0];
 
 /**
@@ -247,7 +250,7 @@ export class CivSystem {
 
   placeBuilding(v: Village, type: BuildingTypeId, x: number, y: number): Building {
     const def = BUILDING_DEFS[type];
-    const b: Building = { id: this.buildings.length, type, village: v.id, x, y, w: def.w, h: def.h, level: 0, underConstruction: true, progress: 0, growth: 0, alive: true };
+    const b: Building = { id: this.buildings.length, type, village: v.id, x, y, w: def.w, h: def.h, level: 0, underConstruction: true, progress: 0, growth: 0, burn: 0, alive: true };
     this.buildings.push(b);
     v.buildingIds.push(b.id);
     clearFootprint(this.world, x, y, def.w, def.h);
@@ -268,6 +271,45 @@ export class CivSystem {
       const v = this.villages[b.village];
       this.addEvent('upgraded', v.id, `${v.name} ya tiene ${hallLevelName(b.level).toLowerCase()}`);
     }
+  }
+
+  // ---------- Daños por desastres (ver powers/hazards.ts y disasters.ts) ----------
+
+  burnBuildingAt(tile: number, amount = 1): void {
+    const b = this.building(this.world.buildingAt[tile] - 1);
+    if (!b) return;
+    b.burn += amount;
+    if (b.burn >= BURN_LIMIT) this.ruin(b);
+  }
+
+  destroyBuildingsIn(x: number, y: number, r: number): void {
+    for (const b of this.buildingsInCircle(x, y, r)) this.ruin(b);
+  }
+
+  damageBuildingsIn(x: number, y: number, r: number, chance: number, rng: Rng): void {
+    for (const b of this.buildingsInCircle(x, y, r)) if (rng.chance(chance)) this.ruin(b);
+  }
+
+  private buildingsInCircle(x: number, y: number, r: number): Building[] {
+    const out: Building[] = [];
+    for (const v of this.villages) {
+      if (!v.alive) continue;
+      for (const id of v.buildingIds) {
+        const b = this.buildings[id];
+        const nx = Math.max(b.x, Math.min(x, b.x + b.w));
+        const ny = Math.max(b.y, Math.min(y, b.y + b.h));
+        if ((nx - x) * (nx - x) + (ny - y) * (ny - y) <= r * r) out.push(b);
+      }
+    }
+    return out;
+  }
+
+  /** Un edificio destruido; si era el ayuntamiento, la aldea queda abandonada. */
+  private ruin(b: Building): void {
+    if (!b.alive) return;
+    this.destroyBuilding(b);
+    const v = this.villages[b.village];
+    if (v.alive && b.id === v.hallId) this.abandonVillage(v);
   }
 
   destroyBuilding(b: Building): void {

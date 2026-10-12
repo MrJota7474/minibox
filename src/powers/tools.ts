@@ -1,7 +1,8 @@
 import { Species, type SpeciesId } from '../entities/species';
 import type { BrushToolId, Command } from '../sim/commands';
+import type { PowerId } from './disasters';
 
-export type TabId = 'terreno' | 'naturaleza' | 'animales' | 'razas';
+export type TabId = 'terreno' | 'naturaleza' | 'animales' | 'razas' | 'desastres' | 'poderes';
 
 export interface TabDef {
   readonly id: TabId;
@@ -13,6 +14,8 @@ export const TABS: readonly TabDef[] = [
   { id: 'naturaleza', label: 'Naturaleza' },
   { id: 'animales', label: 'Animales' },
   { id: 'razas', label: 'Razas' },
+  { id: 'desastres', label: 'Desastres' },
+  { id: 'poderes', label: 'Poderes' },
 ];
 
 export type ToolDef =
@@ -32,7 +35,21 @@ export type ToolDef =
       readonly kind: 'spawn';
       readonly species: SpeciesId;
       readonly repeatMs: number;
-    };
+    }
+  | {
+      readonly id: string;
+      readonly label: string;
+      readonly tab: TabId;
+      readonly kind: 'power';
+      readonly power: PowerId;
+      /** Repetición mientras se mantiene pulsado (ms). */
+      readonly repeatMs?: number;
+      /** true: se aplica a lo largo del trazo, como un pincel. */
+      readonly continuous?: boolean;
+    }
+  | { readonly id: string; readonly label: string; readonly tab: TabId; readonly kind: 'magnet' };
+
+const power = (tab: TabId, id: PowerId, label: string, repeatMs?: number, continuous = false): ToolDef => ({ id, label, tab, kind: 'power', power: id, repeatMs, continuous });
 
 const brush = (tab: TabId, id: BrushToolId, label: string, repeatMs?: number): ToolDef => ({
   id,
@@ -70,6 +87,21 @@ export const TOOLS: readonly ToolDef[] = [
   { id: 'silvan', label: 'Silvanos', tab: 'razas', kind: 'spawn', species: Species.SILVAN, repeatMs: SPAWN_REPEAT_MS },
   { id: 'petrino', label: 'Petrinos', tab: 'razas', kind: 'spawn', species: Species.PETRINO, repeatMs: SPAWN_REPEAT_MS },
   { id: 'tusker', label: 'Colmilludos', tab: 'razas', kind: 'spawn', species: Species.TUSKER, repeatMs: SPAWN_REPEAT_MS },
+  power('desastres', 'lightning', 'Rayo', 250),
+  power('desastres', 'meteor', 'Meteorito', 700),
+  power('desastres', 'bomb', 'Bomba', 400),
+  power('desastres', 'earthquake', 'Terremoto'),
+  power('desastres', 'tornado', 'Tornado'),
+  power('desastres', 'acid-rain', 'Lluvia ácida'),
+  power('desastres', 'volcano', 'Volcán'),
+  power('desastres', 'fire', 'Fuego', 150, true),
+  power('desastres', 'lava', 'Lava', 150, true),
+  power('desastres', 'plague', 'Plaga', 300, true),
+  power('poderes', 'bless', 'Bendición', 300, true),
+  power('poderes', 'curse', 'Maldición', 300, true),
+  power('poderes', 'madness', 'Locura', 300, true),
+  power('poderes', 'heal', 'Luz divina', 300, true),
+  { id: 'magnet', label: 'Imán', tab: 'poderes', kind: 'magnet' },
 ];
 
 export function toolById(id: string): ToolDef | undefined {
@@ -77,7 +109,8 @@ export function toolById(id: string): ToolDef | undefined {
 }
 
 export function commandFor(tool: ToolDef, x: number, y: number, size: number): Command {
-  return tool.kind === 'brush'
-    ? { type: 'brush', tool: tool.brush, x, y, size }
-    : { type: 'spawn', species: tool.species, x, y, size };
+  if (tool.kind === 'brush') return { type: 'brush', tool: tool.brush, x, y, size };
+  if (tool.kind === 'spawn') return { type: 'spawn', species: tool.species, x, y, size };
+  if (tool.kind === 'power') return { type: 'power', power: tool.power, x, y, size };
+  return { type: 'grab', x, y, size };
 }

@@ -1,5 +1,7 @@
 import type { ChronicleEntry } from '../civ/civ-system';
+import type { LawId, WorldLaws } from '../sim/laws';
 import { chronicleContent } from './chronicle';
+import { lawsContent } from './laws-panel';
 import { el } from './dom';
 import { helpContent } from './help';
 
@@ -8,6 +10,8 @@ export interface MenuActions {
   toggleFullscreen(): void;
   togglePerf(): void;
   chronicle(): readonly ChronicleEntry[];
+  laws(): WorldLaws | null;
+  setLaw(law: LawId, value: boolean): void;
 }
 
 /** Menú principal (☰): nuevo mundo, pantalla completa, rendimiento, crónica y controles. */
@@ -15,11 +19,13 @@ export class Menu {
   readonly root: HTMLElement;
   private readonly help: HTMLElement;
   private readonly chronicleBox: HTMLElement;
+  private readonly lawsBox: HTMLElement;
 
   constructor(actions: MenuActions) {
     this.help = helpContent();
     this.help.hidden = true;
     this.chronicleBox = el('div', { class: 'chronicle-box', attrs: { hidden: '' } });
+    this.lawsBox = el('div', { class: 'laws-box', attrs: { hidden: '' } });
     const item = (label: string, fn: () => void): HTMLButtonElement =>
       el('button', {
         class: 'btn btn-text menu-item',
@@ -51,6 +57,12 @@ export class Menu {
           if (!this.chronicleBox.hidden) this.chronicleBox.replaceChildren(chronicleContent(actions.chronicle()));
         }),
         this.chronicleBox,
+        item('Leyes del mundo', () => {
+          const laws = actions.laws();
+          this.lawsBox.hidden = !this.lawsBox.hidden || !laws;
+          if (!this.lawsBox.hidden && laws) this.lawsBox.replaceChildren(lawsContent(laws, (law, value) => actions.setLaw(law, value)));
+        }),
+        this.lawsBox,
         item('Controles', () => {
           this.help.hidden = !this.help.hidden;
         }),
@@ -71,6 +83,7 @@ export class Menu {
     this.root.hidden = true;
     this.help.hidden = true;
     this.chronicleBox.hidden = true;
+    this.lawsBox.hidden = true;
   }
 
   get isOpen(): boolean {

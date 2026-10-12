@@ -31,6 +31,9 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Reinos', 'Cada aldea fundada es un reino; sus colonias le pertenecen. El rey y su carácter deciden guerras y alianzas'],
   ['Guerras', 'Los guerreros conquistan aldeas enemigas sin defensores; las conquistadas pueden rebelarse con el tiempo'],
   ['Poderes', 'En la ficha de una aldea puedes forzar guerra, paz, alianza o una rebelión'],
+  ['Desastres', 'Rayo, meteorito, bomba, terremoto, tornado, lluvia ácida, volcán, fuego, lava y plaga'],
+  ['Imán', 'Mantén pulsado sobre criaturas para cogerlas, arrastra y suelta para dejarlas en otro sitio'],
+  ['Leyes', 'En el menú puedes desactivar el hambre, la vejez, las guerras, las rebeliones, las plantas o el fuego'],
 ];
 
 function table(rows: readonly (readonly [string, string])[]): HTMLElement {

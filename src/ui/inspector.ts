@@ -1,6 +1,7 @@
 import { PERSONALITY_NAMES } from '../civ/kingdoms';
 import { BUILDING_DEFS, JOB_NAMES, RESOURCE_NAMES, VILLAGE_COLORS, hallLevelName, type Village } from '../civ/model';
 import type { DiplomacyAction } from '../sim/commands';
+import { Status } from '../powers/status';
 import { personName } from '../civ/names';
 import { tickToDate, ticksToYears } from '../core/time';
 import { SPECIES } from '../entities/species';
@@ -142,6 +143,14 @@ export class Inspector {
       if (u.carry[i] !== 0) rows.push(['Carga', `${u.carryAmount[i]} de ${RESOURCE_NAMES[u.carry[i] - 1].toLowerCase()}`]);
       if (def.race) rows.push(['Rasgo', def.race.trait]);
     }
+    const states = [
+      u.status[i] & Status.BLESSED ? 'Bendecido' : '',
+      u.status[i] & Status.CURSED ? 'Maldito' : '',
+      u.plague[i] > 0 ? 'Con plaga' : '',
+      u.mad[i] > 0 ? 'Enloquecido' : '',
+      u.status[i] & Status.IMMUNE ? 'Inmune a la plaga' : '',
+    ].filter(Boolean);
+    if (states.length > 0) rows.push(['Condición', states.join(' · ')]);
     rows.push(['Generación', String(u.generation[i])]);
     if (def.diet !== 'herbivore' && u.kills[i] > 0) rows.push(['Presas', String(u.kills[i])]);
     this.rows(rows);

@@ -21,7 +21,7 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
   u.age[i]++;
   if (u.cooldown[i] > 0) u.cooldown[i]--;
   if (u.attackCd[i] > 0) u.attackCd[i]--;
-  if (u.age[i] > def.lifespanTicks && ctx.rng.chance(OLD_AGE_DEATH_CHANCE)) {
+  if (ctx.laws.aging && u.age[i] > def.lifespanTicks && ctx.rng.chance(OLD_AGE_DEATH_CHANCE)) {
     killUnit(ctx, i, DeathCause.AGE);
     return false;
   }
@@ -35,6 +35,7 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
 
 function updateHunger(ctx: AiContext, i: number, def: SpeciesDef): boolean {
   const u = ctx.units;
+  if (!ctx.laws.hunger) return true;
   const h = Math.max(0, u.hunger[i] - def.hungerRate);
   u.hunger[i] = h;
   if (h > 0 || (ctx.tick + i) % STARVE_INTERVAL !== 0) return true;

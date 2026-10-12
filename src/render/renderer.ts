@@ -5,7 +5,11 @@ import type { UnitStore } from '../entities/units';
 import type { World } from '../world/world';
 import type { Camera } from './camera';
 import { BACKGROUND } from './palette';
+import type { PowerSystem } from '../powers/disasters';
+import type { HazardSystem } from '../powers/hazards';
+import { Status } from '../powers/status';
 import { CivLayer } from './civ-layer';
+import { FxLayer } from './fx';
 import { buildSpriteAtlas, type SpriteAtlas } from './sprites';
 import { TerrainLayer } from './terrain-layer';
 
@@ -16,6 +20,8 @@ export interface Overlay {
   selected: number;
   /** Casilla inspeccionada o -1. */
   selectedTile: number;
+  /** Dónde dibujar las criaturas sujetas por el imán (casilla) o null. */
+  heldAt: { x: number; y: number } | null;
 }
 
 /** Por debajo de este zoom las criaturas se dibujan como puntos. */
@@ -33,6 +39,8 @@ export class Renderer {
   private readonly adultTicks: number[];
   private readonly civLayer: CivLayer;
   private readonly civ: CivSystem;
+  private readonly fx: FxLayer;
+  private readonly powers: PowerSystem;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -40,6 +48,8 @@ export class Renderer {
     private readonly units: UnitStore,
     private readonly camera: Camera,
     civ: CivSystem,
+    powers: PowerSystem,
+    hazards: HazardSystem,
     dprCap: number,
     atlas?: SpriteAtlas,
   ) {
@@ -53,6 +63,8 @@ export class Renderer {
     this.adultTicks = SPECIES.map((s) => s.adultTicks);
     this.civLayer = new CivLayer(world, civ, camera);
     this.civ = civ;
+    this.powers = powers;
+    this.fx = new FxLayer(powers, hazards, world, camera);
   }
 
   getDprCap(): number {
@@ -76,15 +88,22 @@ export class Renderer {
     this.terrain.update();
     const ctx = this.ctx;
     const cam = this.camera;
+    const now = performance.now();
+    this.fx.update(now);
+    const shake = this.fx.offset();
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = BACKGROUND;
     ctx.fillRect(0, 0, cam.viewW, cam.viewH);
+    ctx.translate(shake.x, shake.y);
     this.drawTerrain();
     this.civLayer.drawTerritory(ctx);
     this.civLayer.drawBuildings(ctx);
     if (overlay.selectedTile >= 0) this.drawTileMarker(overlay.selectedTile);
+    this.fx.drawFire(ctx);
     this.drawUnits(alpha, tick);
+    if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
+    this.fx.drawOver(ctx, now);
     this.civLayer.drawLabels(ctx);
     if (overlay.selected >= 0) this.drawSelection(overlay.selected, alpha);
     if (overlay.brush) this.drawBrush(overlay.brush.x, overlay.brush.y, overlay.brush.size);
@@ -118,7 +137,7 @@ export class Renderer {
     const atlas = this.atlas;
 
     for (let i = 0; i < u.highWater; i++) {
-      if (u.alive[i] === 0) continue;
+      if (u.alive[i] === 0 || (u.status[i] & Status.HELD) !== 0) continue;
       const wx = u.px[i] + (u.x[i] - u.px[i]) * alpha;
       const wy = u.py[i] + (u.y[i] - u.py[i]) * alpha;
       if (wx < left - 2 || wy < top - 2 || wx > right + 2 || wy > bottom + 2) continue;
@@ -180,6 +199,21 @@ export class Renderer {
         ctx.fillRect((wx - left) * z - dot / 2, (wy - top) * z - dot / 2, dot, dot);
       }
     }
+  }
+
+  /** Criaturas sujetas por el imán: se dibujan colgando del cursor. */
+  private drawHeld(tx: number, ty: number): void {
+    const u = this.units;
+    const z = this.camera.zoom;
+    const p = this.camera.worldToScreen(tx + 0.5, ty + 0.5);
+    this.powers.held.forEach((h, k) => {
+      const i = u.resolve(h);
+      if (i < 0) return;
+      const ox = (((k * 7) % 5) - 2) * Math.max(3, z * 0.5);
+      const oy = (((k * 3) % 5) - 2) * Math.max(3, z * 0.5) - z;
+      this.ctx.fillStyle = this.speciesColors[u.species[i]];
+      this.ctx.fillRect(p.x + ox - 3, p.y + oy - 3, Math.max(6, z * 0.8), Math.max(6, z * 0.8));
+    });
   }
 
   private drawSelection(i: number, alpha: number): void {

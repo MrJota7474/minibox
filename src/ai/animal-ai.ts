@@ -3,6 +3,7 @@ import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
 import { DeathCause, STATE_TIMEOUT_TICKS, THINK_INTERVAL, giveUp, killUnit, type AiContext } from './context';
 import { Move, moveToward, pickWanderTarget } from './movement';
+import { damageMultiplier, damageTakenMultiplier } from '../powers/status';
 
 const HUNGRY_FRACTION = 0.6;
 const BREED_FRACTION = 0.5;
@@ -246,7 +247,7 @@ function hunt(ctx: AiContext, i: number, def: SpeciesDef): void {
   }
   if (u.attackCd[i] > 0) return;
   u.attackCd[i] = ATTACK_COOLDOWN;
-  u.hp[prey] -= def.damage;
+  u.hp[prey] -= Math.max(1, Math.round(def.damage * damageMultiplier(u, i) * damageTakenMultiplier(u, prey)));
   if (u.hp[prey] > 0) return;
   const meat = SPECIES[u.species[prey]].meatValue;
   killUnit(ctx, prey, DeathCause.KILLED);

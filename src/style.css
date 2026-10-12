@@ -424,6 +424,10 @@ img {
 .chronicle-alliance span:last-child {
   color: #9be38a;
 }
+.laws {
+  display: grid;
+  gap: 2px;
+}
 .bar-pop .bar-fill {
   background: #3d8be8;
 }

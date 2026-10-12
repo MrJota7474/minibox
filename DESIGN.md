@@ -2,7 +2,7 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas) y C (reinos y guerras) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras) y D (desastres y poderes) implementadas.**
 >
 > Pendiente de B, trasladado a fases posteriores para no dejarlo a medias: más biomas (nieve, pantano, selva, sabana), peces/pescadores y muelles (llegarán con los barcos). En la Fase C quedan pendientes los barcos y muelles para colonizar islas, y los clanes.
 

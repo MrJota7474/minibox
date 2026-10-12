@@ -107,6 +107,8 @@ export interface Building {
   progress: number;
   /** Crecimiento del cultivo (sólo granjas). */
   growth: number;
+  /** Daño acumulado por fuego o lava. */
+  burn: number;
   alive: boolean;
 }
 
