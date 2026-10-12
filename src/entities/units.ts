@@ -10,6 +10,12 @@ export const UnitState = {
   FLEE: 4,
   HUNT: 5,
   MATE: 6,
+  /** Aldeanos: ir al trabajo, trabajar, llevar la carga, ir a comer y emigrar. */
+  WORK_GO: 7,
+  WORK: 8,
+  DELIVER: 9,
+  EAT_GO: 10,
+  SETTLE: 11,
 } as const;
 export type UnitStateId = (typeof UnitState)[keyof typeof UnitState];
 
@@ -21,12 +27,21 @@ export const STATE_LABELS: readonly string[] = [
   'Huyendo',
   'Cazando',
   'Buscando pareja',
+  'Yendo a trabajar',
+  'Trabajando',
+  'Llevando recursos',
+  'Yendo a comer',
+  'Emigrando',
 ];
 
 export const Sex = { FEMALE: 0, MALE: 1 } as const;
 
 export const NO_UNIT = -1;
 export const MAX_CAPACITY = 0x10000;
+/** Sin aldea. */
+export const NO_VILLAGE = -1;
+/** Waypoints máximos guardados por criatura (ruta de A*). */
+export const PATH_MAX = 24;
 
 /** Datos de nacimiento de una criatura. */
 export interface SpawnOptions {
@@ -34,6 +49,10 @@ export interface SpawnOptions {
   ageTicks: number;
   generation: number;
   thinkOffset: number;
+  /** Semilla del nombre (sólo razas civilizadas). */
+  nameSeed?: number;
+  /** Aldea a la que pertenece al nacer. */
+  village?: number;
 }
 
 /**
@@ -70,6 +89,21 @@ export class UnitStore {
   /** Ticks seguidos en el estado actual (para abandonar persecuciones imposibles). */
   readonly stateTicks: Uint16Array;
 
+  // --- Datos de aldeano (Fase B) ---
+  readonly village: Int16Array;
+  readonly job: Uint8Array;
+  /** Recurso que lleva + 1 (0 = nada). */
+  readonly carry: Uint8Array;
+  readonly carryAmount: Uint8Array;
+  /** Casilla o edificio objetivo del trabajo (-1 = ninguno). */
+  readonly work: Int32Array;
+  readonly workTimer: Uint16Array;
+  readonly nameSeed: Uint32Array;
+  readonly pathLen: Uint8Array;
+  readonly pathIdx: Uint8Array;
+  /** Waypoints (x, y) de la ruta: PATH_MAX pares por criatura. */
+  readonly path: Int16Array;
+
   private readonly free: Int32Array;
   private freeTop = 0;
 
@@ -98,6 +132,16 @@ export class UnitStore {
     this.generation = new Uint16Array(capacity);
     this.kills = new Uint16Array(capacity);
     this.stateTicks = new Uint16Array(capacity);
+    this.village = new Int16Array(capacity).fill(NO_VILLAGE);
+    this.job = new Uint8Array(capacity);
+    this.carry = new Uint8Array(capacity);
+    this.carryAmount = new Uint8Array(capacity);
+    this.work = new Int32Array(capacity).fill(-1);
+    this.workTimer = new Uint16Array(capacity);
+    this.nameSeed = new Uint32Array(capacity);
+    this.pathLen = new Uint8Array(capacity);
+    this.pathIdx = new Uint8Array(capacity);
+    this.path = new Int16Array(capacity * PATH_MAX * 2);
     this.free = new Int32Array(capacity);
   }
 
@@ -129,6 +173,15 @@ export class UnitStore {
     this.generation[i] = opts.generation;
     this.kills[i] = 0;
     this.stateTicks[i] = 0;
+    this.village[i] = opts.village ?? NO_VILLAGE;
+    this.job[i] = 0;
+    this.carry[i] = 0;
+    this.carryAmount[i] = 0;
+    this.work[i] = -1;
+    this.workTimer[i] = 0;
+    this.nameSeed[i] = opts.nameSeed ?? 0;
+    this.pathLen[i] = 0;
+    this.pathIdx[i] = 0;
     this.count++;
     this.speciesCount[species]++;
     return i;
@@ -183,6 +236,13 @@ export class UnitStore {
       this.generation,
       this.kills,
       this.stateTicks,
+      this.village,
+      this.job,
+      this.carry,
+      this.carryAmount,
+      this.work,
+      this.workTimer,
+      this.nameSeed,
     ]);
   }
 }

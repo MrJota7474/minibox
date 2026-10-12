@@ -1,4 +1,6 @@
-import { ticksToYears } from '../core/time';
+import { BUILDING_DEFS, JOB_NAMES, RESOURCE_NAMES, hallLevelName } from '../civ/model';
+import { personName } from '../civ/names';
+import { tickToDate, ticksToYears } from '../core/time';
 import { SPECIES } from '../entities/species';
 import { STATE_LABELS, Sex } from '../entities/units';
 import type { SpriteAtlas } from '../render/sprites';
@@ -12,9 +14,10 @@ export interface InspectorActions {
   toggleFollow(): void;
 }
 
-type Target = { kind: 'unit'; handle: number } | { kind: 'tile'; index: number } | null;
+type Target = { kind: 'unit'; handle: number } | { kind: 'tile'; index: number } | { kind: 'village'; id: number } | null;
+type Row = readonly [string, string | HTMLElement];
 
-/** Panel de inspección: criatura (stats básicas) o casilla. Lateral en PC, hoja inferior en móvil. */
+/** Panel de inspección: criatura, aldea o casilla. Lateral en PC, hoja inferior en móvil. */
 export class Inspector {
   readonly root: HTMLElement;
   private readonly title: HTMLElement;
@@ -47,12 +50,19 @@ export class Inspector {
   }
 
   showUnit(handle: number): void {
-    this.target = { kind: 'unit', handle };
-    this.root.hidden = false;
+    this.open({ kind: 'unit', handle });
   }
 
   showTile(index: number): void {
-    this.target = { kind: 'tile', index };
+    this.open({ kind: 'tile', index });
+  }
+
+  showVillage(id: number): void {
+    this.open({ kind: 'village', id });
+  }
+
+  private open(target: Target): void {
+    this.target = target;
     this.root.hidden = false;
   }
 
@@ -66,12 +76,14 @@ export class Inspector {
   }
 
   update(sim: Simulation): void {
-    if (!this.target) return;
-    if (this.target.kind === 'unit') this.renderUnit(sim, this.target.handle);
-    else this.renderTile(sim, this.target.index);
+    const t = this.target;
+    if (!t) return;
+    if (t.kind === 'unit') this.renderUnit(sim, t.handle);
+    else if (t.kind === 'village') this.renderVillage(sim, t.id);
+    else this.renderTile(sim, t.index);
   }
 
-  private rows(pairs: readonly (readonly [string, string | HTMLElement])[]): void {
+  private rows(pairs: readonly Row[]): void {
     this.body.replaceChildren(...pairs.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', {}, [v])]));
   }
 
@@ -79,8 +91,13 @@ export class Inspector {
     const pct = Math.max(0, Math.min(100, Math.round((value / max) * 100)));
     return el('span', { class: `bar ${cls}`, attrs: { role: 'meter', 'aria-valuenow': String(pct), 'aria-valuemin': '0', 'aria-valuemax': '100' } }, [
       el('span', { class: 'bar-fill', attrs: { style: `width:${pct}%` } }),
-      el('span', { class: 'bar-text', text: `${Math.max(0, value)}/${max}` }),
+      el('span', { class: 'bar-text', text: `${Math.max(0, Math.round(value))}/${max}` }),
     ]);
+  }
+
+  private setPortrait(species: number | null): void {
+    this.portrait.hidden = species === null;
+    if (species !== null) this.portrait.src = speciesIcon(species, this.atlas);
   }
 
   private renderUnit(sim: Simulation, handle: number): void {
@@ -93,18 +110,53 @@ export class Inspector {
       return;
     }
     const def = SPECIES[u.species[i]];
-    this.portrait.src = speciesIcon(def.id, this.atlas);
-    this.portrait.hidden = false;
-    this.title.textContent = `${def.name} ${u.sex[i] === Sex.FEMALE ? '♀' : '♂'}`;
+    this.setPortrait(def.id);
+    const sex = u.sex[i] === Sex.FEMALE ? '♀' : '♂';
+    const civilized = def.diet === 'civilized';
+    this.title.textContent = civilized ? `${personName(def.id, u.nameSeed[i])} ${sex}` : `${def.name} ${sex}`;
     const adult = u.age[i] >= def.adultTicks;
-    const rows: [string, string | HTMLElement][] = [
+    const rows: Row[] = [];
+    if (civilized) rows.push(['Raza', def.name]);
+    rows.push(
       ['Edad', `${ticksToYears(u.age[i])} años${adult ? '' : ' (cría)'}`],
       ['Vida', this.bar(u.hp[i], def.maxHp, 'bar-hp')],
       ['Saciedad', this.bar(u.hunger[i], def.maxHunger, 'bar-food')],
       ['Estado', STATE_LABELS[u.state[i]]],
-      ['Generación', String(u.generation[i])],
+    );
+    if (civilized) {
+      const v = sim.civ.villageOf(i);
+      rows.push(['Aldea', v ? v.name : 'Sin aldea'], ['Oficio', adult ? JOB_NAMES[u.job[i]] : 'Ninguno (cría)']);
+      if (u.carry[i] !== 0) rows.push(['Carga', `${u.carryAmount[i]} de ${RESOURCE_NAMES[u.carry[i] - 1].toLowerCase()}`]);
+      if (def.race) rows.push(['Rasgo', def.race.trait]);
+    }
+    rows.push(['Generación', String(u.generation[i])]);
+    if (def.diet !== 'herbivore' && u.kills[i] > 0) rows.push(['Presas', String(u.kills[i])]);
+    this.rows(rows);
+  }
+
+  private renderVillage(sim: Simulation, id: number): void {
+    const v = sim.civ.villages[id];
+    this.followBtn.hidden = true;
+    if (!v || !v.alive) {
+      this.setPortrait(null);
+      this.title.textContent = v ? v.name : 'Aldea';
+      this.body.replaceChildren(el('p', { class: 'insp-note', text: 'Esta aldea fue abandonada.' }));
+      return;
+    }
+    this.setPortrait(v.race);
+    this.title.textContent = v.name;
+    const hall = sim.civ.building(v.hallId);
+    const founded = tickToDate(v.founded);
+    const rows: Row[] = [
+      ['Raza', SPECIES[v.race].plural],
+      ['Nivel', hall ? `${hallLevelName(hall.level)}${hall.underConstruction ? ' (mejorando)' : ''}` : '—'],
+      ['Población', this.bar(v.population, Math.max(1, v.housing), 'bar-pop')],
+      ...v.resources.map((r, k): Row => [RESOURCE_NAMES[k], `${Math.floor(r)} / ${v.storageCap}`]),
+      ['Edificios', `${v.houses} viviendas · ${v.storages} almacenes · ${v.farms} granjas`],
+      ['En obras', String(v.sites)],
+      ['Territorio', `${v.zones} zonas`],
+      ['Fundada', `Año ${founded.year}`],
     ];
-    if (def.diet === 'carnivore') rows.push(['Presas', String(u.kills[i])]);
     this.rows(rows);
   }
 
@@ -112,13 +164,21 @@ export class Inspector {
     const w = sim.world;
     const t = w.terrain[index];
     this.followBtn.hidden = true;
-    this.portrait.hidden = true;
+    this.setPortrait(null);
     this.title.textContent = TERRAIN_INFO[t].name;
-    const rows: [string, string | HTMLElement][] = [['Altura', String(w.heightMap[index])]];
+    const rows: Row[] = [['Altura', String(w.heightMap[index])]];
     if (!isWaterTerrain(t)) {
       rows.push(['Bioma', BIOME_INFO[w.biome[index]].name]);
       if (isFertileTerrain(t)) rows.push(['Hierba', this.bar(w.grass[index], Math.max(1, BIOME_INFO[w.biome[index]].grassMax), 'bar-food')]);
-      rows.push(['Vegetación', FLORA_NAMES[w.flora[index]]]);
+      rows.push(['Suelo', FLORA_NAMES[w.flora[index]]]);
+    }
+    const x = index % w.width;
+    const owner = w.ownerAt(x, (index - x) / w.width);
+    if (owner >= 0) rows.push(['Territorio', sim.civ.villages[owner].name]);
+    const b = w.buildingAt[index];
+    if (b > 0) {
+      const building = sim.civ.buildings[b - 1];
+      rows.push(['Edificio', BUILDING_DEFS[building.type].names[Math.max(0, building.level - 1)]]);
     }
     this.rows(rows);
   }

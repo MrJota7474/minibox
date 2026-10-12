@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DEATH_CAUSE_COUNT, DeathCause, updateUnits, type AiContext } from '../src/ai/animal-ai';
+import { DEATH_CAUSE_COUNT, DeathCause, type AiContext } from '../src/ai/context';
+import { Pathfinder } from '../src/ai/pathfinder';
+import { updateUnits } from '../src/ai/update';
+import { CivSystem } from '../src/civ/civ-system';
 import { Move, escapeBlockedTile, moveToward, pickWanderTarget } from '../src/ai/movement';
 import { Rng } from '../src/core/rng';
 import { SPECIES, Species, type SpeciesId } from '../src/entities/species';
@@ -21,9 +24,13 @@ function makeWorld(biome: number = Biome.GRASS, grass = 200): World {
 }
 
 function makeCtx(world: World, capacity = 100, limit = capacity): AiContext {
+  world.computeRegions();
+  const units = new UnitStore(capacity);
   return {
     world,
-    units: new UnitStore(capacity),
+    units,
+    pathfinder: new Pathfinder(world),
+    civ: new CivSystem(world, units),
     spatial: new SpatialHash(world.width, world.height, capacity),
     rng: new Rng(1),
     tick: 0,
@@ -40,7 +47,9 @@ function spawn(ctx: AiContext, species: SpeciesId, x: number, y: number, sex: nu
 function run(ctx: AiContext, ticks: number): void {
   for (let t = 0; t < ticks; t++) {
     ctx.tick = t;
+    ctx.pathfinder.resetBudget();
     ctx.spatial.rebuild(ctx.units);
+    ctx.civ.update(ctx);
     updateUnits(ctx);
   }
 }

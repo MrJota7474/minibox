@@ -10,6 +10,7 @@ import {
   TERRAIN_INFO,
   Terrain,
   isFertileTerrain,
+  isPlant,
   type BiomeId,
   type TerrainId,
 } from '../world/terrain';
@@ -103,7 +104,7 @@ function applyTool(world: World, rng: Rng, tool: BrushToolId, i: number, single:
       if (canPlant(world, i) && (single || rng.chance(BUSH_DENSITY))) world.setFlora(i, Flora.BERRY_BUSH);
       break;
     case 'clear-flora':
-      world.setFlora(i, Flora.NONE);
+      if (isPlant(world.flora[i])) world.setFlora(i, Flora.NONE);
       break;
     default:
       break;
@@ -147,6 +148,7 @@ export function spawnInBrush(
         ageTicks: def.adultTicks + rng.int(Math.floor(def.lifespanTicks * 0.3)),
         generation: 0,
         thinkOffset: rng.int(5),
+        nameSeed: rng.nextU32(),
       });
       if (i !== NO_UNIT) spawned++;
       break;

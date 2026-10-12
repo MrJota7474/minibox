@@ -79,6 +79,6 @@ export class VegetationSystem {
     const ny = y + dy * 2;
     if (!w.inBounds(nx, ny)) return;
     const j = w.idx(nx, ny);
-    if (w.flora[j] === Flora.NONE && isFertileTerrain(w.terrain[j])) w.setFlora(j, Flora.SAPLING);
+    if (w.flora[j] === Flora.NONE && w.buildingAt[j] === 0 && isFertileTerrain(w.terrain[j])) w.setFlora(j, Flora.SAPLING);
   }
 }

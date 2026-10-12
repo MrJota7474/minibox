@@ -1,6 +1,7 @@
 import { hashViews } from '../core/hash';
 import {
   Flora,
+  isDeposit,
   isFertileTerrain,
   isWalkableTerrain,
   isWaterTerrain,
@@ -11,6 +12,8 @@ import {
 } from './terrain';
 
 export const CHUNK_SIZE = 32;
+/** Lado de una zona de territorio (en casillas). */
+export const ZONE_SIZE = 8;
 
 /**
  * Estado del mapa en arrays tipados planos (índice = y * width + x).
@@ -25,6 +28,17 @@ export class World {
   readonly biome: Uint8Array;
   readonly grass: Uint8Array;
   readonly flora: Uint8Array;
+  /** Edificio que ocupa cada casilla (id + 1; 0 = ninguno). */
+  readonly buildingAt: Int32Array;
+  /** 1 si un aldeano ya va a trabajar esa casilla (evita que dos vayan al mismo árbol). */
+  readonly reserved: Uint8Array;
+  /** Región (isla) conectada a la que pertenece cada casilla pisable (0 = no pisable). */
+  readonly region: Int32Array;
+  regionsDirty = true;
+  readonly zonesX: number;
+  readonly zonesY: number;
+  /** Aldea dueña de cada zona (id + 1; 0 = libre). */
+  readonly zoneOwner: Uint16Array;
 
   readonly chunksX: number;
   readonly chunksY: number;
@@ -40,6 +54,12 @@ export class World {
     this.biome = new Uint8Array(this.size);
     this.grass = new Uint8Array(this.size);
     this.flora = new Uint8Array(this.size);
+    this.buildingAt = new Int32Array(this.size);
+    this.reserved = new Uint8Array(this.size);
+    this.region = new Int32Array(this.size);
+    this.zonesX = Math.ceil(width / ZONE_SIZE);
+    this.zonesY = Math.ceil(height / ZONE_SIZE);
+    this.zoneOwner = new Uint16Array(this.zonesX * this.zonesY);
     this.chunksX = Math.ceil(width / CHUNK_SIZE);
     this.chunksY = Math.ceil(height / CHUNK_SIZE);
     this.dirty = new Uint8Array(this.chunksX * this.chunksY);
@@ -80,13 +100,14 @@ export class World {
     this.heightMap[i] = clamped;
     const t = terrainFromHeight(clamped);
     if (this.terrain[i] !== t) {
+      if (isWalkableTerrain(this.terrain[i]) !== isWalkableTerrain(t)) this.regionsDirty = true;
       this.terrain[i] = t;
       if (isWaterTerrain(t)) {
         this.flora[i] = Flora.NONE;
         this.grass[i] = 0;
       } else if (!isFertileTerrain(t)) {
         this.grass[i] = 0;
-        if (this.flora[i] !== Flora.TREE) this.flora[i] = Flora.NONE;
+        if (this.flora[i] !== Flora.TREE && !isDeposit(this.flora[i])) this.flora[i] = Flora.NONE;
       }
     }
     this.markDirtyIdx(i);
@@ -143,7 +164,57 @@ export class World {
     return this.dirtyList.length > 0;
   }
 
+  /** Índice de la zona que contiene la casilla. */
+  zoneIndex(x: number, y: number): number {
+    return Math.floor(y / ZONE_SIZE) * this.zonesX + Math.floor(x / ZONE_SIZE);
+  }
+
+  /** Aldea dueña de la casilla (-1 si es tierra libre). */
+  ownerAt(x: number, y: number): number {
+    if (!this.inBounds(x, y)) return -1;
+    return this.zoneOwner[this.zoneIndex(x, y)] - 1;
+  }
+
+  regionAt(x: number, y: number): number {
+    const tx = Math.floor(x);
+    const ty = Math.floor(y);
+    return this.inBounds(tx, ty) ? this.region[ty * this.width + tx] : 0;
+  }
+
+  /** Etiqueta las islas pisables con un relleno por inundación (BFS, 4 vecinos). */
+  computeRegions(): void {
+    const { width: w, height: h, region } = this;
+    region.fill(0);
+    const queue = new Int32Array(this.size);
+    let label = 0;
+    for (let start = 0; start < this.size; start++) {
+      if (region[start] !== 0 || !isWalkableTerrain(this.terrain[start])) continue;
+      label++;
+      let head = 0;
+      let tail = 0;
+      queue[tail++] = start;
+      region[start] = label;
+      while (head < tail) {
+        const i = queue[head++];
+        const x = i % w;
+        const y = (i - x) / w;
+        if (x > 0) tail = this.visit(i - 1, label, queue, tail);
+        if (x < w - 1) tail = this.visit(i + 1, label, queue, tail);
+        if (y > 0) tail = this.visit(i - w, label, queue, tail);
+        if (y < h - 1) tail = this.visit(i + w, label, queue, tail);
+      }
+    }
+    this.regionsDirty = false;
+  }
+
+  private visit(j: number, label: number, queue: Int32Array, tail: number): number {
+    if (this.region[j] !== 0 || !isWalkableTerrain(this.terrain[j])) return tail;
+    this.region[j] = label;
+    queue[tail] = j;
+    return tail + 1;
+  }
+
   stateHash(): number {
-    return hashViews([this.heightMap, this.terrain, this.biome, this.grass, this.flora]);
+    return hashViews([this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.zoneOwner]);
   }
 }

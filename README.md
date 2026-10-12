@@ -6,7 +6,10 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 
 ## Estado
 
-**Fase A (MVP)** — mundo generado por ruido, pintar terreno y biomas, ovejas, conejos y lobos que comen, cazan, huyen, se reproducen y envejecen, control del tiempo (pausa, x1, x2, x5), controles de ratón, teclado y táctiles, PWA instalable. Ver [DESIGN.md](DESIGN.md) para el diseño completo y las próximas fases.
+- **Fase A (MVP)** — mundo generado por ruido, pintar terreno y biomas, ovejas, conejos y lobos que comen, cazan, huyen, se reproducen y envejecen, control del tiempo (pausa, x1, x2, x5), controles de ratón, teclado y táctiles, PWA instalable.
+- **Fase B (aldeas)** — cuatro razas (Humanos, Silvanos, Petrinos, Colmilludos) que fundan aldeas, reparten oficios, recogen comida, madera, piedra, hierro y oro, construyen y mejoran edificios, amplían su territorio y envían colonos. Búsqueda de caminos A*.
+
+Ver [DESIGN.md](DESIGN.md) para el diseño completo y las próximas fases.
 
 ## Ejecutar en local
 
@@ -43,7 +46,8 @@ src/
   core/      RNG con semilla, reloj de paso fijo, calendario, perfil de dispositivo
   world/     mapa en arrays tipados, generador por ruido, vegetación por chunks
   entities/  especies, almacén de criaturas (SoA), spatial hash
-  ai/        comportamiento de animales y movimiento
+  ai/        ciclo de vida, comportamiento de animales, movimiento y A*
+  civ/       aldeas, edificios, oficios, planificador y aldeanos
   sim/       Simulation (núcleo determinista) y comandos del jugador
   powers/    pinceles, herramientas y trazos
   render/    cámara, capa de terreno, sprites generados por código, renderer Canvas 2D

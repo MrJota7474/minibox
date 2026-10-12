@@ -363,6 +363,9 @@ img {
 .bar-food .bar-fill {
   background: var(--accent);
 }
+.bar-pop .bar-fill {
+  background: #3d8be8;
+}
 .bar-text {
   position: relative;
   padding-left: 4px;
@@ -545,6 +548,16 @@ img {
   }
   .hud-pop {
     font-size: 12px;
+    gap: 0 6px;
+  }
+  .hud-count img {
+    height: 11px;
+  }
+  .hud-total {
+    display: none;
+  }
+  .hud .btn {
+    min-width: 40px;
   }
   .btn-speed {
     min-width: 40px;

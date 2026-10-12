@@ -3,7 +3,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 /** Módulos de simulación: deben ser deterministas e independientes de la interfaz. */
-const SIM_FILES = ['src/core/rng.ts', 'src/core/hash.ts', 'src/core/time.ts', 'src/world/**', 'src/entities/**', 'src/ai/**', 'src/sim/**', 'src/powers/brush.ts'];
+const SIM_FILES = ['src/core/rng.ts', 'src/core/hash.ts', 'src/core/time.ts', 'src/world/**', 'src/entities/**', 'src/ai/**', 'src/sim/**', 'src/civ/**', 'src/powers/brush.ts'];
 
 export default tseslint.config(
   { ignores: ['dist', 'release', 'coverage', 'dev-dist', 'node_modules'] },

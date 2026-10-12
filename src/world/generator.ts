@@ -1,6 +1,6 @@
 import { Rng } from '../core/rng';
 import { fbm } from './noise';
-import { BIOME_INFO, Biome, Flora, SEA_LEVEL, isFertileTerrain, terrainFromHeight, type BiomeId } from './terrain';
+import { BIOME_INFO, Biome, Flora, SEA_LEVEL, Terrain, isFertileTerrain, terrainFromHeight, type BiomeId } from './terrain';
 import { World } from './world';
 
 /** Fracción aproximada del mapa que queda bajo el agua. */
@@ -16,6 +16,7 @@ export function generateWorld(seed: number, width: number, height: number): Worl
   applyHeights(world, raw);
   assignBiomes(world, seed);
   seedVegetation(world, new Rng(seed ^ 0x5eed));
+  world.computeRegions();
   world.markAllDirty();
   return world;
 }
@@ -96,8 +97,23 @@ function pickBiome(moisture: number, heat: number): BiomeId {
 const TREE_DENSITY: readonly number[] = [0.03, 0.35, 0.004];
 const BUSH_DENSITY: readonly number[] = [0.02, 0.025, 0];
 
+/** Probabilidad de roca, hierro y oro por capa de terreno. */
+const DEPOSITS: Readonly<Record<number, readonly [number, number, number]>> = {
+  [Terrain.SOIL_HIGH]: [0.006, 0, 0],
+  [Terrain.HILLS]: [0.04, 0.012, 0.002],
+  [Terrain.MOUNTAIN]: [0.06, 0.025, 0.008],
+};
+
 function seedVegetation(world: World, rng: Rng): void {
   for (let i = 0; i < world.size; i++) {
+    const dep = DEPOSITS[world.terrain[i]];
+    if (dep) {
+      const r = rng.float();
+      if (r < dep[2]) world.flora[i] = Flora.GOLD;
+      else if (r < dep[2] + dep[1]) world.flora[i] = Flora.IRON;
+      else if (r < dep[2] + dep[1] + dep[0]) world.flora[i] = Flora.ROCK;
+      if (world.flora[i] !== Flora.NONE) continue;
+    }
     if (!isFertileTerrain(world.terrain[i])) continue;
     const b = world.biome[i];
     const r = rng.float();

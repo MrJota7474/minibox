@@ -22,6 +22,14 @@ const TOUCH_CONTROLS: readonly (readonly [string, string])[] = [
   ['Flecha de la barra', 'Plegar o desplegar las herramientas'],
 ];
 
+const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
+  ['Fundar una aldea', 'Suelta al menos 3 aldeanos de la misma raza juntos (pincel 5 o más) en tierra libre'],
+  ['Recursos', 'Recolectores, leñadores, mineros, granjeros y cazadores llevan comida, madera, piedra, hierro y oro al almacén'],
+  ['Crecer', 'Con casas libres y comida nacen niños; la aldea construye, mejora el ayuntamiento y amplía su territorio'],
+  ['Colonos', 'Las aldeas grandes envían colonos que fundan nuevas aldeas'],
+  ['Inspeccionar', 'Toca un edificio para ver su aldea, o un aldeano para ver su oficio'],
+];
+
 function table(rows: readonly (readonly [string, string])[]): HTMLElement {
   return el('dl', { class: 'help-list' }, rows.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })]));
 }
@@ -32,5 +40,7 @@ export function helpContent(): HTMLElement {
     table(PC_CONTROLS),
     el('h3', { text: 'En el celular' }),
     table(TOUCH_CONTROLS),
+    el('h3', { text: 'Aldeas' }),
+    table(VILLAGE_TIPS),
   ]);
 }

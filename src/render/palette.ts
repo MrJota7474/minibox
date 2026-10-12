@@ -29,6 +29,9 @@ const FLORA_RGB: Readonly<Record<number, Rgb>> = {
   [Flora.SAPLING]: hexToRgb('#79c74f'),
   [Flora.BUSH]: hexToRgb('#4c8a34'),
   [Flora.BERRY_BUSH]: hexToRgb('#b4415a'),
+  [Flora.ROCK]: hexToRgb('#5d5953'),
+  [Flora.IRON]: hexToRgb('#9a5b3c'),
+  [Flora.GOLD]: hexToRgb('#f0c43a'),
 };
 const TREE_RGB: readonly Rgb[] = ['#2d6a26', '#1f4d1d', '#6f7d2c'].map(hexToRgb);
 

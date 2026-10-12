@@ -1,8 +1,11 @@
+import type { CivSystem } from '../civ/civ-system';
+import { RESOURCE_COLORS } from '../civ/model';
 import { SPECIES } from '../entities/species';
 import type { UnitStore } from '../entities/units';
 import type { World } from '../world/world';
 import type { Camera } from './camera';
 import { BACKGROUND } from './palette';
+import { CivLayer } from './civ-layer';
 import { buildSpriteAtlas, type SpriteAtlas } from './sprites';
 import { TerrainLayer } from './terrain-layer';
 
@@ -28,12 +31,14 @@ export class Renderer {
   private dprCap: number;
   private readonly speciesColors: string[];
   private readonly adultTicks: number[];
+  private readonly civLayer: CivLayer;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly world: World,
     private readonly units: UnitStore,
     private readonly camera: Camera,
+    civ: CivSystem,
     dprCap: number,
     atlas?: SpriteAtlas,
   ) {
@@ -45,6 +50,7 @@ export class Renderer {
     this.dprCap = dprCap;
     this.speciesColors = SPECIES.map((s) => s.color);
     this.adultTicks = SPECIES.map((s) => s.adultTicks);
+    this.civLayer = new CivLayer(world, civ, camera);
   }
 
   getDprCap(): number {
@@ -73,8 +79,11 @@ export class Renderer {
     ctx.fillStyle = BACKGROUND;
     ctx.fillRect(0, 0, cam.viewW, cam.viewH);
     this.drawTerrain();
+    this.civLayer.drawTerritory(ctx);
+    this.civLayer.drawBuildings(ctx);
     if (overlay.selectedTile >= 0) this.drawTileMarker(overlay.selectedTile);
     this.drawUnits(alpha, tick);
+    this.civLayer.drawLabels(ctx);
     if (overlay.selected >= 0) this.drawSelection(overlay.selected, alpha);
     if (overlay.brush) this.drawBrush(overlay.brush.x, overlay.brush.y, overlay.brush.size);
   }
@@ -122,7 +131,13 @@ export class Renderer {
       const s = u.age[i] < this.adultTicks[sp] && scale > 1 ? scale - 1 : scale;
       const w = size.w * s;
       const h = size.h * s;
-      ctx.drawImage(atlas.canvas, (frame * 2 + flip) * atlas.cellW, sp * atlas.cellH, size.w, size.h, Math.round(sx - w / 2), Math.round(sy - h + s * 2), w, h);
+      const spriteTop = Math.round(sy - h + s * 2);
+      ctx.drawImage(atlas.canvas, (frame * 2 + flip) * atlas.cellW, sp * atlas.cellH, size.w, size.h, Math.round(sx - w / 2), spriteTop, w, h);
+      // Carga que lleva un aldeano (madera, piedra, comida...) sobre la cabeza.
+      if (u.carry[i] !== 0) {
+        ctx.fillStyle = RESOURCE_COLORS[u.carry[i] - 1];
+        ctx.fillRect(Math.round(sx - s * 1.5), spriteTop - s * 2, s * 3, s * 2);
+      }
     }
   }
 

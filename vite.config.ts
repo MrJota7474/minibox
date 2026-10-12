@@ -42,7 +42,7 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/core/**', 'src/world/**', 'src/entities/**', 'src/ai/**', 'src/sim/**', 'src/powers/**', 'src/input/gestures.ts', 'src/render/camera.ts'],
+      include: ['src/core/**', 'src/world/**', 'src/entities/**', 'src/ai/**', 'src/sim/**', 'src/powers/**', 'src/civ/**', 'src/input/gestures.ts', 'src/render/camera.ts'],
       exclude: ['src/core/device.ts'],
       reporter: ['text-summary', 'text'],
     },

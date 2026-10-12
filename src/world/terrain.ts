@@ -91,8 +91,16 @@ export const BIOME_INFO: readonly BiomeInfo[] = [
   { name: 'Desierto', grassMax: 0, grassRegrow: 0, treeSpread: 0 },
 ];
 
-/** Vegetación por casilla. */
-export const Flora = { NONE: 0, SAPLING: 1, TREE: 2, BUSH: 3, BERRY_BUSH: 4 } as const;
+/** Objetos del suelo: vegetación y depósitos minerales. */
+export const Flora = { NONE: 0, SAPLING: 1, TREE: 2, BUSH: 3, BERRY_BUSH: 4, ROCK: 5, IRON: 6, GOLD: 7 } as const;
 export type FloraId = (typeof Flora)[keyof typeof Flora];
 
-export const FLORA_NAMES: readonly string[] = ['Nada', 'Retoño', 'Árbol', 'Arbusto', 'Arbusto con bayas'];
+export const FLORA_NAMES: readonly string[] = ['Nada', 'Retoño', 'Árbol', 'Arbusto', 'Arbusto con bayas', 'Roca', 'Veta de hierro', 'Veta de oro'];
+
+export function isPlant(f: number): boolean {
+  return f >= Flora.SAPLING && f <= Flora.BERRY_BUSH;
+}
+
+export function isDeposit(f: number): boolean {
+  return f >= Flora.ROCK && f <= Flora.GOLD;
+}

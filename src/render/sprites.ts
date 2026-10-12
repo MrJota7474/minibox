@@ -35,6 +35,34 @@ const SPRITES: Readonly<Record<number, SpriteDef>> = {
     ],
     colors: { g: '#8a929c', e: '#f2d14b' },
   },
+  [Species.HUMAN]: {
+    frames: [
+      ['.hhh.', '.hfe.', '..f..', '.ccc.', 'fcccf', '.l.l.', '.l.l.'],
+      ['.hhh.', '.hfe.', '..f..', '.ccc.', 'fcccf', '.l.l.', 'l...l'],
+    ],
+    colors: { h: '#5a3a22', f: '#e8b48a', e: '#2a1d14', c: '#3a6fb0', l: '#4a3a2a' },
+  },
+  [Species.SILVAN]: {
+    frames: [
+      ['.hhh.', 'hhfe.', '.hff.', '.ccc.', 'fcccf', '.l.l.', '.l.l.'],
+      ['.hhh.', 'hhfe.', '.hff.', '.ccc.', 'fcccf', '.l.l.', 'l...l'],
+    ],
+    colors: { h: '#e8d070', f: '#f0d0b0', e: '#2f6b25', c: '#3f8a3a', l: '#2f5a2a' },
+  },
+  [Species.PETRINO]: {
+    frames: [
+      ['.mmm.', '.fef.', '.bbb.', 'ccccc', 'fcccf', '.l.l.'],
+      ['.mmm.', '.fef.', '.bbb.', 'ccccc', 'fcccf', 'l...l'],
+    ],
+    colors: { m: '#9a9aa2', f: '#e0a878', e: '#2a1d14', b: '#b0642a', c: '#8a3a2a', l: '#4a3a2a' },
+  },
+  [Species.TUSKER]: {
+    frames: [
+      ['.hhh.', '.ffe.', '.tft.', '.ccc.', 'fcccf', '.l.l.', '.l.l.'],
+      ['.hhh.', '.ffe.', '.tft.', '.ccc.', 'fcccf', '.l.l.', 'l...l'],
+    ],
+    colors: { h: '#1f1a16', f: '#7fa25a', e: '#d2405e', t: '#f4f0e4', c: '#7a5030', l: '#3a2a1a' },
+  },
 };
 
 export interface SpriteAtlas {
@@ -46,7 +74,7 @@ export interface SpriteAtlas {
   readonly sizes: readonly { w: number; h: number }[];
 }
 
-const SPECIES_COUNT = 3;
+const SPECIES_COUNT = Object.keys(SPRITES).length;
 const FRAMES = 2;
 
 /** Atlas: filas = especies; columnas = cuadro (0,1) × orientación (derecha, izquierda). */
@@ -71,6 +99,11 @@ export function buildSpriteAtlas(): SpriteAtlas {
     }
   }
   return { canvas, cellW, cellH, sizes };
+}
+
+/** Dibuja una plantilla de pixel art con contorno oscuro de 1 px (reutilizado por los edificios). */
+export function drawPixelArt(ctx: CanvasRenderingContext2D, rows: Template, colors: Readonly<Record<string, string>>, ox: number, oy: number): void {
+  drawTemplate(ctx, { frames: [rows, rows], colors }, 0, false, ox, oy);
 }
 
 function drawTemplate(ctx: CanvasRenderingContext2D, def: SpriteDef, frame: number, flip: boolean, ox: number, oy: number): void {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { generateWorld } from '../src/world/generator';
 import { fbm, valueNoise } from '../src/world/noise';
-import { BIOME_INFO, Biome, Flora, SEA_LEVEL, TERRAIN_INFO, Terrain, terrainFromHeight } from '../src/world/terrain';
+import { BIOME_INFO, Biome, Flora, SEA_LEVEL, TERRAIN_INFO, Terrain, isDeposit, isPlant, terrainFromHeight } from '../src/world/terrain';
 import { VEGETATION_PASS_TICKS, VegetationSystem } from '../src/world/vegetation';
 import { CHUNK_SIZE, World } from '../src/world/world';
 
@@ -58,16 +58,33 @@ describe('generateWorld', () => {
     expect(w.isWaterIdx(w.idx(127, 127))).toBe(true);
   });
 
-  it('coloca vegetación sólo en tierra fértil', () => {
+  it('coloca plantas sólo en tierra fértil y minerales en tierras altas', () => {
     const w = generateWorld(8, 128, 128);
-    let trees = 0;
+    let plants = 0;
+    let deposits = 0;
     for (let i = 0; i < w.size; i++) {
-      if (w.flora[i] !== Flora.NONE) {
-        trees++;
+      if (isPlant(w.flora[i])) {
+        plants++;
         expect(w.isFertileIdx(i)).toBe(true);
+      } else if (isDeposit(w.flora[i])) {
+        deposits++;
+        expect([Terrain.SOIL_HIGH, Terrain.HILLS, Terrain.MOUNTAIN]).toContain(w.terrain[i]);
       }
     }
-    expect(trees).toBeGreaterThan(0);
+    expect(plants).toBeGreaterThan(0);
+    expect(deposits).toBeGreaterThan(0);
+  });
+
+  it('etiqueta las islas: casillas pisables con región y agua sin región', () => {
+    const w = generateWorld(8, 96, 96);
+    for (let i = 0; i < w.size; i++) {
+      if (w.isWaterIdx(i)) expect(w.region[i]).toBe(0);
+    }
+    const land = w.region.findIndex((r) => r > 0);
+    expect(land).toBeGreaterThanOrEqual(0);
+    expect(w.regionsDirty).toBe(false);
+    w.setHeight(land, 0);
+    expect(w.regionsDirty).toBe(true);
   });
 });
 

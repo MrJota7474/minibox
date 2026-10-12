@@ -1,35 +1,9 @@
-import type { Rng } from '../core/rng';
 import { SPECIES, type SpeciesDef } from '../entities/species';
-import type { SpatialHash } from '../entities/spatial';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
-import type { World } from '../world/world';
-import { Move, escapeBlockedTile, moveToward, pickWanderTarget } from './movement';
+import { DeathCause, STATE_TIMEOUT_TICKS, THINK_INTERVAL, giveUp, killUnit, type AiContext } from './context';
+import { Move, moveToward, pickWanderTarget } from './movement';
 
-export const DeathCause = { AGE: 0, HUNGER: 1, KILLED: 2, DROWNED: 3, DIVINE: 4 } as const;
-export type DeathCauseId = (typeof DeathCause)[keyof typeof DeathCause];
-export const DEATH_CAUSE_COUNT = 5;
-
-export interface SimStats {
-  births: number;
-  readonly deaths: Uint32Array;
-}
-
-export interface AiContext {
-  world: World;
-  units: UnitStore;
-  spatial: SpatialHash;
-  rng: Rng;
-  tick: number;
-  /** Límite efectivo de criaturas (puede ser menor que la capacidad). */
-  unitLimit: number;
-  stats: SimStats;
-}
-
-const THINK_INTERVAL = 5;
-const STARVE_INTERVAL = 50;
-const STARVE_DAMAGE_FRACTION = 0.1;
-const OLD_AGE_DEATH_CHANCE = 1 / 600;
 const HUNGRY_FRACTION = 0.6;
 const BREED_FRACTION = 0.5;
 const FULL_FRACTION = 0.95;
@@ -48,44 +22,10 @@ const FLEE_DISTANCE = 7;
 const IDLE_CHANCE = 0.3;
 const CROWD_RADIUS = 4;
 const CROWD_LIMIT = 6;
-const BLOCKED_DAMAGE = 3;
-const BLOCKED_DAMAGE_INTERVAL = 5;
-/** Tras 30 s (x1) persiguiendo algo sin conseguirlo, se abandona. */
-const STATE_TIMEOUT_TICKS = 300;
 
-/** Actualiza todas las criaturas un tick. */
-export function updateUnits(ctx: AiContext): void {
+/** Comportamiento de animales (herbívoros y depredadores); la vida común va en life.ts. */
+export function updateAnimal(ctx: AiContext, i: number, def: SpeciesDef): void {
   const u = ctx.units;
-  for (let i = 0; i < u.highWater; i++) {
-    if (u.alive[i] === 0) continue;
-    u.px[i] = u.x[i];
-    u.py[i] = u.y[i];
-  }
-  for (let i = 0; i < u.highWater; i++) {
-    if (u.alive[i] === 1) updateUnit(ctx, i);
-  }
-}
-
-export function killUnit(ctx: AiContext, i: number, cause: DeathCauseId): void {
-  ctx.units.kill(i);
-  ctx.stats.deaths[cause]++;
-}
-
-function updateUnit(ctx: AiContext, i: number): void {
-  const u = ctx.units;
-  const def = SPECIES[u.species[i]];
-  u.age[i]++;
-  if (u.cooldown[i] > 0) u.cooldown[i]--;
-  if (u.attackCd[i] > 0) u.attackCd[i]--;
-
-  if (u.age[i] > def.lifespanTicks && ctx.rng.chance(OLD_AGE_DEATH_CHANCE)) {
-    killUnit(ctx, i, DeathCause.AGE);
-    return;
-  }
-  if (!updateHunger(ctx, i, def)) return;
-  if (!ctx.world.isWalkableAt(u.x[i], u.y[i]) && !handleBlockedTile(ctx, i)) return;
-
-  const before = u.state[i];
   u.think[i]--;
   if (u.think[i] === 0) {
     u.think[i] = THINK_INTERVAL;
@@ -94,42 +34,9 @@ function updateUnit(ctx: AiContext, i: number): void {
     else thinkCarnivore(ctx, i, def);
   }
   act(ctx, i, def);
-  if (!u.isAlive(i)) return;
-  u.stateTicks[i] = u.state[i] === before ? Math.min(0xffff, u.stateTicks[i] + 1) : 0;
 }
 
-/** Vuelve a reposo y suelta el objetivo (persecución imposible o pareja perdida). */
-function giveUp(u: UnitStore, i: number): void {
-  u.state[i] = UnitState.IDLE;
-  u.target[i] = NO_UNIT;
-  u.stateTicks[i] = 0;
-}
-
-/** Devuelve false si la criatura murió de hambre. */
-function updateHunger(ctx: AiContext, i: number, def: SpeciesDef): boolean {
-  const u = ctx.units;
-  const h = Math.max(0, u.hunger[i] - def.hungerRate);
-  u.hunger[i] = h;
-  if (h > 0 || (ctx.tick + i) % STARVE_INTERVAL !== 0) return true;
-  u.hp[i] -= Math.max(1, Math.round(def.maxHp * STARVE_DAMAGE_FRACTION));
-  if (u.hp[i] > 0) return true;
-  killUnit(ctx, i, DeathCause.HUNGER);
-  return false;
-}
-
-/** Devuelve false si la criatura murió atrapada (ahogada o aplastada). */
-function handleBlockedTile(ctx: AiContext, i: number): boolean {
-  const u = ctx.units;
-  if (escapeBlockedTile(ctx.world, u, i)) return true;
-  if ((ctx.tick + i) % BLOCKED_DAMAGE_INTERVAL !== 0) return true;
-  u.hp[i] -= BLOCKED_DAMAGE;
-  if (u.hp[i] > 0) return true;
-  const tile = ctx.world.idx(Math.floor(u.x[i]), Math.floor(u.y[i]));
-  killUnit(ctx, i, ctx.world.isWaterIdx(tile) ? DeathCause.DROWNED : DeathCause.DIVINE);
-  return false;
-}
-
-function isHungry(u: UnitStore, i: number, def: SpeciesDef): boolean {
+export function isHungry(u: UnitStore, i: number, def: SpeciesDef): boolean {
   return u.hunger[i] < def.maxHunger * HUNGRY_FRACTION;
 }
 
@@ -179,7 +86,7 @@ function flee(ctx: AiContext, i: number, threat: number): void {
   u.target[i] = NO_UNIT;
 }
 
-function wander(ctx: AiContext, i: number, radius: number): void {
+export function wander(ctx: AiContext, i: number, radius: number): void {
   const u = ctx.units;
   if (u.state[i] === UnitState.WANDER) return;
   if (ctx.rng.chance(IDLE_CHANCE)) {

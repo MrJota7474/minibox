@@ -1,6 +1,6 @@
 import { FixedClock, type Speed } from './core/clock';
 import type { DeviceProfile } from './core/device';
-import { Species } from './entities/species';
+import { SPECIES, Species } from './entities/species';
 import { GestureRecognizer, type GestureEvent } from './input/gestures';
 import { Keyboard } from './input/keyboard';
 import { PointerInput } from './input/pointer-input';
@@ -13,7 +13,7 @@ import type { Command } from './sim/commands';
 import { Simulation } from './sim/simulation';
 import { isFertileTerrain } from './world/terrain';
 import { el } from './ui/dom';
-import { Hud } from './ui/hud';
+import { Hud, type HudCounts } from './ui/hud';
 import { Inspector } from './ui/inspector';
 import { Menu } from './ui/menu';
 import { PerfPanel } from './ui/perf-panel';
@@ -22,6 +22,21 @@ import { Toasts } from './ui/toast';
 import { Toolbar } from './ui/toolbar';
 
 const UI_INTERVAL_MS = 250;
+
+/** Recuento agrupado para la barra superior. */
+function hudCounts(sim: Simulation): HudCounts {
+  const c = sim.units.speciesCount;
+  let herbivores = 0;
+  let predators = 0;
+  let people = 0;
+  SPECIES.forEach((s, k) => {
+    if (s.diet === 'herbivore') herbivores += c[k];
+    else if (s.diet === 'carnivore') predators += c[k];
+    else people += c[k];
+  });
+  const villages = sim.civ.villages.reduce((n, v) => n + (v.alive ? 1 : 0), 0);
+  return { herbivores, predators, people, villages, total: sim.units.count, limit: sim.unitLimit };
+}
 const PERF_WINDOW_MS = 5000;
 const LOW_FPS = 24;
 /** Trabajo de CPU por frame a partir del cual se considera que el equipo no da abasto. */
@@ -151,7 +166,7 @@ export class Game {
     const camera = new Camera(opts.size, opts.size);
     this.sim = sim;
     this.camera = camera;
-    this.renderer = new Renderer(this.canvas, sim.world, sim.units, camera, this.device.dprCap, this.atlas);
+    this.renderer = new Renderer(this.canvas, sim.world, sim.units, camera, sim.civ, this.device.dprCap, this.atlas);
     this.renderer.resize();
     camera.fitWorld();
     camera.zoomAt(INITIAL_ZOOM_FACTOR, camera.viewW / 2, camera.viewH / 2);
@@ -192,7 +207,8 @@ export class Game {
   };
 
   private updateUi(sim: Simulation): void {
-    this.hud.update(sim.tick, sim.units.speciesCount, sim.units.count, sim.unitLimit);
+    this.hud.update(sim.tick, hudCounts(sim));
+    this.showCivEvents(sim);
     this.inspector.update(sim);
     if (this.perf.isOpen) {
       this.perf.update({
@@ -297,10 +313,17 @@ export class Game {
     const i = sim.spatial.nearest(sim.units, p.x, p.y, radius, () => true);
     this.following = false;
     this.inspector.setFollowing(false);
+    const tx0 = Math.floor(p.x);
+    const ty0 = Math.floor(p.y);
+    const building = sim.world.inBounds(tx0, ty0) ? sim.world.buildingAt[sim.world.idx(tx0, ty0)] : 0;
     if (i >= 0) {
       this.selectedHandle = sim.units.handleOf(i);
       this.selectedTile = -1;
       this.inspector.showUnit(this.selectedHandle);
+    } else if (building > 0) {
+      this.selectedHandle = -1;
+      this.selectedTile = -1;
+      this.inspector.showVillage(sim.civ.buildings[building - 1].village);
     } else {
       const tx = Math.floor(p.x);
       const ty = Math.floor(p.y);
@@ -310,6 +333,13 @@ export class Game {
       this.inspector.showTile(this.selectedTile);
     }
     this.inspector.update(sim);
+  }
+
+  /** Avisos de la simulación (fundaciones, mejoras, abandonos) como toasts. */
+  private showCivEvents(sim: Simulation): void {
+    const events = sim.civ.events;
+    for (const e of events) this.toasts.show(e.text);
+    events.length = 0;
   }
 
   private clearSelection(): void {

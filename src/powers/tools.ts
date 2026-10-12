@@ -1,7 +1,7 @@
 import { Species, type SpeciesId } from '../entities/species';
 import type { BrushToolId, Command } from '../sim/commands';
 
-export type TabId = 'terreno' | 'naturaleza' | 'criaturas';
+export type TabId = 'terreno' | 'naturaleza' | 'animales' | 'razas';
 
 export interface TabDef {
   readonly id: TabId;
@@ -11,7 +11,8 @@ export interface TabDef {
 export const TABS: readonly TabDef[] = [
   { id: 'terreno', label: 'Terreno' },
   { id: 'naturaleza', label: 'Naturaleza' },
-  { id: 'criaturas', label: 'Criaturas' },
+  { id: 'animales', label: 'Animales' },
+  { id: 'razas', label: 'Razas' },
 ];
 
 export type ToolDef =
@@ -62,9 +63,13 @@ export const TOOLS: readonly ToolDef[] = [
   brush('naturaleza', 'tree', 'Árbol'),
   brush('naturaleza', 'bush', 'Bayas'),
   brush('naturaleza', 'clear-flora', 'Talar'),
-  { id: 'sheep', label: 'Oveja', tab: 'criaturas', kind: 'spawn', species: Species.SHEEP, repeatMs: SPAWN_REPEAT_MS },
-  { id: 'rabbit', label: 'Conejo', tab: 'criaturas', kind: 'spawn', species: Species.RABBIT, repeatMs: SPAWN_REPEAT_MS },
-  { id: 'wolf', label: 'Lobo', tab: 'criaturas', kind: 'spawn', species: Species.WOLF, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'sheep', label: 'Oveja', tab: 'animales', kind: 'spawn', species: Species.SHEEP, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'rabbit', label: 'Conejo', tab: 'animales', kind: 'spawn', species: Species.RABBIT, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'wolf', label: 'Lobo', tab: 'animales', kind: 'spawn', species: Species.WOLF, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'human', label: 'Humanos', tab: 'razas', kind: 'spawn', species: Species.HUMAN, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'silvan', label: 'Silvanos', tab: 'razas', kind: 'spawn', species: Species.SILVAN, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'petrino', label: 'Petrinos', tab: 'razas', kind: 'spawn', species: Species.PETRINO, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'tusker', label: 'Colmilludos', tab: 'razas', kind: 'spawn', species: Species.TUSKER, repeatMs: SPAWN_REPEAT_MS },
 ];
 
 export function toolById(id: string): ToolDef | undefined {

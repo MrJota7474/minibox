@@ -1,4 +1,7 @@
-import { DEATH_CAUSE_COUNT, updateUnits, type AiContext, type SimStats } from '../ai/animal-ai';
+import { DEATH_CAUSE_COUNT, type AiContext, type SimStats } from '../ai/context';
+import { Pathfinder } from '../ai/pathfinder';
+import { updateUnits } from '../ai/update';
+import { CivSystem } from '../civ/civ-system';
 import { hashMix } from '../core/hash';
 import { Rng, hashString } from '../core/rng';
 import { Species, type SpeciesId } from '../entities/species';
@@ -29,6 +32,8 @@ const INITIAL_GROUPS: readonly { species: SpeciesId; perTenThousand: number; siz
 /** Tope del registro de comandos (evita que crezca sin límite en sesiones largas). */
 const MAX_LOGGED_COMMANDS = 200_000;
 const PLACEMENT_ATTEMPTS = 40;
+/** Cada cuántos ticks se recalculan las islas si el terreno cambió. */
+const REGION_RECOMPUTE_TICKS = 10;
 
 /**
  * Núcleo de la simulación: une mundo, criaturas e IA.
@@ -41,6 +46,8 @@ export class Simulation {
   readonly units: UnitStore;
   readonly spatial: SpatialHash;
   readonly vegetation: VegetationSystem;
+  readonly civ: CivSystem;
+  readonly pathfinder: Pathfinder;
   readonly stats: SimStats = { births: 0, deaths: new Uint32Array(DEATH_CAUSE_COUNT) };
   readonly commandLog: LoggedCommand[] = [];
   /** true si el registro superó su tamaño máximo (la repetición ya no sería exacta). */
@@ -61,6 +68,8 @@ export class Simulation {
     this.units = new UnitStore(options.capacity);
     this.spatial = new SpatialHash(options.size, options.size, options.capacity);
     this.vegetation = new VegetationSystem(this.world);
+    this.civ = new CivSystem(this.world, this.units);
+    this.pathfinder = new Pathfinder(this.world);
     this.unitLimit = options.capacity;
     const root = new Rng(this.seed);
     this.rngAi = root.fork(1);
@@ -74,6 +83,8 @@ export class Simulation {
       tick: 0,
       unitLimit: this.unitLimit,
       stats: this.stats,
+      pathfinder: this.pathfinder,
+      civ: this.civ,
     };
     if (options.populate) this.populate(root.fork(4));
   }
@@ -97,13 +108,17 @@ export class Simulation {
     this.ctx.tick = this.tick;
     this.ctx.unitLimit = Math.min(this.unitLimit, this.units.capacity);
     this.vegetation.step(this.rngVeg);
+    if (this.world.regionsDirty && this.tick % REGION_RECOMPUTE_TICKS === 0) this.world.computeRegions();
+    this.pathfinder.resetBudget();
     this.spatial.rebuild(this.units);
+    this.civ.update(this.ctx);
     updateUnits(this.ctx);
     this.tick++;
   }
 
   stateHash(): number {
     let h = hashMix(this.world.stateHash(), this.units.stateHash());
+    h = hashMix(h, this.civ.stateHash());
     h = hashMix(h, this.tick);
     h = hashMix(h, this.vegetation.getCursor());
     h = hashMix(h, this.unitLimit);
