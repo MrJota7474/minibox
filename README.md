@@ -8,6 +8,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 
 - **Fase A (MVP)** — mundo generado por ruido, pintar terreno y biomas, ovejas, conejos y lobos que comen, cazan, huyen, se reproducen y envejecen, control del tiempo (pausa, x1, x2, x5), controles de ratón, teclado y táctiles, PWA instalable.
 - **Fase B (aldeas)** — cuatro razas (Humanos, Silvanos, Petrinos, Colmilludos) que fundan aldeas, reparten oficios, recogen comida, madera, piedra, hierro y oro, construyen y mejoran edificios, amplían su territorio y envían colonos. Búsqueda de caminos A*.
+- **Fase C (reinos)** — reinos con capital, rey y personalidad; opinión entre reinos, guerras con ejércitos de guerreros (armas de hierro), conquista de aldeas, alianzas defensivas, treguas, rebeliones, sucesión y caída de reinos. Poderes de dios para forzar guerra, paz, alianza o rebelión, y crónica del mundo.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las próximas fases.
 

@@ -14,10 +14,10 @@ export function emptyResources(): Resources {
 }
 
 /** Oficios de los aldeanos. */
-export const Job = { NONE: 0, GATHERER: 1, WOODCUTTER: 2, MINER: 3, FARMER: 4, BUILDER: 5, HUNTER: 6, SETTLER: 7 } as const;
+export const Job = { NONE: 0, GATHERER: 1, WOODCUTTER: 2, MINER: 3, FARMER: 4, BUILDER: 5, HUNTER: 6, SETTLER: 7, WARRIOR: 8 } as const;
 export type JobId = (typeof Job)[keyof typeof Job];
-export const JOB_COUNT = 8;
-export const JOB_NAMES: readonly string[] = ['Sin oficio', 'Recolector', 'Leñador', 'Minero', 'Granjero', 'Constructor', 'Cazador', 'Colono'];
+export const JOB_COUNT = 9;
+export const JOB_NAMES: readonly string[] = ['Sin oficio', 'Recolector', 'Leñador', 'Minero', 'Granjero', 'Constructor', 'Cazador', 'Colono', 'Guerrero'];
 
 export const BuildingType = { HALL: 0, HOUSE: 1, STORAGE: 2, FARM: 3 } as const;
 export type BuildingTypeId = (typeof BuildingType)[keyof typeof BuildingType];
@@ -119,6 +119,19 @@ export interface Village {
   readonly cy: number;
   readonly founded: number;
   hallId: number;
+  /** Reino al que pertenece. */
+  kingdom: number;
+  /** Lealtad al reino (0-100); por debajo de cierto umbral puede rebelarse. */
+  loyalty: number;
+  /** Tick de la última conquista (-1 si nunca). */
+  capturedTick: number;
+  /** Reino que la está conquistando y progreso (0-100). */
+  captureBy: number;
+  captureProgress: number;
+  /** Aldea enemiga a la que marcha su ejército (-1 = ninguna). */
+  armyTarget: number;
+  /** Líder de la aldea (handle de criatura, -1 si no hay). */
+  leader: number;
   /** Edificios vivos de la aldea (ids). */
   buildingIds: number[];
   resources: Resources;

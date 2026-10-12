@@ -28,6 +28,9 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Crecer', 'Con casas libres y comida nacen niños; la aldea construye, mejora el ayuntamiento y amplía su territorio'],
   ['Colonos', 'Las aldeas grandes envían colonos que fundan nuevas aldeas'],
   ['Inspeccionar', 'Toca un edificio para ver su aldea, o un aldeano para ver su oficio'],
+  ['Reinos', 'Cada aldea fundada es un reino; sus colonias le pertenecen. El rey y su carácter deciden guerras y alianzas'],
+  ['Guerras', 'Los guerreros conquistan aldeas enemigas sin defensores; las conquistadas pueden rebelarse con el tiempo'],
+  ['Poderes', 'En la ficha de una aldea puedes forzar guerra, paz, alianza o una rebelión'],
 ];
 
 function table(rows: readonly (readonly [string, string])[]): HTMLElement {

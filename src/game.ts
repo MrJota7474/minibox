@@ -35,7 +35,8 @@ function hudCounts(sim: Simulation): HudCounts {
     else people += c[k];
   });
   const villages = sim.civ.villages.reduce((n, v) => n + (v.alive ? 1 : 0), 0);
-  return { herbivores, predators, people, villages, total: sim.units.count, limit: sim.unitLimit };
+  const wars = sim.civ.kingdoms.wars.reduce((n, w) => n + (w.active ? 1 : 0), 0);
+  return { wars, herbivores, predators, people, villages, total: sim.units.count, limit: sim.unitLimit };
 }
 const PERF_WINDOW_MS = 5000;
 const LOW_FPS = 24;
@@ -106,7 +107,11 @@ export class Game {
         this.updateInputMode();
       },
     });
-    this.inspector = new Inspector(this.atlas, { close: () => this.clearSelection(), toggleFollow: () => this.toggleFollow() });
+    this.inspector = new Inspector(this.atlas, {
+      close: () => this.clearSelection(),
+      toggleFollow: () => this.toggleFollow(),
+      diplomacy: (action, a, b) => this.applyCommand({ type: 'diplomacy', action, a, b }),
+    });
     this.startMenu = new StartMenu(device, (o) => this.newWorld(o), () => this.startMenu.close());
     this.menu = new Menu({
       newWorld: () => {
@@ -116,6 +121,7 @@ export class Game {
       },
       toggleFullscreen: () => this.toggleFullscreen(),
       togglePerf: () => this.perf.toggle(),
+      chronicle: () => this.sim?.civ.chronicle ?? [],
     });
     this.perf = new PerfPanel({ stress: (k) => this.stress(k) });
     root.append(this.canvas, this.hud.root, this.inspector.root, this.perf.root, this.toasts.root, this.toolbar.root, this.menu.root, this.startMenu.root);
@@ -205,6 +211,25 @@ export class Game {
     this.workMsAvg += (performance.now() - workStart - this.workMsAvg) * 0.05;
     this.checkPerformance(now, sim);
   };
+
+  /** Sólo depuración (window.minibox en desarrollo): avanza ticks y redibuja sin depender de requestAnimationFrame. */
+  debugAdvance(ticks: number): void {
+    const sim = this.sim;
+    if (!sim || !this.renderer) return;
+    for (let t = 0; t < ticks; t++) sim.step();
+    this.renderer.draw(1, sim.tick, { brush: null, selected: -1, selectedTile: -1 });
+    this.updateUi(sim);
+  }
+
+  /** Sólo depuración: acceso a la cámara. */
+  get debugCamera(): Camera | null {
+    return this.camera;
+  }
+
+  /** Sólo depuración: acceso a la simulación actual. */
+  get debugSim(): Simulation | null {
+    return this.sim;
+  }
 
   private updateUi(sim: Simulation): void {
     this.hud.update(sim.tick, hudCounts(sim));

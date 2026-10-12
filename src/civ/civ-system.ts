@@ -15,11 +15,18 @@ import {
   type BuildingTypeId,
   type Village,
 } from './model';
+import { KingdomSystem } from './kingdoms';
 import { villageName } from './names';
 import { canPlace, clearFootprint, findBuildSpot } from './placement';
 import { planVillage } from './planner';
 
-export type CivEventType = 'founded' | 'abandoned' | 'upgraded';
+export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen';
+
+export interface ChronicleEntry {
+  readonly tick: number;
+  readonly type: CivEventType;
+  readonly text: string;
+}
 
 export interface CivEvent {
   readonly type: CivEventType;
@@ -37,6 +44,7 @@ const FOUND_GROUP_RADIUS = 6;
 const FOUND_MIN_GROUP = 3;
 const HALL_SEARCH_RADIUS = 6;
 const MAX_EVENTS = 50;
+const MAX_CHRONICLE = 200;
 const STARTING_RESOURCES: readonly number[] = [12, 8, 0, 0, 0];
 
 /**
@@ -49,14 +57,21 @@ export class CivSystem {
   readonly buildings: Building[] = [];
   /** Avisos para la interfaz (no forman parte del estado determinista). */
   readonly events: CivEvent[] = [];
+  /** Crónica del mundo: los últimos acontecimientos con su fecha. */
+  readonly chronicle: ChronicleEntry[] = [];
+  readonly kingdoms: KingdomSystem;
+  tick = 0;
 
   constructor(
     private readonly world: World,
     private readonly units: UnitStore,
-  ) {}
+  ) {
+    this.kingdoms = new KingdomSystem(this, units);
+  }
 
   update(ctx: AiContext): void {
     const t = ctx.tick;
+    this.tick = t;
     if (t % FARM_GROWTH_INTERVAL === 0) this.growFarms();
     if (t % CENSUS_INTERVAL === 0) {
       this.checkIntegrity();
@@ -68,6 +83,7 @@ export class CivSystem {
       }
     }
     if (t % UNAFFILIATED_INTERVAL === 5) this.handleUnaffiliated(ctx);
+    this.kingdoms.update(ctx);
   }
 
   villageOf(i: number): Village | null {
@@ -115,12 +131,14 @@ export class CivSystem {
   addEvent(type: CivEventType, village: number, text: string): void {
     this.events.push({ type, village, text });
     if (this.events.length > MAX_EVENTS) this.events.shift();
+    this.chronicle.push({ tick: this.tick, type, text });
+    if (this.chronicle.length > MAX_CHRONICLE) this.chronicle.shift();
   }
 
   // ---------- Aldeas ----------
 
   /** Funda una aldea con la hoguera cerca de (x,y). Devuelve null si el sitio no vale. */
-  foundVillage(race: SpeciesId, x: number, y: number, members: readonly number[], ctx: AiContext): Village | null {
+  foundVillage(race: SpeciesId, x: number, y: number, members: readonly number[], ctx: AiContext, kingdom = -1): Village | null {
     if (!this.isFreeSite(x, y)) return null;
     const spot = findBuildSpot(this.world, Math.floor(x), Math.floor(y), 3, 3, -1, HALL_SEARCH_RADIUS);
     if (!spot) return null;
@@ -134,6 +152,13 @@ export class CivSystem {
       cy: spot.y + 1,
       founded: ctx.tick,
       hallId: -1,
+      kingdom: -1,
+      loyalty: 100,
+      capturedTick: -1,
+      captureBy: -1,
+      captureProgress: 0,
+      armyTarget: -1,
+      leader: -1,
       buildingIds: [],
       resources: [...STARTING_RESOURCES],
       zones: 0,
@@ -155,6 +180,13 @@ export class CivSystem {
     hall.underConstruction = false;
     v.hallId = hall.id;
     this.claimInitialZones(v);
+    // Las aldeas de colonos pertenecen al reino de origen; las demás fundan un reino propio.
+    if (kingdom >= 0 && this.kingdoms.kingdoms[kingdom]?.alive) {
+      v.kingdom = kingdom;
+      v.loyalty = 70;
+    } else {
+      this.kingdoms.create(v);
+    }
     for (const m of members) this.joinVillage(m, v);
     this.addEvent('founded', id, `Se fundó ${v.name} (${SPECIES[race].plural})`);
     return v;
@@ -202,6 +234,7 @@ export class CivSystem {
 
   abandonVillage(v: Village): void {
     v.alive = false;
+    this.kingdoms.onVillageAbandoned(v);
     for (const id of [...v.buildingIds]) this.destroyBuilding(this.buildings[id]);
     for (let z = 0; z < this.world.zoneOwner.length; z++) if (this.world.zoneOwner[z] === v.id + 1) this.world.zoneOwner[z] = 0;
     v.zones = 0;
@@ -353,6 +386,7 @@ export class CivSystem {
       v.storages = 0;
       v.farms = 0;
       v.jobCounts.fill(0);
+      v.leader = -1;
     }
     for (const v of this.villages) {
       if (v.alive) for (const id of v.buildingIds) this.countBuilding(v, this.buildings[id]);
@@ -373,6 +407,7 @@ export class CivSystem {
 
   private countUnits(): void {
     const u = this.units;
+    const leaderAge = new Float64Array(this.villages.length).fill(-1);
     for (let i = 0; i < u.highWater; i++) {
       if (u.alive[i] === 0 || u.village[i] < 0) continue;
       const v = this.villages[u.village[i]];
@@ -381,7 +416,14 @@ export class CivSystem {
         continue;
       }
       v.population++;
-      if (u.age[i] >= SPECIES[u.species[i]].adultTicks) v.adults++;
+      if (u.age[i] >= SPECIES[u.species[i]].adultTicks) {
+        v.adults++;
+        // El líder es el adulto de más edad.
+        if (u.age[i] > leaderAge[v.id]) {
+          leaderAge[v.id] = u.age[i];
+          v.leader = u.handleOf(i);
+        }
+      }
       v.jobCounts[u.job[i]]++;
     }
     for (const v of this.villages) {
@@ -440,6 +482,8 @@ export class CivSystem {
     for (const v of this.villages) {
       h = hashMix(h, v.alive ? 1 : 0);
       h = hashMix(h, v.zones);
+      h = hashMix(h, v.kingdom);
+      h = hashMix(h, v.loyalty);
       for (const r of v.resources) h = hashMix(h, r);
     }
     for (const b of this.buildings) {
@@ -447,7 +491,7 @@ export class CivSystem {
       h = hashMix(h, b.progress);
       h = hashMix(h, b.growth);
     }
-    return h;
+    return hashMix(h, this.kingdoms.stateHash());
   }
 }
 

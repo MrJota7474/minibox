@@ -7,6 +7,10 @@ const STARVE_DAMAGE_FRACTION = 0.1;
 const OLD_AGE_DEATH_CHANCE = 1 / 600;
 const BLOCKED_DAMAGE = 3;
 const BLOCKED_DAMAGE_INTERVAL = 5;
+/** Curación lenta de las criaturas bien alimentadas. */
+const HEAL_INTERVAL = 60;
+const HEAL_FRACTION = 0.05;
+const HEAL_MIN_HUNGER = 0.5;
 
 /**
  * Edad, enfriamientos, vejez, hambre y casillas no pisables.
@@ -22,6 +26,9 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
     return false;
   }
   if (!updateHunger(ctx, i, def)) return false;
+  if (u.hp[i] < def.maxHp && (ctx.tick + i) % HEAL_INTERVAL === 0 && u.hunger[i] > def.maxHunger * HEAL_MIN_HUNGER) {
+    u.hp[i] = Math.min(def.maxHp, u.hp[i] + Math.max(1, Math.round(def.maxHp * HEAL_FRACTION)));
+  }
   if (!ctx.world.isWalkableAt(u.x[i], u.y[i]) && !handleBlockedTile(ctx, i)) return false;
   return true;
 }

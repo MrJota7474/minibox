@@ -16,6 +16,9 @@ export const UnitState = {
   DELIVER: 9,
   EAT_GO: 10,
   SETTLE: 11,
+  /** Guerreros: marchar hacia una aldea enemiga y combatir. */
+  MARCH: 12,
+  FIGHT: 13,
 } as const;
 export type UnitStateId = (typeof UnitState)[keyof typeof UnitState];
 
@@ -32,6 +35,8 @@ export const STATE_LABELS: readonly string[] = [
   'Llevando recursos',
   'Yendo a comer',
   'Emigrando',
+  'En marcha',
+  'Combatiendo',
 ];
 
 export const Sex = { FEMALE: 0, MALE: 1 } as const;
@@ -99,6 +104,10 @@ export class UnitStore {
   readonly work: Int32Array;
   readonly workTimer: Uint16Array;
   readonly nameSeed: Uint32Array;
+  /** Equipo: 0 = nada, 1 = armas de hierro. */
+  readonly gear: Uint8Array;
+  /** Reino de origen de los colonos (para que la aldea nueva sea suya). */
+  readonly homeKingdom: Int16Array;
   readonly pathLen: Uint8Array;
   readonly pathIdx: Uint8Array;
   /** Waypoints (x, y) de la ruta: PATH_MAX pares por criatura. */
@@ -139,6 +148,8 @@ export class UnitStore {
     this.work = new Int32Array(capacity).fill(-1);
     this.workTimer = new Uint16Array(capacity);
     this.nameSeed = new Uint32Array(capacity);
+    this.gear = new Uint8Array(capacity);
+    this.homeKingdom = new Int16Array(capacity).fill(-1);
     this.pathLen = new Uint8Array(capacity);
     this.pathIdx = new Uint8Array(capacity);
     this.path = new Int16Array(capacity * PATH_MAX * 2);
@@ -180,6 +191,8 @@ export class UnitStore {
     this.work[i] = -1;
     this.workTimer[i] = 0;
     this.nameSeed[i] = opts.nameSeed ?? 0;
+    this.gear[i] = 0;
+    this.homeKingdom[i] = -1;
     this.pathLen[i] = 0;
     this.pathIdx[i] = 0;
     this.count++;
@@ -243,6 +256,8 @@ export class UnitStore {
       this.work,
       this.workTimer,
       this.nameSeed,
+      this.gear,
+      this.homeKingdom,
     ]);
   }
 }

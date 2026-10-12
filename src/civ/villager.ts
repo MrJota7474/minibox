@@ -4,6 +4,7 @@ import { Nav, clearPath, navigateTo } from '../ai/navigation';
 import { SPECIES, type RaceTraits, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
+import { actFight, actFlee, actMarch, fleeIfThreatened, thinkWarrior } from './combat';
 import { BuildingType, FARM_HARVEST_FOOD, FARM_RIPE, Job, Resource, type Building, type Village } from './model';
 
 const CIV_TIMEOUT_TICKS = 600;
@@ -63,8 +64,18 @@ function isAdult(u: UnitStore, i: number, def: SpeciesDef): boolean {
 
 function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   const u = ctx.units;
+  const home = ctx.civ.villageOf(i);
+  // Los guerreros también comen: si tienen hambre y hay comida, vuelven a casa antes de seguir luchando.
+  const warriorHungry = home !== null && u.job[i] === Job.WARRIOR && u.hunger[i] < def.maxHunger * HUNGRY_FRACTION && home.resources[Resource.FOOD] > 0;
+  if (home && warriorHungry && u.state[i] !== UnitState.EAT_GO && u.state[i] !== UnitState.FIGHT) {
+    startTrip(ctx, i, home, UnitState.EAT_GO);
+    return;
+  }
+  if (home && u.job[i] === Job.WARRIOR && u.state[i] !== UnitState.EAT_GO && thinkWarrior(ctx, i, home)) return;
+  if (home && u.job[i] !== Job.WARRIOR && fleeIfThreatened(ctx, i, home)) return;
   const s = u.state[i];
   if (s === UnitState.WORK || s === UnitState.DELIVER || s === UnitState.EAT_GO || s === UnitState.SETTLE || s === UnitState.MATE || s === UnitState.HUNT) return;
+  if (s === UnitState.FIGHT || s === UnitState.MARCH || s === UnitState.FLEE) return;
   const v = ctx.civ.villageOf(i);
   const canForage = u.carry[i] === 0 && s !== UnitState.WORK_GO && u.workTimer[i] === 0;
   if (canForage && u.hunger[i] < def.maxHunger * HUNGRY_FRACTION && (!v || v.resources[Resource.FOOD] === 0)) {
@@ -247,6 +258,15 @@ function act(ctx: AiContext, i: number, def: SpeciesDef): void {
     case UnitState.MATE:
       mate(ctx, i, def);
       break;
+    case UnitState.FIGHT:
+      actFight(ctx, i, def);
+      break;
+    case UnitState.MARCH:
+      actMarch(ctx, i, def);
+      break;
+    case UnitState.FLEE:
+      actFlee(ctx, i, def);
+      break;
     default:
       break;
   }
@@ -379,7 +399,7 @@ function settle(ctx: AiContext, i: number, def: SpeciesDef): void {
     if (u.species[j] === u.species[i] && u.job[j] === Job.SETTLER && u.village[j] < 0) group.push(j);
   });
   if (!group.includes(i)) group.push(i);
-  const v = r === Nav.ARRIVED ? ctx.civ.foundVillage(def.id, u.tx[i], u.ty[i], group, ctx) : null;
+  const v = r === Nav.ARRIVED ? ctx.civ.foundVillage(def.id, u.tx[i], u.ty[i], group, ctx, u.homeKingdom[i]) : null;
   if (!v) {
     // No se pudo fundar: pasan a ser aldeanos sin aldea (se unirán a otra o fundarán en grupo).
     for (const j of group) ctx.civ.leaveVillage(j);

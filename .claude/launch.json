@@ -5,13 +5,15 @@
       "name": "minibox-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "5173", "--strictPort"],
-      "port": 5173
+      "port": 5173,
+      "cwd": "C:/Users/sscri/Documents/minibox"
     },
     {
       "name": "minibox-preview",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview", "--", "--port", "4173", "--strictPort"],
-      "port": 4173
+      "port": 4173,
+      "cwd": "C:/Users/sscri/Documents/minibox"
     }
   ]
 }

@@ -1,5 +1,5 @@
 import type { CivSystem } from '../civ/civ-system';
-import { RESOURCE_COLORS } from '../civ/model';
+import { Job, RESOURCE_COLORS, VILLAGE_COLORS } from '../civ/model';
 import { SPECIES } from '../entities/species';
 import type { UnitStore } from '../entities/units';
 import type { World } from '../world/world';
@@ -32,6 +32,7 @@ export class Renderer {
   private readonly speciesColors: string[];
   private readonly adultTicks: number[];
   private readonly civLayer: CivLayer;
+  private readonly civ: CivSystem;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -51,6 +52,7 @@ export class Renderer {
     this.speciesColors = SPECIES.map((s) => s.color);
     this.adultTicks = SPECIES.map((s) => s.adultTicks);
     this.civLayer = new CivLayer(world, civ, camera);
+    this.civ = civ;
   }
 
   getDprCap(): number {
@@ -138,6 +140,17 @@ export class Renderer {
         ctx.fillStyle = RESOURCE_COLORS[u.carry[i] - 1];
         ctx.fillRect(Math.round(sx - s * 1.5), spriteTop - s * 2, s * 3, s * 2);
       }
+      // Guerreros: lanza (de hierro si van armados) y banderín con el color de su reino.
+      if (u.job[i] === Job.WARRIOR) {
+        const lx = Math.round(sx + (flip ? -w / 2 - s : w / 2));
+        ctx.fillStyle = u.gear[i] ? '#c9d1d9' : '#8a5a2a';
+        ctx.fillRect(lx, spriteTop - s * 2, s, h + s);
+        const k = this.civ.kingdoms.kingdomOfUnit(i);
+        if (k >= 0) {
+          ctx.fillStyle = VILLAGE_COLORS[this.civ.kingdoms.kingdoms[k].colorIndex];
+          ctx.fillRect(lx + (flip ? -s * 2 : s), spriteTop - s * 2, s * 2, s * 2);
+        }
+      }
     }
   }
 
@@ -147,10 +160,20 @@ export class Renderer {
     const z = this.camera.zoom;
     const dot = Math.max(1.5, z * 0.9);
     const ctx = this.ctx;
+    // Aldeanos con el color de su reino; animales y aldeanos sin aldea por especie.
+    for (let i = 0; i < u.highWater; i++) {
+      if (u.alive[i] === 0 || u.village[i] < 0) continue;
+      const wx = u.px[i] + (u.x[i] - u.px[i]) * alpha;
+      const wy = u.py[i] + (u.y[i] - u.py[i]) * alpha;
+      if (wx < left || wy < top || wx > right || wy > bottom) continue;
+      const k = this.civ.kingdoms.kingdomOfUnit(i);
+      ctx.fillStyle = k >= 0 ? VILLAGE_COLORS[this.civ.kingdoms.kingdoms[k].colorIndex] : this.speciesColors[u.species[i]];
+      ctx.fillRect((wx - left) * z - dot / 2, (wy - top) * z - dot / 2, dot, dot);
+    }
     for (let sp = 0; sp < this.speciesColors.length; sp++) {
       ctx.fillStyle = this.speciesColors[sp];
       for (let i = 0; i < u.highWater; i++) {
-        if (u.alive[i] === 0 || u.species[i] !== sp) continue;
+        if (u.alive[i] === 0 || u.species[i] !== sp || u.village[i] >= 0) continue;
         const wx = u.px[i] + (u.x[i] - u.px[i]) * alpha;
         const wy = u.py[i] + (u.y[i] - u.py[i]) * alpha;
         if (wx < left || wy < top || wx > right || wy > bottom) continue;

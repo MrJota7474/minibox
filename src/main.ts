@@ -24,6 +24,8 @@ function boot(): void {
   if (!root) throw new Error('Falta el contenedor #app');
   const game = new Game(root, detectDevice());
   game.start();
+  // Gancho de depuración sólo en desarrollo (no existe en el build de producción).
+  if (import.meta.env.DEV) (window as unknown as { minibox: Game }).minibox = game;
   registerServiceWorker(game);
 }
 

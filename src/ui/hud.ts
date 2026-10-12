@@ -13,6 +13,7 @@ export interface HudActions {
 
 /** Recuento agrupado que muestra la barra superior. */
 export interface HudCounts {
+  wars: number;
   herbivores: number;
   predators: number;
   people: number;
@@ -28,7 +29,7 @@ export class Hud {
   readonly root: HTMLElement;
   private readonly date: HTMLElement;
   private readonly total: HTMLElement;
-  private readonly counts: Record<'herbivores' | 'predators' | 'people' | 'villages', HTMLElement>;
+  private readonly counts: Record<'herbivores' | 'predators' | 'people' | 'villages' | 'wars', HTMLElement>;
   private readonly speedButtons = new Map<Speed, HTMLButtonElement>();
 
   constructor(atlas: SpriteAtlas, actions: HudActions) {
@@ -42,8 +43,9 @@ export class Hud {
     const [predEl, pred] = count(speciesIcon(Species.WOLF, atlas), 'Depredadores');
     const [peopleEl, people] = count(speciesIcon(Species.HUMAN, atlas), 'Habitantes');
     const [villEl, vill] = count(gridIcon('house'), 'Aldeas');
-    this.counts = { herbivores: herb, predators: pred, people, villages: vill };
-    const pop = el('div', { class: 'hud-pop' }, [herbEl, predEl, peopleEl, villEl, this.total]);
+    const [warEl, war] = count(gridIcon('sword'), 'Guerras activas');
+    this.counts = { herbivores: herb, predators: pred, people, villages: vill, wars: war };
+    const pop = el('div', { class: 'hud-pop' }, [herbEl, predEl, peopleEl, villEl, warEl, this.total]);
     const speeds = el(
       'div',
       { class: 'hud-speeds', attrs: { role: 'group', 'aria-label': 'Velocidad del tiempo' } },
@@ -78,6 +80,7 @@ export class Hud {
     this.counts.predators.textContent = String(c.predators);
     this.counts.people.textContent = String(c.people);
     this.counts.villages.textContent = String(c.villages);
+    this.counts.wars.textContent = String(c.wars);
     this.total.textContent = `${c.total}/${c.limit}`;
     this.total.classList.toggle('is-full', c.total >= c.limit);
   }

@@ -1,4 +1,6 @@
-import { BUILDING_DEFS, JOB_NAMES, RESOURCE_NAMES, hallLevelName } from '../civ/model';
+import { PERSONALITY_NAMES } from '../civ/kingdoms';
+import { BUILDING_DEFS, JOB_NAMES, RESOURCE_NAMES, VILLAGE_COLORS, hallLevelName, type Village } from '../civ/model';
+import type { DiplomacyAction } from '../sim/commands';
 import { personName } from '../civ/names';
 import { tickToDate, ticksToYears } from '../core/time';
 import { SPECIES } from '../entities/species';
@@ -12,7 +14,11 @@ import { gridIcon, speciesIcon } from './icons';
 export interface InspectorActions {
   close(): void;
   toggleFollow(): void;
+  /** Poder de dios sobre la diplomacia. */
+  diplomacy(action: DiplomacyAction, a: number, b: number): void;
 }
+
+const MAX_DIPLOMACY_ROWS = 6;
 
 type Target = { kind: 'unit'; handle: number } | { kind: 'tile'; index: number } | { kind: 'village'; id: number } | null;
 type Row = readonly [string, string | HTMLElement];
@@ -24,12 +30,15 @@ export class Inspector {
   private readonly portrait: HTMLImageElement;
   private readonly body: HTMLElement;
   private readonly followBtn: HTMLButtonElement;
+  private readonly diplo: HTMLElement;
+  private diploKey = '';
   private target: Target = null;
 
   constructor(
     private readonly atlas: SpriteAtlas,
-    actions: InspectorActions,
+    private readonly actions: InspectorActions,
   ) {
+    this.diplo = el('div', { class: 'insp-diplo', attrs: { hidden: '' } });
     this.title = el('h2', { class: 'insp-title' });
     this.portrait = el('img', { class: 'insp-portrait', attrs: { alt: '' } });
     this.body = el('dl', { class: 'insp-body' });
@@ -41,6 +50,7 @@ export class Inspector {
         iconButton(gridIcon('close'), 'Cerrar (Esc)', { class: 'btn-close', onClick: () => actions.close() }),
       ]),
       this.body,
+      this.diplo,
       el('div', { class: 'insp-actions' }, [this.followBtn]),
     ]);
   }
@@ -78,6 +88,7 @@ export class Inspector {
   update(sim: Simulation): void {
     const t = this.target;
     if (!t) return;
+    if (t.kind !== 'village') this.hideDiplomacy();
     if (t.kind === 'unit') this.renderUnit(sim, t.handle);
     else if (t.kind === 'village') this.renderVillage(sim, t.id);
     else this.renderTile(sim, t.index);
@@ -125,7 +136,9 @@ export class Inspector {
     );
     if (civilized) {
       const v = sim.civ.villageOf(i);
-      rows.push(['Aldea', v ? v.name : 'Sin aldea'], ['Oficio', adult ? JOB_NAMES[u.job[i]] : 'Ninguno (cría)']);
+      const k = sim.civ.kingdoms.kingdomOfUnit(i);
+      rows.push(['Aldea', v ? v.name : 'Sin aldea'], ['Reino', k >= 0 ? sim.civ.kingdoms.kingdoms[k].name : '—'], ['Oficio', adult ? JOB_NAMES[u.job[i]] : 'Ninguno (cría)']);
+      if (u.gear[i]) rows.push(['Equipo', 'Armas de hierro']);
       if (u.carry[i] !== 0) rows.push(['Carga', `${u.carryAmount[i]} de ${RESOURCE_NAMES[u.carry[i] - 1].toLowerCase()}`]);
       if (def.race) rows.push(['Rasgo', def.race.trait]);
     }
@@ -157,10 +170,64 @@ export class Inspector {
       ['Territorio', `${v.zones} zonas`],
       ['Fundada', `Año ${founded.year}`],
     ];
+    rows.push(...this.kingdomRows(sim, v));
     this.rows(rows);
+    this.renderDiplomacy(sim, v);
+  }
+
+  private kingdomRows(sim: Simulation, v: Village): Row[] {
+    const ks = sim.civ.kingdoms;
+    const K = ks.kingdoms[v.kingdom];
+    if (!K) return [];
+    const leader = sim.units.resolve(v.leader);
+    const rows: Row[] = [
+      ['Reino', K.capital === v.id ? `${K.name} (capital)` : K.name],
+      ['Rey', `${ks.kingName(K)} · ${PERSONALITY_NAMES[K.personality]}`],
+      ['Líder', leader >= 0 ? personName(sim.units.species[leader], sim.units.nameSeed[leader]) : '—'],
+      ['Lealtad', this.bar(v.loyalty, 100, 'bar-pop')],
+    ];
+    const wars = ks.activeWarsOf(K.id).length;
+    if (wars > 0) rows.push(['Guerras', String(wars)]);
+    if (v.captureProgress > 0 && v.captureBy >= 0) rows.push(['Asedio', this.bar(v.captureProgress, 100, 'bar-hp')]);
+    return rows;
+  }
+
+  private hideDiplomacy(): void {
+    this.diplo.hidden = true;
+    this.diploKey = '';
+  }
+
+  /** Relaciones con otros reinos y botones para forzarlas (sólo se reconstruye si cambian). */
+  private renderDiplomacy(sim: Simulation, v: Village): void {
+    const ks = sim.civ.kingdoms;
+    const K = ks.kingdoms[v.kingdom];
+    if (!K) return this.hideDiplomacy();
+    const others = ks.kingdoms.filter((o) => o.alive && o.id !== K.id).slice(0, MAX_DIPLOMACY_ROWS);
+    const status = (o: number): string => (ks.areHostile(K.id, o) ? 'Guerra' : ks.areAllied(K.id, o) ? 'Alianza' : (K.truce[o] ?? 0) > sim.civ.tick ? 'Tregua' : 'Paz');
+    const key = `${v.id}|${K.id}|${K.capital}|` + others.map((o) => `${o.id}:${status(o.id)}`).join(',');
+    if (key === this.diploKey) return;
+    this.diploKey = key;
+    this.diplo.hidden = false;
+    const button = (label: string, action: DiplomacyAction, a: number, b: number): HTMLButtonElement =>
+      el('button', { class: 'btn btn-text btn-mini', text: label, attrs: { type: 'button' }, onClick: () => this.actions.diplomacy(action, a, b) });
+    const rows = others.map((o) => {
+      const st = status(o.id);
+      return el('li', { class: 'diplo-row' }, [
+        el('span', { class: 'diplo-name', text: o.name, attrs: { style: `color:${VILLAGE_COLORS[o.colorIndex]}` } }),
+        el('span', { class: 'diplo-status', text: st }),
+        st === 'Guerra' ? button('Paz', 'peace', K.id, o.id) : button('Guerra', 'war', K.id, o.id),
+        st === 'Alianza' ? null : button('Alianza', 'alliance', K.id, o.id),
+      ]);
+    });
+    this.diplo.replaceChildren(
+      el('h3', { text: 'Diplomacia (poderes de dios)' }),
+      rows.length > 0 ? el('ul', { class: 'diplo-list' }, rows) : el('p', { class: 'insp-note', text: 'No hay otros reinos.' }),
+      ...(K.capital === v.id ? [] : [button('Provocar rebelión', 'rebellion', v.id, -1)]),
+    );
   }
 
   private renderTile(sim: Simulation, index: number): void {
+    this.hideDiplomacy();
     const w = sim.world;
     const t = w.terrain[index];
     this.followBtn.hidden = true;

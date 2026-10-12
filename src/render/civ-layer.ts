@@ -15,7 +15,8 @@ function rgba(hex: string, alpha: number): string {
 }
 
 const FILLS = VILLAGE_COLORS.map((c) => rgba(c, TERRITORY_ALPHA));
-const BORDERS = VILLAGE_COLORS.map((c) => rgba(c, 0.85));
+const BORDERS = VILLAGE_COLORS.map((c) => rgba(c, 0.9));
+const INNER_BORDERS = VILLAGE_COLORS.map((c) => rgba(c, 0.3));
 
 /** Dibuja territorio, edificios, obras y nombres de aldea. */
 export class CivLayer {
@@ -43,20 +44,38 @@ export class CivLayer {
       for (let zx = zx0; zx <= zx1; zx++) {
         const owner = w.zoneOwner[zy * w.zonesX + zx];
         if (owner === 0) continue;
-        const color = this.civ.villages[owner - 1].colorIndex;
+        const kingdom = this.kingdomOfZone(zy * w.zonesX + zx);
+        const color = this.colorOfKingdom(kingdom);
         const p = cam.worldToScreen(zx * ZONE_SIZE, zy * ZONE_SIZE);
         ctx.fillStyle = FILLS[color];
         ctx.fillRect(p.x, p.y, z, z);
-        ctx.strokeStyle = BORDERS[color];
-        ctx.beginPath();
         const h = line / 2;
-        if (zx === 0 || w.zoneOwner[zy * w.zonesX + zx - 1] !== owner) this.edge(ctx, p.x + h, p.y, p.x + h, p.y + z);
-        if (zx === w.zonesX - 1 || w.zoneOwner[zy * w.zonesX + zx + 1] !== owner) this.edge(ctx, p.x + z - h, p.y, p.x + z - h, p.y + z);
-        if (zy === 0 || w.zoneOwner[(zy - 1) * w.zonesX + zx] !== owner) this.edge(ctx, p.x, p.y + h, p.x + z, p.y + h);
-        if (zy === w.zonesY - 1 || w.zoneOwner[(zy + 1) * w.zonesX + zx] !== owner) this.edge(ctx, p.x, p.y + z - h, p.x + z, p.y + z - h);
-        ctx.stroke();
+        // Fronteras de reino gruesas; límites entre aldeas del mismo reino, tenues.
+        const neighbors: [number, number, number, number, number][] = [
+          [zx === 0 ? -2 : zy * w.zonesX + zx - 1, p.x + h, p.y, p.x + h, p.y + z],
+          [zx === w.zonesX - 1 ? -2 : zy * w.zonesX + zx + 1, p.x + z - h, p.y, p.x + z - h, p.y + z],
+          [zy === 0 ? -2 : (zy - 1) * w.zonesX + zx, p.x, p.y + h, p.x + z, p.y + h],
+          [zy === w.zonesY - 1 ? -2 : (zy + 1) * w.zonesX + zx, p.x, p.y + z - h, p.x + z, p.y + z - h],
+        ];
+        for (const [n, x0, y0, x1, y1] of neighbors) {
+          const otherOwner = n < 0 ? 0 : w.zoneOwner[n];
+          if (otherOwner === owner) continue;
+          const sameKingdom = otherOwner !== 0 && this.kingdomOfZone(n) === kingdom;
+          ctx.strokeStyle = sameKingdom ? INNER_BORDERS[color] : BORDERS[color];
+          ctx.beginPath();
+          this.edge(ctx, x0, y0, x1, y1);
+          ctx.stroke();
+        }
       }
     }
+  }
+
+  private kingdomOfZone(z: number): number {
+    return this.civ.villages[this.world.zoneOwner[z] - 1].kingdom;
+  }
+
+  private colorOfKingdom(k: number): number {
+    return k >= 0 ? this.civ.kingdoms.kingdoms[k].colorIndex : 0;
   }
 
   private edge(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {
@@ -83,7 +102,7 @@ export class CivLayer {
     const race = this.civ.villages[b.village].race;
     const z = this.camera.zoom;
     if (z < SPRITE_MIN_ZOOM) {
-      ctx.fillStyle = VILLAGE_COLORS[this.civ.villages[b.village].colorIndex];
+      ctx.fillStyle = VILLAGE_COLORS[this.colorOfKingdom(this.civ.villages[b.village].kingdom)];
       ctx.fillRect(x, y, b.w * z, b.h * z);
       return;
     }
@@ -133,6 +152,25 @@ export class CivLayer {
     ctx.fillRect(x, y + h + 1, w * Math.min(1, b.progress / needed), barH);
   }
 
+  /** Corona pixelada de las capitales. */
+  private drawCrown(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string): void {
+    const p = s / 5;
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(x - p, y - p, s + p * 2, s * 0.8 + p * 2);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y + p * 2, s, p * 2);
+    for (const k of [0, 2, 4]) ctx.fillRect(x + k * p, y, p, p * 2);
+  }
+
+  /** Barra de conquista (color del reino atacante). */
+  private drawCaptureBar(ctx: CanvasRenderingContext2D, cx: number, y: number, progress: number, color: string): void {
+    const w = 40;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(cx - w / 2 - 1, y - 1, w + 2, 6);
+    ctx.fillStyle = color;
+    ctx.fillRect(cx - w / 2, y, (w * Math.min(100, progress)) / 100, 4);
+  }
+
   drawLabels(ctx: CanvasRenderingContext2D): void {
     const cam = this.camera;
     if (cam.zoom < LABEL_MIN_ZOOM) return;
@@ -149,9 +187,14 @@ export class CivLayer {
       const p = cam.worldToScreen(hall.x + hall.w / 2, hall.y);
       if (p.x < -100 || p.y < -20 || p.x > cam.viewW + 100 || p.y > cam.viewH + 40) continue;
       const text = `${v.name} · ${v.population}`;
-      ctx.strokeText(text, p.x, p.y - cam.zoom * 0.6);
-      ctx.fillStyle = VILLAGE_COLORS[v.colorIndex];
-      ctx.fillText(text, p.x, p.y - cam.zoom * 0.6);
+      const ty = p.y - cam.zoom * 0.6;
+      const color = VILLAGE_COLORS[this.colorOfKingdom(v.kingdom)];
+      ctx.strokeText(text, p.x, ty);
+      ctx.fillStyle = color;
+      ctx.fillText(text, p.x, ty);
+      const K = v.kingdom >= 0 ? this.civ.kingdoms.kingdoms[v.kingdom] : null;
+      if (K && K.capital === v.id) this.drawCrown(ctx, p.x - ctx.measureText(text).width / 2 - size, ty - size * 0.75, size * 0.8, color);
+      if (v.captureProgress > 0 && v.captureBy >= 0) this.drawCaptureBar(ctx, p.x, ty + 3, v.captureProgress, VILLAGE_COLORS[this.colorOfKingdom(v.captureBy)]);
     }
     ctx.textAlign = 'start';
     ctx.textBaseline = 'alphabetic';

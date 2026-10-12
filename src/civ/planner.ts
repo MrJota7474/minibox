@@ -4,7 +4,7 @@ import { SPECIES } from '../entities/species';
 import { NO_VILLAGE, Sex, UnitState } from '../entities/units';
 import { isFertileTerrain } from '../world/terrain';
 import type { CivSystem } from './civ-system';
-import { BUILDING_DEFS, BuildingType, Job, Resource, canAfford, pay, type Building, type JobId, type Village } from './model';
+import { BUILDING_DEFS, BuildingType, JOB_COUNT, Job, Resource, canAfford, pay, type Building, type JobId, type Village } from './model';
 
 const BUILD_RADIUS = 14;
 const POP_PER_ZONE = 2.5;
@@ -19,7 +19,7 @@ const SETTLER_ATTEMPTS = 24;
 const MAX_VILLAGES = 40;
 const MAX_STORAGES = 3;
 /** Prioridad al repartir oficios (de más a menos importante). */
-const JOB_PRIORITY: readonly JobId[] = [Job.FARMER, Job.BUILDER, Job.GATHERER, Job.WOODCUTTER, Job.MINER, Job.HUNTER];
+const JOB_PRIORITY: readonly JobId[] = [Job.FARMER, Job.WARRIOR, Job.BUILDER, Job.GATHERER, Job.WOODCUTTER, Job.MINER, Job.HUNTER];
 
 /** Decisiones periódicas de una aldea (cada censo). */
 export function planVillage(civ: CivSystem, v: Village, ctx: AiContext): void {
@@ -86,9 +86,10 @@ function tryUpgradeHouse(civ: CivSystem, v: Village, hall: Building): boolean {
 }
 
 /** Cuántos aldeanos quiere la aldea en cada oficio. */
-function desiredJobs(v: Village, hall: Building): number[] {
+function desiredJobs(v: Village, hall: Building, atWar: boolean): number[] {
   const a = v.adults;
-  const want = new Array<number>(8).fill(0);
+  const want = new Array<number>(JOB_COUNT).fill(0);
+  want[Job.WARRIOR] = atWar ? Math.ceil(a * 0.35) : a >= 6 ? Math.max(1, Math.ceil(a * 0.1)) : 0;
   const foodLow = v.resources[Resource.FOOD] < v.population * 2;
   want[Job.FARMER] = Math.min(v.farms, a);
   want[Job.BUILDER] = v.sites > 0 ? Math.min(v.sites * 2, 1 + Math.floor(a / 6)) : 0;
@@ -101,13 +102,13 @@ function desiredJobs(v: Village, hall: Building): number[] {
 
 function assignJobs(civ: CivSystem, v: Village, ctx: AiContext, hall: Building): void {
   const u = ctx.units;
-  const want = desiredJobs(v, hall);
-  const have = new Array<number>(8).fill(0);
+  const want = desiredJobs(v, hall, civ.kingdoms.isAtWar(v.kingdom));
+  const have = new Array<number>(JOB_COUNT).fill(0);
   const free: number[] = [];
   for (let i = 0; i < u.highWater; i++) {
     if (u.alive[i] === 0 || u.village[i] !== v.id) continue;
     if (u.age[i] < SPECIES[u.species[i]].adultTicks) {
-      if (u.job[i] !== Job.NONE) setJob(civ, i, Job.NONE, ctx);
+      if (u.job[i] !== Job.NONE) setJob(civ, v, i, Job.NONE, ctx);
       continue;
     }
     const job = u.job[i];
@@ -117,7 +118,7 @@ function assignJobs(civ: CivSystem, v: Village, ctx: AiContext, hall: Building):
   let next = 0;
   for (const job of JOB_PRIORITY) {
     while (have[job] < want[job] && next < free.length) {
-      setJob(civ, free[next++], job, ctx);
+      setJob(civ, v, free[next++], job, ctx);
       have[job]++;
     }
   }
@@ -125,14 +126,21 @@ function assignJobs(civ: CivSystem, v: Village, ctx: AiContext, hall: Building):
   for (let k = next; k < free.length; k++) {
     const i = free[k];
     if (u.job[i] === Job.GATHERER || u.job[i] === Job.WOODCUTTER) continue;
-    setJob(civ, i, k % 2 === 0 ? Job.GATHERER : Job.WOODCUTTER, ctx);
+    setJob(civ, v, i, k % 2 === 0 ? Job.GATHERER : Job.WOODCUTTER, ctx);
   }
 }
 
-function setJob(civ: CivSystem, i: number, job: JobId, ctx: AiContext): void {
+/** Armas de hierro: cuestan 2 de hierro por guerrero. */
+const GEAR_IRON = 2;
+
+function setJob(civ: CivSystem, v: Village, i: number, job: JobId, ctx: AiContext): void {
   const u = ctx.units;
   if (u.job[i] === job) return;
   u.job[i] = job;
+  if (job === Job.WARRIOR && u.gear[i] === 0 && v.resources[Resource.IRON] >= GEAR_IRON) {
+    v.resources[Resource.IRON] -= GEAR_IRON;
+    u.gear[i] = 1;
+  }
   const busy = u.state[i] === UnitState.EAT_GO || u.state[i] === UnitState.DELIVER || u.state[i] === UnitState.MATE;
   if (!busy) civ.resetTask(i);
 }
@@ -152,6 +160,7 @@ function maybeSendSettlers(civ: CivSystem, v: Village, ctx: AiContext): void {
   for (const i of group) {
     civ.leaveVillage(i);
     u.stateTicks[i] = 0;
+    u.homeKingdom[i] = v.kingdom;
     u.job[i] = Job.SETTLER;
     u.state[i] = UnitState.SETTLE;
     u.tx[i] = dest.x + 0.5;
@@ -182,7 +191,7 @@ function pickSettlers(v: Village, ctx: AiContext): number[] {
   const bySex: number[][] = [[], []];
   for (let i = 0; i < u.highWater; i++) {
     if (u.alive[i] === 0 || u.village[i] !== v.id || u.carry[i] !== 0) continue;
-    if (u.age[i] < SPECIES[u.species[i]].adultTicks || u.job[i] === Job.BUILDER) continue;
+    if (u.age[i] < SPECIES[u.species[i]].adultTicks || u.job[i] === Job.BUILDER || u.job[i] === Job.WARRIOR) continue;
     bySex[u.sex[i] === Sex.FEMALE ? 0 : 1].push(i);
   }
   const group: number[] = [];

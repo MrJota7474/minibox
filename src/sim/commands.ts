@@ -27,7 +27,11 @@ export type Command =
   | { readonly type: 'brush'; readonly tool: BrushToolId; readonly x: number; readonly y: number; readonly size: number }
   | { readonly type: 'spawn'; readonly species: SpeciesId; readonly x: number; readonly y: number; readonly size: number }
   /** Cambia el límite de criaturas (p. ej. el ajuste automático de rendimiento). */
-  | { readonly type: 'limit'; readonly value: number };
+  | { readonly type: 'limit'; readonly value: number }
+  /** Poderes de dios sobre la diplomacia: a y b son reinos (en 'rebellion', a es una aldea). */
+  | { readonly type: 'diplomacy'; readonly action: DiplomacyAction; readonly a: number; readonly b: number };
+
+export type DiplomacyAction = 'war' | 'peace' | 'alliance' | 'rebellion';
 
 export interface LoggedCommand {
   readonly tick: number;

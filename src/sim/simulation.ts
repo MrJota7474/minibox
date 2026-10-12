@@ -97,6 +97,10 @@ export class Simulation {
       applyBrush(this.world, this.rngCmd, command.tool, command.x, command.y, command.size);
       return { spawned: 0, limited: false };
     }
+    if (command.type === 'diplomacy') {
+      this.civ.kingdoms.applyGodAction(command.action, command.a, command.b);
+      return { spawned: 0, limited: false };
+    }
     if (command.type === 'limit') {
       this.unitLimit = Math.max(1, Math.min(this.units.capacity, Math.floor(command.value)));
       return { spawned: 0, limited: false };

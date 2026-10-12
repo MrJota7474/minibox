@@ -363,6 +363,67 @@ img {
 .bar-food .bar-fill {
   background: var(--accent);
 }
+.insp-diplo h3 {
+  margin: 6px 0 4px;
+  font-size: 14px;
+  color: var(--accent-strong);
+}
+.diplo-list {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.diplo-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+.diplo-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diplo-status {
+  color: var(--muted);
+  min-width: 52px;
+}
+.btn-mini {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.chronicle {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+.chronicle li {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 6px;
+}
+.chronicle-year {
+  color: var(--muted);
+}
+.chronicle-war span:last-child,
+.chronicle-conquest span:last-child {
+  color: #f08a8a;
+}
+.chronicle-peace span:last-child,
+.chronicle-alliance span:last-child {
+  color: #9be38a;
+}
 .bar-pop .bar-fill {
   background: #3d8be8;
 }
