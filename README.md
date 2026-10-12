@@ -2,6 +2,8 @@
 
 Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular. Crea un mundo a partir de una semilla, pinta el terreno, siembra bosques y suelta animales para ver cómo el ecosistema se equilibra (o se desmorona).
 
+**Jugar:** https://minibox-seven.vercel.app/ (PC y celular; se puede instalar como app)
+
 > Proyecto original inspirado en el género «god game». No usa nombres, sprites, sonidos ni otros recursos de otros juegos.
 
 ## Estado
