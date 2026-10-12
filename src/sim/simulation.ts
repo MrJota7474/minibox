@@ -14,7 +14,7 @@ import { applyBrush, spawnInBrush } from '../powers/brush';
 import { generateWorld } from '../world/generator';
 import { isFertileTerrain } from '../world/terrain';
 import { VegetationSystem } from '../world/vegetation';
-import type { World } from '../world/world';
+import { World } from '../world/world';
 import type { Command, CommandResult, LoggedCommand } from './commands';
 
 export interface SimulationOptions {
@@ -24,6 +24,8 @@ export interface SimulationOptions {
   capacity: number;
   /** Poblar el mundo con animales al crearlo. */
   populate: boolean;
+  /** Mundo vacío sin generar (para cargar una partida guardada encima). */
+  blank?: boolean;
 }
 
 /** Grupos iniciales por cada 10 000 casillas de mapa. */
@@ -71,7 +73,7 @@ export class Simulation {
   constructor(options: SimulationOptions) {
     this.options = options;
     this.seed = hashString(options.seedText);
-    this.world = generateWorld(this.seed, options.size, options.size);
+    this.world = options.blank ? new World(options.size, options.size) : generateWorld(this.seed, options.size, options.size);
     this.units = new UnitStore(options.capacity);
     this.spatial = new SpatialHash(options.size, options.size, options.capacity);
     this.vegetation = new VegetationSystem(this.world);
@@ -97,7 +99,7 @@ export class Simulation {
       civ: this.civ,
       laws: this.laws,
     };
-    if (options.populate) this.populate(root.fork(4));
+    if (options.populate && !options.blank) this.populate(root.fork(4));
   }
 
   /** Ejecuta un comando del jugador (se registra con el tick actual para poder reproducirlo). */
@@ -165,6 +167,17 @@ export class Simulation {
       for (const v of rng.getState()) h = hashMix(h, v);
     }
     return h;
+  }
+
+  /** Estado de los generadores aleatorios (para guardar partidas). */
+  getRngStates(): number[][] {
+    return [this.rngAi, this.rngVeg, this.rngCmd, this.rngPower].map((r) => [...r.getState()]);
+  }
+
+  setRngStates(states: readonly (readonly number[])[]): void {
+    const rngs = [this.rngAi, this.rngVeg, this.rngCmd, this.rngPower];
+    if (states.length !== rngs.length || states.some((s) => s.length !== 4 || s.some((v) => !Number.isInteger(v)))) throw new Error('Estado aleatorio no válido');
+    rngs.forEach((r, k) => r.setState([states[k][0], states[k][1], states[k][2], states[k][3]]));
   }
 
   private populate(rng: Rng): void {

@@ -1,6 +1,7 @@
 import { DeathCause, giveUp, killUnit, type AiContext } from '../ai/context';
 import { Move, moveToward, pickWanderTarget } from '../ai/movement';
 import type { SpeciesDef } from '../entities/species';
+import { Trait, addTrait, traitMods } from '../entities/traits';
 import { HELD_FLAG, NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 
 /** Estados permanentes (bits de `units.status`). */
@@ -28,7 +29,7 @@ export function has(u: UnitStore, i: number, flag: number): boolean {
 
 /** Contagia la plaga (salvo a los inmunes o ya enfermos). */
 export function infect(u: UnitStore, i: number): boolean {
-  if (has(u, i, Status.IMMUNE) || u.plague[i] > 0) return false;
+  if (has(u, i, Status.IMMUNE) || u.plague[i] > 0 || traitMods(u.traits[i]).plagueImmune) return false;
   u.plague[i] = PLAGUE_DURATION;
   return true;
 }
@@ -55,12 +56,12 @@ export function heal(u: UnitStore, i: number, def: SpeciesDef): void {
 
 /** Multiplicador del daño que hace la criatura. */
 export function damageMultiplier(u: UnitStore, i: number): number {
-  return (has(u, i, Status.BLESSED) ? BLESSED_DAMAGE : 1) * (has(u, i, Status.CURSED) ? CURSED_DAMAGE : 1);
+  return (has(u, i, Status.BLESSED) ? BLESSED_DAMAGE : 1) * (has(u, i, Status.CURSED) ? CURSED_DAMAGE : 1) * traitMods(u.traits[i]).damage;
 }
 
 /** Multiplicador del daño que recibe la criatura. */
 export function damageTakenMultiplier(u: UnitStore, i: number): number {
-  return (has(u, i, Status.BLESSED) ? BLESSED_TAKEN : 1) * (has(u, i, Status.CURSED) ? CURSED_TAKEN : 1);
+  return (has(u, i, Status.BLESSED) ? BLESSED_TAKEN : 1) * (has(u, i, Status.CURSED) ? CURSED_TAKEN : 1) * traitMods(u.traits[i]).damageTaken;
 }
 
 /** Aplica un golpe de i a j con los modificadores de estado. Devuelve true si j murió. */
@@ -70,7 +71,7 @@ export function strike(ctx: AiContext, i: number, j: number, baseDamage: number)
   u.hp[j] -= damage;
   if (u.hp[j] > 0) return false;
   killUnit(ctx, j, DeathCause.KILLED);
-  u.kills[i]++;
+  u.addKill(i);
   return true;
 }
 
@@ -91,8 +92,11 @@ export function updatePlague(ctx: AiContext, i: number): boolean {
       if (j !== i && ctx.rng.chance(PLAGUE_SPREAD_CHANCE)) infect(u, j);
     });
   }
-  // Quien sobrevive a la plaga queda inmune.
-  if (u.plague[i] === 0) u.status[i] |= Status.IMMUNE;
+  // Quien sobrevive a la plaga queda inmune y curtido.
+  if (u.plague[i] === 0) {
+    u.status[i] |= Status.IMMUNE;
+    u.traits[i] = addTrait(u.traits[i], Trait.SURVIVOR);
+  }
   return true;
 }
 

@@ -1,7 +1,8 @@
 import { PERSONALITY_NAMES } from '../civ/kingdoms';
 import { BUILDING_DEFS, JOB_NAMES, RESOURCE_NAMES, VILLAGE_COLORS, hallLevelName, type Village } from '../civ/model';
 import type { DiplomacyAction } from '../sim/commands';
-import { Status } from '../powers/status';
+import { Status, damageMultiplier, damageTakenMultiplier } from '../powers/status';
+import { TRAITS, hasTrait, traitMods } from '../entities/traits';
 import { personName } from '../civ/names';
 import { tickToDate, ticksToYears } from '../core/time';
 import { SPECIES } from '../entities/species';
@@ -141,7 +142,7 @@ export class Inspector {
       rows.push(['Aldea', v ? v.name : 'Sin aldea'], ['Reino', k >= 0 ? sim.civ.kingdoms.kingdoms[k].name : '—'], ['Oficio', adult ? JOB_NAMES[u.job[i]] : 'Ninguno (cría)']);
       if (u.gear[i]) rows.push(['Equipo', 'Armas de hierro']);
       if (u.carry[i] !== 0) rows.push(['Carga', `${u.carryAmount[i]} de ${RESOURCE_NAMES[u.carry[i] - 1].toLowerCase()}`]);
-      if (def.race) rows.push(['Rasgo', def.race.trait]);
+      if (def.race) rows.push(['Don racial', def.race.trait]);
     }
     const states = [
       u.status[i] & Status.BLESSED ? 'Bendecido' : '',
@@ -151,9 +152,34 @@ export class Inspector {
       u.status[i] & Status.IMMUNE ? 'Inmune a la plaga' : '',
     ].filter(Boolean);
     if (states.length > 0) rows.push(['Condición', states.join(' · ')]);
-    rows.push(['Generación', String(u.generation[i])]);
-    if (def.diet !== 'herbivore' && u.kills[i] > 0) rows.push(['Presas', String(u.kills[i])]);
+    rows.push(['Rasgos', this.traitChips(u.traits[i])]);
+    rows.push(...this.statRows(sim, i));
     this.rows(rows);
+  }
+
+  private traitChips(mask: number): HTMLElement {
+    const traits = TRAITS.filter((t) => hasTrait(mask, t.id));
+    if (traits.length === 0) return el('span', { class: 'insp-muted', text: 'Ninguno' });
+    return el(
+      'span',
+      { class: 'trait-chips' },
+      traits.map((t) => el('span', { class: `chip${t.inheritable ? '' : ' chip-earned'}`, text: t.name, title: t.description })),
+    );
+  }
+
+  /** Estadísticas: daño y aguante efectivos, esperanza de vida, descendencia y bajas. */
+  private statRows(sim: Simulation, i: number): Row[] {
+    const u = sim.units;
+    const def = SPECIES[u.species[i]];
+    const mods = traitMods(u.traits[i]);
+    const pct = (m: number): string => `${Math.round(m * 100)} %`;
+    const rows: Row[] = [];
+    if (def.damage > 0) rows.push(['Fuerza', `${def.damage} · ${pct(damageMultiplier(u, i))}`]);
+    rows.push(['Daño recibido', pct(damageTakenMultiplier(u, i))]);
+    rows.push(['Esperanza de vida', `${Math.round(ticksToYears(def.lifespanTicks) * mods.lifespan)} años`]);
+    rows.push(['Generación', String(u.generation[i])], ['Hijos', String(u.children[i])]);
+    if (u.kills[i] > 0) rows.push([def.diet === 'civilized' ? 'Bajas' : 'Presas', String(u.kills[i])]);
+    return rows;
   }
 
   private renderVillage(sim: Simulation, id: number): void {

@@ -3,6 +3,8 @@ import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
 import { DeathCause, STATE_TIMEOUT_TICKS, THINK_INTERVAL, giveUp, killUnit, type AiContext } from './context';
 import { Move, moveToward, pickWanderTarget } from './movement';
+import { recordBirth, setBreedCooldown } from './life';
+import { inheritTraits } from '../entities/traits';
 import { damageMultiplier, damageTakenMultiplier } from '../powers/status';
 
 const HUNGRY_FRACTION = 0.6;
@@ -252,7 +254,7 @@ function hunt(ctx: AiContext, i: number, def: SpeciesDef): void {
   const meat = SPECIES[u.species[prey]].meatValue;
   killUnit(ctx, prey, DeathCause.KILLED);
   u.hunger[i] = Math.min(def.maxHunger, u.hunger[i] + meat);
-  u.kills[i]++;
+  u.addKill(i);
   u.state[i] = UnitState.IDLE;
   u.target[i] = NO_UNIT;
 }
@@ -279,11 +281,12 @@ function mate(ctx: AiContext, i: number, def: SpeciesDef): void {
       ageTicks: 0,
       generation: Math.min(generation, 0xffff),
       thinkOffset: ctx.rng.int(THINK_INTERVAL),
+      traits: inheritTraits(u.traits[i], u.traits[partner], ctx.rng),
     });
-    if (child !== NO_UNIT) ctx.stats.births++;
+    if (child !== NO_UNIT) recordBirth(ctx, i, partner);
   }
-  u.cooldown[i] = def.breedCooldownTicks;
-  u.cooldown[partner] = def.breedCooldownTicks;
+  setBreedCooldown(u, i, def);
+  setBreedCooldown(u, partner, def);
   giveUp(u, i);
   giveUp(u, partner);
 }

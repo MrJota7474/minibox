@@ -41,6 +41,9 @@ export class Renderer {
   private readonly civ: CivSystem;
   private readonly fx: FxLayer;
   private readonly powers: PowerSystem;
+  /** Capas que el jugador puede ocultar desde los ajustes. */
+  showLabels = true;
+  showTerritory = true;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -97,14 +100,14 @@ export class Renderer {
     ctx.fillRect(0, 0, cam.viewW, cam.viewH);
     ctx.translate(shake.x, shake.y);
     this.drawTerrain();
-    this.civLayer.drawTerritory(ctx);
+    if (this.showTerritory) this.civLayer.drawTerritory(ctx);
     this.civLayer.drawBuildings(ctx);
     if (overlay.selectedTile >= 0) this.drawTileMarker(overlay.selectedTile);
     this.fx.drawFire(ctx);
     this.drawUnits(alpha, tick);
     if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
     this.fx.drawOver(ctx, now);
-    this.civLayer.drawLabels(ctx);
+    if (this.showLabels) this.civLayer.drawLabels(ctx);
     if (overlay.selected >= 0) this.drawSelection(overlay.selected, alpha);
     if (overlay.brush) this.drawBrush(overlay.brush.x, overlay.brush.y, overlay.brush.size);
   }

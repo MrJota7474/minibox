@@ -30,8 +30,10 @@ export class StartMenu {
   private readonly sizeSelect: HTMLSelectElement;
   private readonly populate: HTMLInputElement;
   private readonly cancelBtn: HTMLButtonElement;
+  private readonly continueBtn: HTMLButtonElement;
 
-  constructor(device: DeviceProfile, onCreate: (opts: NewWorldOptions) => void, onCancel: () => void) {
+  constructor(device: DeviceProfile, onCreate: (opts: NewWorldOptions) => void, onCancel: () => void, onContinue: () => void) {
+    this.continueBtn = el('button', { class: 'btn btn-primary continue-btn', attrs: { type: 'button', hidden: '' }, onClick: () => onContinue() });
     this.seedInput = el('input', { attrs: { id: 'seed', type: 'text', maxlength: '40', autocomplete: 'off', spellcheck: 'false' } });
     this.seedInput.value = randomSeed();
     this.sizeSelect = el(
@@ -68,6 +70,7 @@ export class StartMenu {
       el('div', { class: 'panel start' }, [
         el('h1', { class: 'logo', text: 'MiniBox', attrs: { id: 'start-title' } }),
         el('p', { class: 'tagline', text: 'Crea un mundo y mira cómo cobra vida.' }),
+        this.continueBtn,
         form,
         el('p', { class: 'device-note', text: `Calidad detectada: ${TIER_LABELS[device.tier]} · hasta ${device.unitCap} criaturas` }),
       ]),
@@ -81,6 +84,12 @@ export class StartMenu {
 
   close(): void {
     this.root.hidden = true;
+  }
+
+  /** Muestra «Continuar» con la descripción de la última partida (o lo oculta). */
+  setContinue(label: string | null): void {
+    this.continueBtn.hidden = label === null;
+    this.continueBtn.textContent = label ? `Continuar: ${label}` : '';
   }
 
   get isOpen(): boolean {

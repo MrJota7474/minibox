@@ -555,6 +555,91 @@ img {
   color: var(--muted);
 }
 
+/* ---------- Rasgos ---------- */
+.insp-muted {
+  color: var(--muted);
+}
+.trait-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip {
+  padding: 1px 6px;
+  border: 1px solid var(--edge-light);
+  border-radius: 4px;
+  background: var(--panel-2);
+  font-size: 12px;
+  line-height: 16px;
+}
+.chip-earned {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+/* ---------- Partidas y ajustes ---------- */
+.btn-danger {
+  border-color: var(--danger);
+}
+.saves {
+  display: grid;
+  gap: 8px;
+}
+.saves.is-busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.save-slots {
+  display: grid;
+  gap: 6px;
+}
+.save-slot {
+  display: grid;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.save-info {
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+}
+.save-desc,
+.save-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.save-buttons,
+.save-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.select {
+  min-height: 36px;
+  padding: 2px 8px;
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  background: #1a1410;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.continue-btn {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 /* ---------- Avisos y rendimiento ---------- */
 .toasts {
   position: fixed;

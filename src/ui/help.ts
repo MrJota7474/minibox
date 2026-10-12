@@ -34,6 +34,8 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Desastres', 'Rayo, meteorito, bomba, terremoto, tornado, lluvia ácida, volcán, fuego, lava y plaga'],
   ['Imán', 'Mantén pulsado sobre criaturas para cogerlas, arrastra y suelta para dejarlas en otro sitio'],
   ['Leyes', 'En el menú puedes desactivar el hambre, la vejez, las guerras, las rebeliones, las plantas o el fuego'],
+  ['Rasgos', 'Cada criatura puede tener rasgos (Fuerte, Longevo, Fértil…) que hereda de sus padres; Veterano y Superviviente se ganan'],
+  ['Partidas', 'Menú › Guardar / cargar: 5 ranuras, autoguardado y exportar o importar un archivo .minibox'],
 ];
 
 function table(rows: readonly (readonly [string, string])[]): HTMLElement {

@@ -2,7 +2,7 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras) y D (desastres y poderes) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes) y E (rasgos y partidas guardadas) implementadas.**
 >
 > Pendiente de B, trasladado a fases posteriores para no dejarlo a medias: más biomas (nieve, pantano, selva, sabana), peces/pescadores y muelles (llegarán con los barcos). En la Fase C quedan pendientes los barcos y muelles para colonizar islas, y los clanes.
 
@@ -348,7 +348,11 @@ Rayo, meteorito, terremoto, lava (que se enfría), fuego que se propaga, plaga (
 
 ### Fase E — Rasgos, inspector completo y guardado
 Unos 20 rasgos heredables y por eventos, stats completas, inspector de unidad, aldea y reino, seguir unidad, guardar y cargar en IndexedDB (5 ranuras + autoguardado), exportar e importar archivo, ajustes.
-**Aceptación**: guardar → recargar la página → cargar devuelve exactamente el mismo estado (mismo hash) y la simulación continúa de forma idéntica.
+**Aceptación**: guardar → recargar la página → cargar devuelve exactamente el mismo estado (mismo hash) y la simulación continúa de forma idéntica. ✔ Verificado en el navegador y en pruebas automáticas.
+
+**Formato de partida (MBX1)**: «MBX1» · longitud · cabecera JSON (opciones, reloj, leyes, estado de los RNG, civilizaciones, reinos, efectos y listas de fuego/lava en su orden) · arrays tipados del mapa y de las criaturas alineados a 8 bytes; todo comprimido con gzip (`CompressionStream`). IndexedDB `minibox` con dos almacenes (`meta` para la lista rápida y `data` para los datos) y ranuras `auto` y `1`–`5`. El registro de comandos no se guarda: una partida cargada ya no se puede repetir desde la semilla.
+
+**Rasgos**: máscara de bits por criatura (`traits`). Al nacer, cada rasgo heredable de los padres pasa con un 50 % y hay un 12 % de mutación; las criaturas creadas con el pincel reciben 0-2 al azar. Los opuestos se excluyen. Veterano (5 bajas) y Superviviente (sobrevivir a la plaga) se ganan y no se heredan.
 
 ### Después de E (opcional)
 Cultura, idioma y religión; clanes; eras; caminos; sonido; editor de estandartes; mods.

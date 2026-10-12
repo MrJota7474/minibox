@@ -1,4 +1,6 @@
 import type { SpeciesDef } from '../entities/species';
+import { traitMods } from '../entities/traits';
+import type { UnitStore } from '../entities/units';
 import { DeathCause, killUnit, type AiContext } from './context';
 import { escapeBlockedTile } from './movement';
 
@@ -21,28 +23,52 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
   u.age[i]++;
   if (u.cooldown[i] > 0) u.cooldown[i]--;
   if (u.attackCd[i] > 0) u.attackCd[i]--;
-  if (ctx.laws.aging && u.age[i] > def.lifespanTicks && ctx.rng.chance(OLD_AGE_DEATH_CHANCE)) {
+  const mods = traitMods(u.traits[i]);
+  if (ctx.laws.aging && u.age[i] > def.lifespanTicks * mods.lifespan && ctx.rng.chance(OLD_AGE_DEATH_CHANCE)) {
     killUnit(ctx, i, DeathCause.AGE);
     return false;
   }
-  if (!updateHunger(ctx, i, def)) return false;
+  if (!updateHunger(ctx, i, def, mods.hunger)) return false;
   if (u.hp[i] < def.maxHp && (ctx.tick + i) % HEAL_INTERVAL === 0 && u.hunger[i] > def.maxHunger * HEAL_MIN_HUNGER) {
-    u.hp[i] = Math.min(def.maxHp, u.hp[i] + Math.max(1, Math.round(def.maxHp * HEAL_FRACTION)));
+    u.hp[i] = Math.min(def.maxHp, u.hp[i] + Math.max(1, Math.round(def.maxHp * HEAL_FRACTION * mods.heal)));
   }
   if (!ctx.world.isWalkableAt(u.x[i], u.y[i]) && !handleBlockedTile(ctx, i)) return false;
   return true;
 }
 
-function updateHunger(ctx: AiContext, i: number, def: SpeciesDef): boolean {
+function updateHunger(ctx: AiContext, i: number, def: SpeciesDef, rate: number): boolean {
   const u = ctx.units;
   if (!ctx.laws.hunger) return true;
-  const h = Math.max(0, u.hunger[i] - def.hungerRate);
+  const h = Math.max(0, u.hunger[i] - scaledStep(def.hungerRate, rate, ctx.tick + i));
   u.hunger[i] = h;
   if (h > 0 || (ctx.tick + i) % STARVE_INTERVAL !== 0) return true;
   u.hp[i] -= Math.max(1, Math.round(def.maxHp * STARVE_DAMAGE_FRACTION));
   if (u.hp[i] > 0) return true;
   killUnit(ctx, i, DeathCause.HUNGER);
   return false;
+}
+
+/**
+ * Reparte un ritmo fraccionario en pasos enteros de forma determinista: a lo largo de
+ * N ticks suma `base · mult · N` (p. ej. 1,3 por tick = 1, 1, 2, 1, 1, 2…).
+ */
+export function scaledStep(base: number, mult: number, phase: number): number {
+  if (mult === 1) return base;
+  const r = base * mult;
+  return Math.floor((phase + 1) * r) - Math.floor(phase * r);
+}
+
+/** Pone el enfriamiento de cría según los rasgos de fertilidad. */
+export function setBreedCooldown(u: UnitStore, i: number, def: SpeciesDef): void {
+  u.cooldown[i] = Math.min(0xffff, Math.round(def.breedCooldownTicks * traitMods(u.traits[i]).breedCooldown));
+}
+
+/** Cuenta un nacimiento para la estadística y para cada progenitor. */
+export function recordBirth(ctx: AiContext, a: number, b: number): void {
+  const u = ctx.units;
+  ctx.stats.births++;
+  if (u.children[a] < 0xffff) u.children[a]++;
+  if (u.children[b] < 0xffff) u.children[b]++;
 }
 
 /** Devuelve false si la criatura murió atrapada (ahogada o aplastada). */

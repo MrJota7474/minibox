@@ -1,5 +1,6 @@
 import type { Rng } from '../core/rng';
 import { SPECIES, type SpeciesId } from '../entities/species';
+import { randomTraits } from '../entities/traits';
 import { NO_UNIT, type UnitStore } from '../entities/units';
 import type { BrushToolId } from '../sim/commands';
 import {
@@ -149,6 +150,7 @@ export function spawnInBrush(
         generation: 0,
         thinkOffset: rng.int(5),
         nameSeed: rng.nextU32(),
+        traits: randomTraits(rng),
       });
       if (i !== NO_UNIT) spawned++;
       break;

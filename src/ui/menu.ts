@@ -4,6 +4,8 @@ import { chronicleContent } from './chronicle';
 import { lawsContent } from './laws-panel';
 import { el } from './dom';
 import { helpContent } from './help';
+import { savesContent, type SaveActions } from './saves-panel';
+import { settingsContent, type Settings } from './settings';
 
 export interface MenuActions {
   newWorld(): void;
@@ -12,20 +14,27 @@ export interface MenuActions {
   chronicle(): readonly ChronicleEntry[];
   laws(): WorldLaws | null;
   setLaw(law: LawId, value: boolean): void;
+  saves: SaveActions;
+  settings(): Settings;
+  setSettings(s: Settings): void;
 }
 
-/** Menú principal (☰): nuevo mundo, pantalla completa, rendimiento, crónica y controles. */
+/** Menú principal (☰): nuevo mundo, partidas, pantalla completa, rendimiento, crónica, leyes, ajustes y controles. */
 export class Menu {
   readonly root: HTMLElement;
   private readonly help: HTMLElement;
   private readonly chronicleBox: HTMLElement;
   private readonly lawsBox: HTMLElement;
+  private readonly savesBox: HTMLElement;
+  private readonly settingsBox: HTMLElement;
 
   constructor(actions: MenuActions) {
     this.help = helpContent();
     this.help.hidden = true;
     this.chronicleBox = el('div', { class: 'chronicle-box', attrs: { hidden: '' } });
     this.lawsBox = el('div', { class: 'laws-box', attrs: { hidden: '' } });
+    this.savesBox = el('div', { class: 'saves-box', attrs: { hidden: '' } });
+    this.settingsBox = el('div', { class: 'settings-box', attrs: { hidden: '' } });
     const item = (label: string, fn: () => void): HTMLButtonElement =>
       el('button', {
         class: 'btn btn-text menu-item',
@@ -42,6 +51,11 @@ export class Menu {
           this.close();
           actions.newWorld();
         }),
+        item('Guardar / cargar', () => {
+          this.savesBox.hidden = !this.savesBox.hidden;
+          if (!this.savesBox.hidden) this.savesBox.replaceChildren(savesContent(actions.saves));
+        }),
+        this.savesBox,
         document.fullscreenEnabled
           ? item('Pantalla completa', () => {
               this.close();
@@ -63,6 +77,11 @@ export class Menu {
           if (!this.lawsBox.hidden && laws) this.lawsBox.replaceChildren(lawsContent(laws, (law, value) => actions.setLaw(law, value)));
         }),
         this.lawsBox,
+        item('Ajustes', () => {
+          this.settingsBox.hidden = !this.settingsBox.hidden;
+          if (!this.settingsBox.hidden) this.settingsBox.replaceChildren(settingsContent(actions.settings(), (s) => actions.setSettings(s)));
+        }),
+        this.settingsBox,
         item('Controles', () => {
           this.help.hidden = !this.help.hidden;
         }),
@@ -84,6 +103,8 @@ export class Menu {
     this.help.hidden = true;
     this.chronicleBox.hidden = true;
     this.lawsBox.hidden = true;
+    this.savesBox.hidden = true;
+    this.settingsBox.hidden = true;
   }
 
   get isOpen(): boolean {

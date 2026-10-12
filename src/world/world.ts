@@ -150,6 +150,11 @@ export class World {
     }
   }
 
+  /** Todos los datos por casilla en orden fijo (para guardar partidas). */
+  dataViews(): ArrayBufferView[] {
+    return [this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.region, this.zoneOwner, this.fire, this.lava];
+  }
+
   markAllDirty(): void {
     for (let c = 0; c < this.dirty.length; c++) {
       if (this.dirty[c] === 0) {

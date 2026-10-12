@@ -143,7 +143,7 @@ export function actFight(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (u.hp[enemy] > 0) return;
   ks.recordLoss(ks.kingdomOfUnit(enemy));
   killUnit(ctx, enemy, DeathCause.KILLED);
-  u.kills[i]++;
+  u.addKill(i);
   giveUp(u, i);
   u.think[i] = 1;
 }

@@ -20,6 +20,9 @@ import { PerfPanel } from './ui/perf-panel';
 import { StartMenu, type NewWorldOptions } from './ui/start-menu';
 import { Toasts } from './ui/toast';
 import { Toolbar } from './ui/toolbar';
+import { SaveController } from './save-controller';
+import { loadSettings, saveSettings, type Settings } from './ui/settings';
+import { tickToDate } from './core/time';
 
 const UI_INTERVAL_MS = 250;
 
@@ -75,6 +78,8 @@ export class Game {
   private following = false;
   private lastSpeed: Speed = 1;
   private pendingUpdate: (() => void) | null = null;
+  private settings: Settings = loadSettings();
+  private readonly saves: SaveController;
 
   private lastFrame = 0;
   private lastUi = 0;
@@ -112,18 +117,35 @@ export class Game {
       toggleFollow: () => this.toggleFollow(),
       diplomacy: (action, a, b) => this.applyCommand({ type: 'diplomacy', action, a, b }),
     });
-    this.startMenu = new StartMenu(device, (o) => this.newWorld(o), () => this.startMenu.close());
+    this.saves = new SaveController({
+      sim: () => this.sim,
+      adopt: (sim, label) => this.adopt(sim, label),
+      toast: (text) => this.toasts.show(text),
+      settings: () => this.settings,
+    });
+    this.startMenu = new StartMenu(
+      device,
+      (o) => this.newWorld(o),
+      () => this.startMenu.close(),
+      () => void this.continueLatest(),
+    );
     this.menu = new Menu({
       newWorld: () => {
         // Si hay una versión nueva descargada, se instala ahora (no hay partida que perder).
         if (this.pendingUpdate) this.pendingUpdate();
-        else this.startMenu.open(this.sim !== null);
+        else {
+          this.startMenu.open(this.sim !== null);
+          void this.refreshContinue();
+        }
       },
       toggleFullscreen: () => this.toggleFullscreen(),
       togglePerf: () => this.perf.toggle(),
       chronicle: () => this.sim?.civ.chronicle ?? [],
       laws: () => this.sim?.laws ?? null,
       setLaw: (law, value) => this.applyCommand({ type: 'law', law, value }),
+      saves: this.saves,
+      settings: () => this.settings,
+      setSettings: (s) => this.applySettings(s),
     });
     this.perf = new PerfPanel({ stress: (k) => this.stress(k) });
     root.append(this.canvas, this.hud.root, this.inspector.root, this.perf.root, this.toasts.root, this.toolbar.root, this.menu.root, this.startMenu.root);
@@ -147,6 +169,10 @@ export class Game {
       shortcutsEnabled: () => !this.menu.isOpen && !this.startMenu.isOpen,
     });
     new ResizeObserver(() => this.renderer?.resize()).observe(this.canvas);
+    // En el móvil la app puede cerrarse en segundo plano: se autoguarda al ocultarla.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.saves.saveNow();
+    });
     this.brushSize = this.toolbar.brushSize;
     this.stroke.size = this.brushSize;
     this.setSpeed(1);
@@ -164,22 +190,65 @@ export class Game {
 
   start(): void {
     this.startMenu.open(false);
+    void this.refreshContinue();
     requestAnimationFrame(this.frame);
   }
 
+  /** Ofrece continuar la partida guardada más reciente. */
+  private async refreshContinue(): Promise<void> {
+    const latest = await this.saves.latest();
+    const m = latest?.meta;
+    this.startMenu.setContinue(m ? `«${m.seedText}», año ${tickToDate(m.tick).year}` : null);
+  }
+
+  private async continueLatest(): Promise<void> {
+    const latest = await this.saves.latest();
+    if (latest) await this.saves.load(latest.slot);
+  }
+
+  /** Red de seguridad: si la simulación falla (p. ej. una partida dañada), se pausa en vez de colgarse. */
+  private simulationFailed(err: unknown): void {
+    this.setSpeed(0);
+    this.toasts.show('La simulación ha fallado y se ha pausado. Carga otra partida o crea un mundo nuevo.');
+    console.error('MiniBox: error en la simulación', err);
+  }
+
+  private applySettings(s: Settings): void {
+    this.settings = s;
+    if (!saveSettings(s)) this.toasts.show('Los ajustes sólo durarán esta sesión');
+    if (this.renderer) {
+      this.renderer.showLabels = s.showLabels;
+      this.renderer.showTerritory = s.showTerritory;
+    }
+  }
+
   private newWorld(opts: NewWorldOptions): void {
-    this.startMenu.close();
-    this.clearSelection();
     const sim = new Simulation({ seedText: opts.seedText, size: opts.size, capacity: this.device.unitCap, populate: opts.populate });
-    const camera = new Camera(opts.size, opts.size);
+    this.adopt(sim, `Mundo «${opts.seedText}» creado`);
+    this.saves.markSaved(sim);
+  }
+
+  /** Pone en marcha una simulación (nueva o cargada) con su cámara y su render. */
+  private adopt(sim: Simulation, label: string): void {
+    // Se cierra el trazo en curso sobre el mundo anterior (el imán suelta lo que lleva).
+    this.stroke.end();
+    this.startMenu.close();
+    this.menu.close();
+    this.clearSelection();
+    const size = sim.options.size;
+    // Una partida de un equipo más potente se limita a lo que aguanta este.
+    if (sim.unitLimit > this.device.unitCap) sim.apply({ type: 'limit', value: this.device.unitCap });
+    const camera = new Camera(size, size);
     this.sim = sim;
     this.camera = camera;
     this.renderer = new Renderer(this.canvas, sim.world, sim.units, camera, sim.civ, sim.powers, sim.hazards, this.device.dprCap, this.atlas);
+    this.renderer.showLabels = this.settings.showLabels;
+    this.renderer.showTerritory = this.settings.showTerritory;
     this.renderer.resize();
     camera.fitWorld();
     camera.zoomAt(INITIAL_ZOOM_FACTOR, camera.viewW / 2, camera.viewH / 2);
     this.perfWindowStart = 0;
-    this.toasts.show(`Mundo «${opts.seedText}» creado`);
+    this.toasts.show(label);
   }
 
   private readonly frame = (now: number): void => {
@@ -197,7 +266,12 @@ export class Game {
     const ticks = this.clock.advance(dt);
     if (ticks > 0) {
       const t0 = performance.now();
-      for (let t = 0; t < ticks; t++) sim.step();
+      try {
+        for (let t = 0; t < ticks; t++) sim.step();
+      } catch (err) {
+        this.simulationFailed(err);
+        return;
+      }
       this.tickMsAvg += ((performance.now() - t0) / ticks - this.tickMsAvg) * 0.1;
     }
     this.followSelected();
@@ -210,6 +284,7 @@ export class Game {
     if (now - this.lastUi >= UI_INTERVAL_MS) {
       this.lastUi = now;
       this.updateUi(sim);
+      this.saves.tick(now);
     }
     this.workMsAvg += (performance.now() - workStart - this.workMsAvg) * 0.05;
     this.checkPerformance(now, sim);

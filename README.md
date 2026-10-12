@@ -12,6 +12,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase B (aldeas)** — cuatro razas (Humanos, Silvanos, Petrinos, Colmilludos) que fundan aldeas, reparten oficios, recogen comida, madera, piedra, hierro y oro, construyen y mejoran edificios, amplían su territorio y envían colonos. Búsqueda de caminos A*.
 - **Fase C (reinos)** — reinos con capital, rey y personalidad; opinión entre reinos, guerras con ejércitos de guerreros (armas de hierro), conquista de aldeas, alianzas defensivas, treguas, rebeliones, sucesión y caída de reinos. Poderes de dios para forzar guerra, paz, alianza o rebelión, y crónica del mundo.
 - **Fase D (desastres)** — rayo, meteorito, bomba, terremoto, tornado, lluvia ácida, volcán, fuego que se propaga y quema edificios, lava que fluye y se enfría en roca, plaga contagiosa con inmunidad; bendición, maldición, locura, luz divina e imán divino; leyes del mundo; partículas y sacudida de cámara.
+- **Fase E (rasgos y partidas)** — 21 rasgos (fuerza, aguante, longevidad, fertilidad, apetito, trabajo, curación, inmunidad…) que se heredan y mutan, más Veterano y Superviviente que se ganan; inspector con rasgos, hijos, bajas y estadísticas efectivas; guardar y cargar en IndexedDB (5 ranuras + autoguardado), «Continuar» al abrir, exportar e importar archivo `.minibox`; ajustes (autoguardado, nombres, territorios).
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las próximas fases.
 
@@ -52,14 +53,15 @@ src/
   entities/  especies, almacén de criaturas (SoA), spatial hash
   ai/        ciclo de vida, comportamiento de animales, movimiento y A*
   civ/       aldeas, edificios, oficios, planificador y aldeanos
-  sim/       Simulation (núcleo determinista) y comandos del jugador
-  powers/    pinceles, herramientas y trazos
+  sim/       Simulation (núcleo determinista), comandos del jugador y leyes del mundo
+  persistence/ formato de partida (MBX1 + gzip) e IndexedDB
+  powers/    pinceles, herramientas, trazos, desastres, fuego/lava y estados
   render/    cámara, capa de terreno, sprites generados por código, renderer Canvas 2D
   input/     reconocedor de gestos, Pointer Events, teclado
   ui/        barra superior, barra de herramientas, inspector, menús
 ```
 
-La simulación no depende de la interfaz y es determinista: la misma semilla y los mismos comandos producen exactamente el mismo mundo (hay una prueba que lo verifica con un hash del estado).
+La simulación no depende de la interfaz y es determinista: la misma semilla y los mismos comandos producen exactamente el mismo mundo (hay una prueba que lo verifica con un hash del estado). Una partida guardada y cargada tiene el mismo hash y continúa de forma idéntica.
 
 ## Despliegue
 

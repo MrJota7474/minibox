@@ -1,6 +1,8 @@
 import { DeathCause, THINK_INTERVAL, giveUp, killUnit, type AiContext } from '../ai/context';
 import { Move, moveToward, pickWanderTarget } from '../ai/movement';
 import { Nav, clearPath, navigateTo } from '../ai/navigation';
+import { recordBirth, setBreedCooldown } from '../ai/life';
+import { inheritTraits, traitMods } from '../entities/traits';
 import { SPECIES, type RaceTraits, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
@@ -291,7 +293,7 @@ function beginWork(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (w < ctx.world.size) {
     const spec = TILE_WORK[ctx.world.flora[w]];
     if (!spec) return abandonTask(ctx, i);
-    u.workTimer[i] = Math.max(5, Math.round(spec.ticks / traitFor(def, spec.trait)));
+    u.workTimer[i] = Math.max(5, Math.round(spec.ticks / (traitFor(def, spec.trait) * traitMods(u.traits[i]).work)));
   } else {
     u.workTimer[i] = FARM_SHIFT_TICKS;
   }
@@ -424,7 +426,7 @@ function hunt(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (u.hp[prey] > 0) return;
   const food = Math.max(1, Math.ceil(SPECIES[u.species[prey]].meatValue / 120));
   killUnit(ctx, prey, DeathCause.KILLED);
-  u.kills[i]++;
+  u.addKill(i);
   setCarry(u, i, Resource.FOOD, food);
   giveUp(u, i);
   u.think[i] = 1;
@@ -483,14 +485,15 @@ function mate(ctx: AiContext, i: number, def: SpeciesDef): void {
       thinkOffset: ctx.rng.int(THINK_INTERVAL),
       nameSeed: ctx.rng.nextU32(),
       village: v.id,
+      traits: inheritTraits(u.traits[i], u.traits[partner], ctx.rng),
     });
     if (child !== NO_UNIT) {
-      ctx.stats.births++;
+      recordBirth(ctx, i, partner);
       v.population++;
     }
   }
-  u.cooldown[i] = def.breedCooldownTicks;
-  u.cooldown[partner] = def.breedCooldownTicks;
+  setBreedCooldown(u, i, def);
+  setBreedCooldown(u, partner, def);
   giveUp(u, i);
   giveUp(u, partner);
 }

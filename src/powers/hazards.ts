@@ -145,7 +145,19 @@ export class HazardSystem {
     w.markDirtyIdx(i);
   }
 
-  /** Reconstruye las listas activas a partir del mapa (al cargar una partida, en la Fase E). */
+  /** Listas activas en su orden exacto (el orden afecta al azar: se guardan tal cual). */
+  getLists(): { burning: number[]; molten: number[] } {
+    return { burning: [...this.burning], molten: [...this.molten] };
+  }
+
+  setLists(lists: { burning: readonly number[]; molten: readonly number[] }): void {
+    const ok = (l: readonly number[]): boolean => l.every((i) => Number.isInteger(i) && i >= 0 && i < this.world.size);
+    if (!ok(lists.burning) || !ok(lists.molten)) throw new Error('Listas de fuego o lava no válidas');
+    this.burning = [...lists.burning];
+    this.molten = [...lists.molten];
+  }
+
+  /** Reconstruye las listas activas a partir del mapa. */
   rebuildLists(): void {
     this.burning = [];
     this.molten = [];

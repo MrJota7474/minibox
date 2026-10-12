@@ -197,7 +197,8 @@ export class KingdomSystem {
     }
   }
 
-  private rebuildHostility(): void {
+  /** Recalcula los índices de hostilidad (también al cargar una partida). */
+  rebuildHostility(): void {
     this.hostile.clear();
     this.atWar.clear();
     for (const w of this.wars) {

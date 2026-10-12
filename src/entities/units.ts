@@ -1,5 +1,6 @@
 import { hashViews } from '../core/hash';
 import { SPECIES, type SpeciesId } from './species';
+import { Trait, addTrait } from './traits';
 
 /** Estados de comportamiento. */
 export const UnitState = {
@@ -49,6 +50,8 @@ export const NO_VILLAGE = -1;
 export const HELD_FLAG = 8;
 /** Waypoints máximos guardados por criatura (ruta de A*). */
 export const PATH_MAX = 24;
+/** Bajas necesarias para ganarse el rasgo «Veterano». */
+export const VETERAN_KILLS = 5;
 
 /** Datos de nacimiento de una criatura. */
 export interface SpawnOptions {
@@ -60,6 +63,8 @@ export interface SpawnOptions {
   nameSeed?: number;
   /** Aldea a la que pertenece al nacer. */
   village?: number;
+  /** Máscara de rasgos (ver entities/traits.ts). */
+  traits?: number;
 }
 
 /**
@@ -115,6 +120,10 @@ export class UnitStore {
   /** Ticks de plaga y de locura que quedan. */
   readonly plague: Uint16Array;
   readonly mad: Uint16Array;
+  /** Máscara de rasgos (bit = id del rasgo). */
+  readonly traits: Uint32Array;
+  /** Crías que ha tenido. */
+  readonly children: Uint16Array;
   readonly pathLen: Uint8Array;
   readonly pathIdx: Uint8Array;
   /** Waypoints (x, y) de la ruta: PATH_MAX pares por criatura. */
@@ -160,6 +169,8 @@ export class UnitStore {
     this.status = new Uint8Array(capacity);
     this.plague = new Uint16Array(capacity);
     this.mad = new Uint16Array(capacity);
+    this.traits = new Uint32Array(capacity);
+    this.children = new Uint16Array(capacity);
     this.pathLen = new Uint8Array(capacity);
     this.pathIdx = new Uint8Array(capacity);
     this.path = new Int16Array(capacity * PATH_MAX * 2);
@@ -206,6 +217,8 @@ export class UnitStore {
     this.status[i] = 0;
     this.plague[i] = 0;
     this.mad[i] = 0;
+    this.traits[i] = opts.traits ?? 0;
+    this.children[i] = 0;
     this.pathLen[i] = 0;
     this.pathIdx[i] = 0;
     this.count++;
@@ -224,6 +237,12 @@ export class UnitStore {
     this.free[this.freeTop++] = i;
   }
 
+  /** Suma una baja; con suficientes, la criatura se vuelve veterana. */
+  addKill(i: number): void {
+    if (this.kills[i] < 0xffff) this.kills[i]++;
+    if (this.kills[i] === VETERAN_KILLS) this.traits[i] = addTrait(this.traits[i], Trait.VETERAN);
+  }
+
   isAlive(i: number): boolean {
     return i >= 0 && i < this.highWater && this.alive[i] === 1;
   }
@@ -239,6 +258,44 @@ export class UnitStore {
     const i = handle % 0x10000;
     const g = Math.floor(handle / 0x10000);
     return this.isAlive(i) && this.gen[i] === g ? i : NO_UNIT;
+  }
+
+  /** Todos los datos por criatura en orden fijo (para guardar partidas). */
+  dataViews(): ArrayBufferView[] {
+    return [
+      this.alive, this.gen, this.species, this.sex, this.state, this.think, this.attackCd,
+      this.x, this.y, this.px, this.py, this.tx, this.ty, this.hp, this.hunger, this.age,
+      this.cooldown, this.target, this.generation, this.kills, this.stateTicks, this.village,
+      this.job, this.carry, this.carryAmount, this.work, this.workTimer, this.nameSeed, this.gear,
+      this.homeKingdom, this.status, this.plague, this.mad, this.traits, this.children,
+      this.pathLen, this.pathIdx, this.path, this.free,
+    ];
+  }
+
+  getCounters(): { highWater: number; freeTop: number } {
+    return { highWater: this.highWater, freeTop: this.freeTop };
+  }
+
+  /** Restaura los contadores tras cargar `dataViews` y recalcula los recuentos. */
+  setCounters(c: { highWater: number; freeTop: number }): void {
+    if (c.highWater < 0 || c.highWater > this.capacity || c.freeTop < 0 || c.freeTop > this.capacity) throw new Error('Contadores de criaturas no válidos');
+    this.highWater = c.highWater;
+    this.freeTop = c.freeTop;
+    // Los huecos libres deben ser criaturas muertas ya usadas (si no, spawn pisaría a una viva).
+    const seen = new Uint8Array(this.highWater);
+    for (let k = 0; k < this.freeTop; k++) {
+      const i = this.free[k];
+      if (i < 0 || i >= this.highWater || this.alive[i] !== 0 || seen[i]) throw new Error('Lista de huecos de criaturas no válida');
+      seen[i] = 1;
+    }
+    this.count = 0;
+    this.speciesCount.fill(0);
+    for (let i = 0; i < this.highWater; i++) {
+      if (this.alive[i] === 0) continue;
+      if (this.species[i] >= SPECIES.length) throw new Error('Especie desconocida en la partida');
+      this.count++;
+      this.speciesCount[this.species[i]]++;
+    }
   }
 
   stateHash(): number {
@@ -274,6 +331,8 @@ export class UnitStore {
       this.status,
       this.plague,
       this.mad,
+      this.traits,
+      this.children,
     ]);
   }
 }
