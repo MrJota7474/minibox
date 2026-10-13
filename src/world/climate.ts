@@ -1,10 +1,23 @@
 import { hashMix } from '../core/hash';
 import { TICKS_PER_YEAR } from '../core/time';
 
-/** Estaciones del año: tres meses cada una. */
+/** Estaciones: primavera, verano, otoño e invierno, cada una de la duración elegida. */
 export const Season = { SPRING: 0, SUMMER: 1, AUTUMN: 2, WINTER: 3 } as const;
 export type SeasonId = (typeof Season)[keyof typeof Season];
-export const SEASON_TICKS = TICKS_PER_YEAR / 4;
+/** Duraciones de cada estación que puede elegir el jugador (en ticks). */
+export const SEASON_LENGTHS: readonly { ticks: number; label: string }[] = [
+  { ticks: TICKS_PER_YEAR / 4, label: '3 meses' },
+  { ticks: TICKS_PER_YEAR, label: '1 año' },
+  { ticks: 5 * TICKS_PER_YEAR, label: '5 años' },
+  { ticks: 10 * TICKS_PER_YEAR, label: '10 años' },
+];
+/** Por defecto, cada estación dura 5 años: así no pasan volando al acelerar el tiempo. */
+export const DEFAULT_SEASON_TICKS = 5 * TICKS_PER_YEAR;
+export const SEASON_TICKS = DEFAULT_SEASON_TICKS;
+
+export function isSeasonLength(ticks: number): boolean {
+  return SEASON_LENGTHS.some((s) => s.ticks === ticks);
+}
 
 /** Multiplicadores del clima del momento (estación × era). */
 export interface ClimateMods {
@@ -31,8 +44,9 @@ interface SeasonInfo {
 export const SEASON_INFO: readonly SeasonInfo[] = [
   { name: 'Primavera', grass: 1.3, tree: 1.5, farm: 1.2, hunger: 1 },
   { name: 'Verano', grass: 1, tree: 1, farm: 1, hunger: 1 },
-  { name: 'Otoño', grass: 0.7, tree: 0.6, farm: 0.8, hunger: 1.05 },
-  { name: 'Invierno', grass: 0.25, tree: 0.2, farm: 0, hunger: 1.15 },
+  { name: 'Otoño', grass: 0.75, tree: 0.6, farm: 0.8, hunger: 1.05 },
+  // Los inviernos pueden durar años: las cosechas crecen poco, pero no se paran del todo.
+  { name: 'Invierno', grass: 0.4, tree: 0.3, farm: 0.25, hunger: 1.1 },
 ];
 
 /** Eras: épocas de unos 40 años que tiñen todo el mundo. */
@@ -82,12 +96,16 @@ export function neutralClimate(): ClimateMods {
 export class Climate {
   era: EraId = Era.TEMPERATE;
   eraIndex = 0;
+  /** Duración de cada estación (ticks). */
+  seasonTicks = DEFAULT_SEASON_TICKS;
+  /** Desfase para que, al cambiar la duración, la estación en curso empiece de nuevo (no salte). */
+  seasonOffset = 0;
 
   constructor(private readonly seed: number) {}
 
   seasonAt(tick: number, seasons: boolean): SeasonId {
     if (!seasons) return Season.SUMMER;
-    const s = Math.floor((tick % TICKS_PER_YEAR) / SEASON_TICKS) as SeasonId;
+    const s = (Math.floor((tick + this.seasonOffset) / this.seasonTicks) % 4) as SeasonId;
     // En la era glacial el otoño ya es invierno.
     return this.era === Era.FROST && s === Season.AUTUMN ? Season.WINTER : s;
   }
@@ -108,6 +126,17 @@ export class Climate {
     return true;
   }
 
+  /** El jugador cambia la duración de las estaciones. */
+  setSeasonTicks(ticks: number, now: number): boolean {
+    if (!isSeasonLength(ticks) || ticks === this.seasonTicks) return false;
+    const current = Math.floor((now + this.seasonOffset) / this.seasonTicks) % 4;
+    const cycle = 4 * ticks;
+    this.seasonTicks = ticks;
+    // La estación en curso vuelve a empezar con la nueva duración.
+    this.seasonOffset = (((current * ticks - now) % cycle) + cycle) % cycle;
+    return true;
+  }
+
   mods(tick: number, seasons: boolean): ClimateMods {
     const season = this.seasonAt(tick, seasons);
     const s = SEASON_INFO[season];
@@ -116,6 +145,6 @@ export class Climate {
   }
 
   stateHash(): number {
-    return hashMix(this.era, this.eraIndex);
+    return hashMix(hashMix(hashMix(this.era, this.eraIndex), this.seasonTicks), this.seasonOffset);
   }
 }

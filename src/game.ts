@@ -151,6 +151,8 @@ export class Game {
       setLaw: (law, value) => this.applyCommand({ type: 'law', law, value }),
       era: () => this.sim?.climate.era ?? null,
       setEra: (era) => this.applyCommand({ type: 'era', era }),
+      seasonTicks: () => this.sim?.climate.seasonTicks ?? null,
+      setSeasonTicks: (ticks) => this.applyCommand({ type: 'seasonLength', ticks }),
       saves: this.saves,
       settings: () => this.settings,
       setSettings: (s) => this.applySettings(s),

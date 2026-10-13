@@ -1,7 +1,7 @@
 import { JOB_COUNT } from '../civ/model';
 import { ABOARD_FLAG, MAX_CAPACITY } from '../entities/units';
 import { LAW_IDS, defaultLaws, type WorldLaws } from '../sim/laws';
-import { ERA_INFO } from '../world/climate';
+import { DEFAULT_SEASON_TICKS, ERA_INFO, isSeasonLength } from '../world/climate';
 import { Simulation } from '../sim/simulation';
 import { checkSave, validateLoaded } from './validate';
 
@@ -45,7 +45,7 @@ interface Header {
   unitLimit: number;
   laws: WorldLaws;
   /** Era del mundo (desde la versión 3). */
-  climate?: { era: number; eraIndex: number };
+  climate?: { era: number; eraIndex: number; seasonTicks?: number; seasonOffset?: number };
   births: number;
   deaths: number[];
   rng: number[][];
@@ -103,7 +103,7 @@ export function serialize(sim: Simulation, meta: SaveMeta): Uint8Array {
     tick: sim.tick,
     unitLimit: sim.unitLimit,
     laws: { ...sim.laws },
-    climate: { era: sim.climate.era, eraIndex: sim.climate.eraIndex },
+    climate: { era: sim.climate.era, eraIndex: sim.climate.eraIndex, seasonTicks: sim.climate.seasonTicks, seasonOffset: sim.climate.seasonOffset },
     births: sim.stats.births,
     deaths: [...sim.stats.deaths],
     rng: sim.getRngStates(),
@@ -163,6 +163,8 @@ function validateHeader(h: Header): void {
   if (h.version < 3 && h.laws && typeof h.laws === 'object') h.laws = { ...defaultLaws(), ...h.laws };
   for (const id of LAW_IDS) if (typeof h.laws?.[id] !== 'boolean') fail('leyes del mundo');
   if (h.version >= 3 && (!h.climate || !isCount(h.climate.eraIndex) || !isCount(h.climate.era) || h.climate.era >= ERA_INFO.length)) fail('era del mundo');
+  if (h.climate?.seasonTicks !== undefined && !isSeasonLength(h.climate.seasonTicks)) fail('duración de las estaciones');
+  if (h.climate?.seasonOffset !== undefined && (!isCount(h.climate.seasonOffset) || h.climate.seasonOffset >= 4 * (h.climate.seasonTicks ?? DEFAULT_SEASON_TICKS))) fail('duración de las estaciones');
   const c = h.civ;
   if (!c || !Array.isArray(c.villages) || !Array.isArray(c.buildings) || !Array.isArray(c.kingdoms) || !Array.isArray(c.wars) || !Array.isArray(c.chronicle)) fail('civilizaciones');
   const indexed = (list: readonly { id: number }[]): boolean => list.every((x, k) => x && x.id === k);
@@ -221,6 +223,9 @@ export function deserialize(bytes: Uint8Array): Simulation {
   if (h.climate) {
     sim.climate.eraIndex = h.climate.eraIndex;
     sim.climate.era = h.climate.era as typeof sim.climate.era;
+    // Las partidas anteriores a la duración elegible usan la de ahora (5 años).
+    sim.climate.seasonTicks = h.climate.seasonTicks ?? DEFAULT_SEASON_TICKS;
+    sim.climate.seasonOffset = h.climate.seasonOffset ?? 0;
   } else {
     // Partida anterior a las eras: empieza la que le toca por su fecha.
     sim.climate.update(h.tick);

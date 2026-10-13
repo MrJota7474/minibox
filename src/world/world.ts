@@ -148,6 +148,18 @@ export class World {
   markDirtyIdx(i: number): void {
     const x = i % this.width;
     const y = (i - x) / this.width;
+    this.markChunkAt(x, y);
+    // El color de una casilla depende de sus vecinas (relieve, espuma): si está en el borde
+    // de un chunk, el chunk de al lado también se repinta.
+    const ex = x % CHUNK_SIZE;
+    const ey = y % CHUNK_SIZE;
+    if (ex === 0 || ex === CHUNK_SIZE - 1 || ey === 0 || ey === CHUNK_SIZE - 1) {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (dx || dy) this.markChunkAt(x + dx, y + dy);
+    }
+  }
+
+  private markChunkAt(x: number, y: number): void {
+    if (!this.inBounds(x, y)) return;
     const c = Math.floor(y / CHUNK_SIZE) * this.chunksX + Math.floor(x / CHUNK_SIZE);
     if (this.dirty[c] === 0) {
       this.dirty[c] = 1;

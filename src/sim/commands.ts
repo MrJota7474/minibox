@@ -45,6 +45,8 @@ export type Command =
   | { readonly type: 'drop'; readonly x: number; readonly y: number }
   /** Poder de dios: imponer una era (ver world/climate.ts). */
   | { readonly type: 'era'; readonly era: number }
+  /** Duración de cada estación (ticks; ver SEASON_LENGTHS). */
+  | { readonly type: 'seasonLength'; readonly ticks: number }
   /** Leyes del mundo. */
   | { readonly type: 'law'; readonly law: LawId; readonly value: boolean };
 

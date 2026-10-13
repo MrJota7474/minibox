@@ -245,8 +245,6 @@ export class CivLayer {
     ctx.font = `600 ${size}px "Pixelify Sans", monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(0,0,0,0.75)';
     for (const v of this.civ.villages) {
       if (!v.alive) continue;
       const hall = this.civ.building(v.hallId);
@@ -254,14 +252,30 @@ export class CivLayer {
       const p = cam.worldToScreen(hall.x + hall.w / 2, hall.y);
       if (p.x < -100 || p.y < -20 || p.x > cam.viewW + 100 || p.y > cam.viewH + 40) continue;
       const text = `${v.name} · ${v.population}`;
-      const ty = p.y - cam.zoom * 0.6;
+      // Por encima del tejado (el ayuntamiento sobresale más que la hoguera).
+      const ty = p.y - cam.zoom * (hall.level >= 2 ? 2.4 : 0.9);
       const color = VILLAGE_COLORS[this.colorOfKingdom(v.kingdom)];
-      ctx.strokeText(text, p.x, ty);
-      ctx.fillStyle = color;
-      ctx.fillText(text, p.x, ty);
       const K = v.kingdom >= 0 ? this.civ.kingdoms.kingdoms[v.kingdom] : null;
-      if (K && K.capital === v.id) this.drawCrown(ctx, p.x - ctx.measureText(text).width / 2 - size, ty - size * 0.75, size * 0.8, color);
-      if (v.captureProgress > 0 && v.captureBy >= 0) this.drawCaptureBar(ctx, p.x, ty + 3, v.captureProgress, VILLAGE_COLORS[this.colorOfKingdom(v.captureBy)]);
+      const capital = K !== null && K.capital === v.id;
+      const tw = ctx.measureText(text).width;
+      const pad = Math.round(size * 0.45);
+      const crownW = capital ? size + 2 : 0;
+      const pw = tw + pad * 2 + crownW;
+      const ph = size + 6;
+      const px = Math.round(p.x - pw / 2);
+      const py = Math.round(ty - ph + 3);
+      // Placa: fondo oscuro con el borde del color del reino.
+      ctx.fillStyle = 'rgba(26,20,16,0.82)';
+      ctx.fillRect(px, py, pw, ph);
+      ctx.fillStyle = color;
+      ctx.fillRect(px, py, pw, 2);
+      ctx.fillRect(px, py + ph - 2, pw, 2);
+      ctx.fillRect(px, py, 2, ph);
+      ctx.fillRect(px + pw - 2, py, 2, ph);
+      ctx.fillStyle = '#f3e6c8';
+      ctx.fillText(text, p.x + crownW / 2, ty);
+      if (capital) this.drawCrown(ctx, px + pad - 1, py + Math.round(ph * 0.22), size * 0.8, color);
+      if (v.captureProgress > 0 && v.captureBy >= 0) this.drawCaptureBar(ctx, p.x, ty + 7, v.captureProgress, VILLAGE_COLORS[this.colorOfKingdom(v.captureBy)]);
     }
     ctx.textAlign = 'start';
     ctx.textBaseline = 'alphabetic';

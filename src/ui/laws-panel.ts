@@ -1,5 +1,5 @@
 import { LAW_IDS, LAW_LABELS, type LawId, type WorldLaws } from '../sim/laws';
-import { ERA_INFO } from '../world/climate';
+import { ERA_INFO, SEASON_LENGTHS } from '../world/climate';
 import { el } from './dom';
 
 /** Selector de era (poder de dios): la elegida dura hasta que empiece la siguiente. */
@@ -14,6 +14,15 @@ export function eraContent(current: number, onSelect: (era: number) => void): HT
     onSelect(era);
   });
   return el('div', { class: 'era-box' }, [el('label', { class: 'era-label', text: 'Era del mundo', attrs: { for: 'era-select' } }), select, note]);
+}
+
+/** Selector de la duración de cada estación. */
+export function seasonLengthContent(current: number, onSelect: (ticks: number) => void): HTMLElement {
+  const select = el('select', { class: 'select', attrs: { id: 'season-length', 'aria-label': 'Duración de cada estación' } });
+  for (const s of SEASON_LENGTHS) select.append(el('option', { text: s.label, attrs: { value: String(s.ticks) } }));
+  select.value = String(current);
+  select.addEventListener('change', () => onSelect(Number(select.value)));
+  return el('div', { class: 'era-box' }, [el('label', { class: 'era-label', text: 'Cada estación dura', attrs: { for: 'season-length' } }), select]);
 }
 
 /** Casillas de verificación de las leyes del mundo. */

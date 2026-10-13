@@ -4,7 +4,8 @@ import { UnitState, type UnitStore } from '../entities/units';
 import type { FxEvent, PowerSystem } from '../powers/disasters';
 import type { HazardSystem } from '../powers/hazards';
 import { Status } from '../powers/status';
-import { Flora } from '../world/terrain';
+import { Season } from '../world/climate';
+import { Biome, Flora } from '../world/terrain';
 import type { World } from '../world/world';
 import type { Camera } from './camera';
 
@@ -14,7 +15,7 @@ import type { Camera } from './camera';
  * forma (corazones, cruces, burbujas, calaveras) y vida en el mapa (astillas al talar,
  * chispas al picar, golpes, humo de chimeneas, estados de las criaturas).
  */
-type Shape = 'square' | 'heart' | 'cross' | 'bubble' | 'skull' | 'star';
+type Shape = 'square' | 'heart' | 'cross' | 'bubble' | 'skull' | 'star' | 'drop';
 
 interface Particle {
   x: number;
@@ -28,6 +29,8 @@ interface Particle {
   color: string;
   size: number;
   shape: Shape;
+  /** Aparece poco a poco (copos, hojas...). */
+  fadeIn?: boolean;
 }
 
 interface Ring {
@@ -39,12 +42,13 @@ interface Ring {
   color: string;
 }
 
-const MAX_PARTICLES = 2500;
+/** Partículas a la vez como máximo (las del tiempo meteorológico van aparte, hasta MAX_WEATHER). */
+const MAX_PARTICLES = 3000;
 const MAX_FIRE_TILES = 4000;
 /** Partículas de ambiente por frame como máximo (talar, chimeneas, estados...). */
 const AMBIENT_BUDGET = 40;
 
-const STAMPS: Readonly<Record<Exclude<Shape, 'square'>, readonly string[]>> = {
+const STAMPS: Readonly<Record<Exclude<Shape, 'square' | 'drop'>, readonly string[]>> = {
   heart: ['.x.x.', 'xxxxx', 'xxxxx', '.xxx.', '..x..'],
   cross: ['.x.', 'xxx', '.x.'],
   bubble: ['.x.', 'x.x', '.x.'],
@@ -78,6 +82,27 @@ const STYLES: Readonly<Record<string, Style>> = {
   blessing: { colors: ['#fff2a0', '#ffd04a'], shape: 'square', speed: 0.3, rise: -0.9, gravity: 0 },
 };
 
+/** Tiempo de cada estación: copos, hojas, pétalos o lluvia (en los biomas cálidos). */
+interface Weather {
+  colors: readonly string[];
+  shape: Shape;
+  /** Partículas nuevas por frame y por cada 1000 casillas a la vista. */
+  rate: number;
+  vx: number;
+  vy: number;
+  life: number;
+  size: number;
+}
+const WEATHER: Readonly<Record<string, Weather>> = {
+  snow: { colors: ['#ffffff', '#e8f0f6'], shape: 'square', rate: 0.9, vx: 0.4, vy: 1.4, life: 3.5, size: 0.14 },
+  rain: { colors: ['rgba(170,200,255,0.8)'], shape: 'drop', rate: 1.2, vx: 0.6, vy: 11, life: 0.5, size: 1 },
+  leaves: { colors: ['#d89a34', '#c8742a', '#a8582a', '#e8b84a'], shape: 'square', rate: 0.35, vx: 1.6, vy: 1, life: 4, size: 0.16 },
+  petals: { colors: ['#f4b6c8', '#ffffff', '#f8d0dc'], shape: 'square', rate: 0.25, vx: 0.9, vy: 0.7, life: 4, size: 0.12 },
+};
+/** Partículas de tiempo como máximo a la vez. */
+const MAX_WEATHER = 500;
+const WARM_BIOMES = new Set<number>([Biome.DESERT, Biome.JUNGLE, Biome.SAVANNA]);
+
 /** Llamas en pixel art (3 cuadros de 6×8). */
 const FLAME_FRAMES: readonly (readonly string[])[] = [
   ['..y...', '..yy..', '.yoy..', '.ooy..', 'orroo.', 'orrro.', '.rrrr.', '..rr..'],
@@ -106,11 +131,14 @@ function buildFlames(): HTMLCanvasElement {
 
 export class FxLayer {
   private particles: Particle[] = [];
+  private weatherCount = 0;
   private rings: Ring[] = [];
   private bolts: { x: number; y: number; t: number; seed: number }[] = [];
   private flash = 0;
   private shake = 0;
   private last = 0;
+  /** Segundos del último frame. */
+  private dt = 0.016;
   private readonly flames = buildFlames();
 
   constructor(
@@ -124,6 +152,7 @@ export class FxLayer {
   update(now: number): void {
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0.016;
     this.last = now;
+    this.dt = dt;
     for (const e of this.powers.fx) this.spawn(e);
     this.powers.fx.length = 0;
     for (const e of this.powers.effects) {
@@ -143,7 +172,11 @@ export class FxLayer {
       p.y += p.vy * dt;
       p.life -= dt;
     }
-    this.particles = this.particles.filter((p) => p.life > 0);
+    this.particles = this.particles.filter((p) => {
+      if (p.life > 0) return true;
+      if (p.fadeIn) this.weatherCount--;
+      return false;
+    });
     for (const r of this.rings) r.t += dt;
     this.rings = this.rings.filter((r) => r.t < r.max);
     this.bolts = this.bolts.filter((b) => (b.t -= dt) > 0);
@@ -256,6 +289,47 @@ export class FxLayer {
     }
   }
 
+  /** Copos en invierno (lluvia en los biomas cálidos), hojas en otoño y pétalos en primavera. */
+  weather(season: number): void {
+    const c = this.camera;
+    if (c.zoom < 4 || season === Season.SUMMER) return;
+    const vw = c.viewW / c.zoom;
+    const vh = c.viewH / c.zoom;
+    const w = this.world;
+    const kinds = season === Season.WINTER ? ['snow', 'rain'] : season === Season.AUTUMN ? ['leaves'] : ['petals'];
+    // Partículas por segundo (60 fps de referencia), sean cuales sean los fotogramas de la pantalla.
+    const n = Math.min(12, (vw * vh) / 1000) * this.dt * 60;
+    for (const kind of kinds) {
+      const wt = WEATHER[kind];
+      let count = n * wt.rate;
+      while (count > 0 && this.weatherCount < MAX_WEATHER && this.particles.length < MAX_PARTICLES) {
+        if (count < 1 && Math.random() > count) break;
+        count--;
+        const x = c.left + Math.random() * vw;
+        const y = c.top + Math.random() * vh;
+        const tx = Math.floor(x);
+        const ty = Math.floor(y);
+        if (!w.inBounds(tx, ty)) continue;
+        // En invierno: nieve donde hace frío y lluvia donde no.
+        if (season === Season.WINTER && WARM_BIOMES.has(w.biome[ty * w.width + tx]) !== (kind === 'rain')) continue;
+        this.weatherCount++;
+        this.particles.push({
+          x,
+          y,
+          vx: wt.vx * (0.6 + Math.random() * 0.8),
+          vy: wt.vy * (0.7 + Math.random() * 0.6),
+          ay: 0,
+          life: wt.life,
+          max: wt.life,
+          color: wt.colors[(Math.random() * wt.colors.length) | 0],
+          size: wt.size * (0.8 + Math.random() * 0.5),
+          shape: wt.shape,
+          fadeIn: true,
+        });
+      }
+    }
+  }
+
   /** Desplazamiento de cámara del temblor (en píxeles). */
   offset(): { x: number; y: number } {
     if (this.shake === 0) return { x: 0, y: 0 };
@@ -315,13 +389,16 @@ export class FxLayer {
     }
     for (const p of this.particles) {
       if (!this.visible(p.x, p.y, 1)) continue;
-      ctx.globalAlpha = Math.max(0, Math.min(1, (p.life / p.max) * 1.5));
+      const fade = p.fadeIn ? Math.min((p.max - p.life) * 2, p.life * 1.5) : (p.life / p.max) * 1.5;
+      ctx.globalAlpha = Math.max(0, Math.min(1, fade));
       ctx.fillStyle = p.color;
       const px = (p.x - c.left) * z;
       const py = (p.y - c.top) * z;
       if (p.shape === 'square') {
         const s = Math.max(1.5, p.size * z);
         ctx.fillRect(px - s / 2, py - s / 2, s, s);
+      } else if (p.shape === 'drop') {
+        ctx.fillRect(px, py, Math.max(1, z * 0.06), Math.max(3, z * 0.55));
       } else {
         this.stamp(ctx, STAMPS[p.shape], px, py, Math.max(1, Math.round(z / 10)));
       }

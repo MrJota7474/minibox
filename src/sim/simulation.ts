@@ -134,6 +134,10 @@ export class Simulation {
       if (this.climate.setEra(command.era)) this.civ.addEvent('era', -1, `Por voluntad divina comienza la ${ERA_INFO[this.climate.era].name}`);
       return { spawned: 0, limited: false };
     }
+    if (command.type === 'seasonLength') {
+      this.climate.setSeasonTicks(command.ticks, this.tick);
+      return { spawned: 0, limited: false };
+    }
     if (command.type === 'law') {
       this.laws[command.law] = command.value;
       return { spawned: 0, limited: false };

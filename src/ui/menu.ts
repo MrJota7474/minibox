@@ -1,7 +1,7 @@
 import type { ChronicleEntry } from '../civ/civ-system';
 import type { LawId, WorldLaws } from '../sim/laws';
 import { chronicleContent } from './chronicle';
-import { eraContent, lawsContent } from './laws-panel';
+import { eraContent, lawsContent, seasonLengthContent } from './laws-panel';
 import { el } from './dom';
 import { helpContent } from './help';
 import { savesContent, type SaveActions } from './saves-panel';
@@ -16,6 +16,8 @@ export interface MenuActions {
   setLaw(law: LawId, value: boolean): void;
   era(): number | null;
   setEra(era: number): void;
+  seasonTicks(): number | null;
+  setSeasonTicks(ticks: number): void;
   saves: SaveActions;
   settings(): Settings;
   setSettings(s: Settings): void;
@@ -78,7 +80,12 @@ export class Menu {
           this.lawsBox.hidden = !this.lawsBox.hidden || !laws;
           const era = actions.era();
           if (!this.lawsBox.hidden && laws) {
-            this.lawsBox.replaceChildren(lawsContent(laws, (law, value) => actions.setLaw(law, value)), era === null ? '' : eraContent(era, (e) => actions.setEra(e)));
+            const seasons = actions.seasonTicks();
+            this.lawsBox.replaceChildren(
+              lawsContent(laws, (law, value) => actions.setLaw(law, value)),
+              seasons === null ? '' : seasonLengthContent(seasons, (t) => actions.setSeasonTicks(t)),
+              era === null ? '' : eraContent(era, (e) => actions.setEra(e)),
+            );
           }
         }),
         this.lawsBox,

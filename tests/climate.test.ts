@@ -133,7 +133,7 @@ describe('estaciones', () => {
   it('el año pasa por primavera, verano, otoño e invierno', () => {
     const c = new Climate(1);
     expect([0, 1, 2, 3].map((k) => c.seasonAt(k * SEASON_TICKS + 5, true))).toEqual([Season.SPRING, Season.SUMMER, Season.AUTUMN, Season.WINTER]);
-    expect(c.seasonAt(TICKS_PER_YEAR + 5, true)).toBe(Season.SPRING);
+    expect(c.seasonAt(4 * SEASON_TICKS + 5, true)).toBe(Season.SPRING);
     expect(c.seasonAt(3 * SEASON_TICKS + 5, false)).toBe(Season.SUMMER);
   });
 
@@ -157,7 +157,35 @@ describe('estaciones', () => {
     expect(regrow(Season.SPRING)).toBeGreaterThan(regrow(Season.SUMMER));
   });
 
-  it('en invierno las granjas no crecen solas; en verano sí', () => {
+  it('cada estación dura 5 años por defecto y se puede cambiar', () => {
+    const sim = flatSim();
+    expect(sim.climate.seasonTicks).toBe(5 * TICKS_PER_YEAR);
+    expect(sim.climate.seasonAt(4 * TICKS_PER_YEAR, true)).toBe(Season.SPRING);
+    expect(sim.climate.seasonAt(5 * TICKS_PER_YEAR, true)).toBe(Season.SUMMER);
+    sim.apply({ type: 'seasonLength', ticks: TICKS_PER_YEAR });
+    // En el tick 0 era primavera: sigue siéndolo y dura ahora 1 año.
+    expect(sim.climate.seasonAt(sim.tick, true)).toBe(Season.SPRING);
+    expect(sim.climate.seasonAt(sim.tick + TICKS_PER_YEAR + 5, true)).toBe(Season.SUMMER);
+    sim.apply({ type: 'seasonLength', ticks: 123 });
+    expect(sim.climate.seasonTicks).toBe(TICKS_PER_YEAR);
+    const loaded = deserialize(serialize(sim, describeSave(sim, 'x', 0)));
+    expect(loaded.climate.seasonTicks).toBe(TICKS_PER_YEAR);
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+  });
+
+  it('cambiar la duración a mitad de estación conserva la estación en curso', () => {
+    const sim = flatSim();
+    sim.tick = 3 * SEASON_TICKS + 1234;
+    expect(sim.climate.seasonAt(sim.tick, true)).toBe(Season.WINTER);
+    sim.apply({ type: 'seasonLength', ticks: TICKS_PER_YEAR / 4 });
+    expect(sim.climate.seasonAt(sim.tick, true)).toBe(Season.WINTER);
+    expect(sim.climate.seasonAt(sim.tick + TICKS_PER_YEAR / 4, true)).toBe(Season.SPRING);
+    const loaded = deserialize(serialize(sim, describeSave(sim, 'x', 0)));
+    expect(loaded.climate.seasonAt(loaded.tick, true)).toBe(Season.WINTER);
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+  });
+
+  it('en invierno las granjas crecen mucho menos que en verano', () => {
     const growth = (season: number): number => {
       const sim = flatSim();
       const ctx = ctxOf(sim);
@@ -175,7 +203,7 @@ describe('estaciones', () => {
       for (let t = 0; t < 100; t++) sim.step();
       return farm.growth;
     };
-    expect(growth(Season.WINTER)).toBe(0);
+    expect(growth(Season.WINTER)).toBeLessThan(growth(Season.SUMMER));
     expect(growth(Season.SUMMER)).toBeGreaterThan(0);
   });
 });

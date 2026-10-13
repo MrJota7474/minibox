@@ -35,6 +35,9 @@ const SPRITE_MIN_ZOOM = 5;
 /** Desde este zoom el terreno lleva una textura sutil. */
 const GRAIN_MIN_ZOOM = 6;
 const GRAIN_PX = 8;
+/** Destellos del agua: desde qué zoom y en qué fracción de casillas. */
+const GLINT_MIN_ZOOM = 8;
+const GLINT_DENSITY = 0.05;
 
 /** Píxeles de sprite por casilla: una criatura mide algo más de 1,5 casillas. */
 const SPRITE_PX_PER_TILE = 11;
@@ -162,6 +165,7 @@ export class Renderer {
     ctx.translate(shake.x, shake.y);
     this.drawTerrain();
     this.drawGrain();
+    this.drawWaterGlints(now);
     if (this.showTerritory) this.civLayer.drawTerritory(ctx);
     this.flora.draw(ctx, cam, overlay.season);
     this.civLayer.drawBuildings(ctx);
@@ -170,6 +174,7 @@ export class Renderer {
     this.boats.draw(ctx, alpha);
     this.drawUnits(alpha, tick);
     this.fx.ambient(this.units, this.civ);
+    this.fx.weather(overlay.season);
     if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
     this.fx.drawOver(ctx, now);
     if (this.showLabels) this.civLayer.drawLabels(ctx);
@@ -186,6 +191,33 @@ export class Renderer {
     if (x1 <= x0 || y1 <= y0) return;
     const s = cam.worldToScreen(x0, y0);
     this.ctx.drawImage(this.terrain.canvas, x0, y0, x1 - x0, y1 - y0, s.x, s.y, (x1 - x0) * cam.zoom, (y1 - y0) * cam.zoom);
+  }
+
+  /** Destellos que aparecen y desaparecen sobre el agua (sólo de cerca). */
+  private drawWaterGlints(time: number): void {
+    const cam = this.camera;
+    const z = cam.zoom;
+    if (z < GLINT_MIN_ZOOM) return;
+    const w = this.world;
+    const x0 = Math.max(0, Math.floor(cam.left));
+    const y0 = Math.max(0, Math.floor(cam.top));
+    const x1 = Math.min(w.width, Math.ceil(cam.left + cam.viewW / z));
+    const y1 = Math.min(w.height, Math.ceil(cam.top + cam.viewH / z));
+    const ctx = this.ctx;
+    const lw = Math.max(2, Math.round(z * 0.4));
+    const lh = Math.max(1, Math.round(z * 0.09));
+    ctx.fillStyle = '#ebf5ff';
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const r = hash2(x, y, 5);
+        if (r > GLINT_DENSITY || !w.isWaterIdx(y * w.width + x)) continue;
+        const a = Math.sin(time / 650 + r * 1000);
+        if (a < 0.5) continue;
+        ctx.globalAlpha = (a - 0.5) * 1.4;
+        ctx.fillRect(Math.round((x + hash2(x, y, 6) * 0.6 - cam.left) * z), Math.round((y + 0.5 - cam.top) * z), lw, lh);
+      }
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** Textura sutil del terreno (un patrón de 8×8 píxeles por casilla). */

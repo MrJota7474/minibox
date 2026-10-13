@@ -94,6 +94,28 @@ function baseColor(world: World, i: number): [number, number, number] {
   return [c[0] * shade, c[1] * shade, c[2] * shade];
 }
 
+/** Relieve: la luz llega del noroeste, así que las laderas que miran al sureste quedan en sombra. */
+const RELIEF_STRENGTH = 0.012;
+const RELIEF_MAX = 0.22;
+const FOAM_RGB: Rgb = hexToRgb('#cfe8f4');
+
+function reliefShade(world: World, i: number): number {
+  const w = world.width;
+  const x = i % w;
+  const y = (i - x) / w;
+  if (x === 0 || y === 0 || x === w - 1 || y === world.height - 1) return 1;
+  const dh = world.heightMap[i - w - 1] - world.heightMap[i + w + 1];
+  return 1 - Math.max(-RELIEF_MAX, Math.min(RELIEF_MAX, dh * RELIEF_STRENGTH));
+}
+
+/** ¿Toca la casilla agua (o tierra, si es agua) por alguno de sus 4 lados? */
+function touchesOther(world: World, i: number, water: boolean): boolean {
+  const w = world.width;
+  const x = i % w;
+  const other = (j: number): boolean => j >= 0 && j < world.size && world.isWaterIdx(j) !== water;
+  return (x > 0 && other(i - 1)) || (x < w - 1 && other(i + 1)) || other(i - w) || other(i + w);
+}
+
 /** Color final empaquetado de una casilla. */
 const LAVA_RGB: Rgb = hexToRgb('#f05a1a');
 const FIRE_RGB: Rgb = hexToRgb('#7a2a12');
@@ -131,6 +153,16 @@ export function tileColor(world: World, i: number, season: number = Season.SUMME
     c = lerp(seasonTint(baseColor(world, i), world, i, season, false), FLORA_RGB[f], 0.55);
   } else {
     c = seasonTint(baseColor(world, i), world, i, season, false);
+  }
+  const t = world.terrain[i];
+  if (TERRAIN_INFO[t].water) {
+    // Espuma en la orilla.
+    if (t === Terrain.SHALLOW && touchesOther(world, i, true)) c = lerp(c, FOAM_RGB, 0.38);
+  } else {
+    const r = reliefShade(world, i);
+    c = [c[0] * r, c[1] * r, c[2] * r];
+    // Arena mojada junto al agua.
+    if (t === Terrain.SAND && touchesOther(world, i, false)) c = [c[0] * 0.88, c[1] * 0.88, c[2] * 0.9];
   }
   const j = tileJitter(i);
   return pack(c[0] + j, c[1] + j, c[2] + j);
