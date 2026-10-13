@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Species } from '../src/entities/species';
+import { Species, isCivilized } from '../src/entities/species';
 import { SAVE_VERSION, decodeSave, describe as describeSave, deserialize, encodeSave, readMeta, serialize, unpackSave } from '../src/persistence/snapshot';
 import { Simulation } from '../src/sim/simulation';
 
@@ -129,6 +129,10 @@ describe('partidas guardadas', () => {
     expect(() => deserialize(serialize(sim, meta(sim)))).toThrow(/criaturas/);
     u.village[villager] = original;
 
+    // Que quede un hueco libre tras la partida depende del equilibrio: se libera uno a propósito.
+    let animal = -1;
+    for (let i = 0; i < u.highWater && animal < 0; i++) if (u.alive[i] && !isCivilized(u.species[i])) animal = i;
+    u.kill(animal);
     const { freeTop } = u.getCounters();
     expect(freeTop).toBeGreaterThan(0);
     const free = u.dataViews().at(-1) as Int32Array;

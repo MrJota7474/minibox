@@ -132,17 +132,39 @@ function seekFood(ctx: AiContext, i: number, def: SpeciesDef): void {
   }
 }
 
-/** Los herbívoros dejan hueco a los depredadores para que no llenen todo el límite. */
-const HERBIVORE_LIMIT_SHARE = 0.85;
+/**
+ * Los herbívoros (contados aparte) no pasan de esta parte del límite: dejan hueco a los
+ * depredadores y a las aldeas. Si contaran a todas las criaturas, los lobos les quitarían
+ * las plazas de cría mientras se los comen y ambas especies acabarían extinguiéndose.
+ * Cada especie tiene su parte: con un cupo común, la que cría más rápido (conejos)
+ * ocuparía todas las plazas libres y acabaría desplazando a la otra (ovejas).
+ */
+const HERBIVORE_LIMIT_SHARE = 0.7;
+/** Un depredador sólo cría si hay al menos tantos herbívoros por cada depredador en el mundo. */
+const PREY_PER_PREDATOR = 20;
+const HERBIVORE_IDS: readonly number[] = SPECIES.filter((s) => s.diet === 'herbivore').map((s) => s.id);
+const CARNIVORE_IDS: readonly number[] = SPECIES.filter((s) => s.diet === 'carnivore').map((s) => s.id);
+
+function countOf(u: UnitStore, ids: readonly number[]): number {
+  let n = 0;
+  for (const id of ids) n += u.speciesCount[id];
+  return n;
+}
+
+function hasRoomToBreed(ctx: AiContext, def: SpeciesDef): boolean {
+  const u = ctx.units;
+  if (u.count >= ctx.unitLimit) return false;
+  if (def.diet === 'herbivore') return u.speciesCount[def.id] < (ctx.unitLimit * HERBIVORE_LIMIT_SHARE) / HERBIVORE_IDS.length;
+  return countOf(u, HERBIVORE_IDS) >= countOf(u, CARNIVORE_IDS) * PREY_PER_PREDATOR;
+}
 
 function canBreed(ctx: AiContext, i: number, def: SpeciesDef): boolean {
   const u = ctx.units;
-  const limit = def.diet === 'herbivore' ? ctx.unitLimit * HERBIVORE_LIMIT_SHARE : ctx.unitLimit;
   return (
     u.age[i] >= def.adultTicks &&
     u.cooldown[i] === 0 &&
     u.hunger[i] >= def.maxHunger * BREED_FRACTION &&
-    u.count < limit
+    hasRoomToBreed(ctx, def)
   );
 }
 

@@ -276,6 +276,27 @@ describe('planificador', () => {
     expect(v.resources[Resource.WOOD]).toBeLessThan(100);
   });
 
+  it('con pocos adultos, los oficios prioritarios desplazan a los secundarios', () => {
+    const { ctx, v } = bigVillage(6);
+    if (!v) throw new Error('sin aldea');
+    const spot = ctx.civ.findSpotFor(v, BuildingType.HOUSE, 14);
+    if (!spot) throw new Error('sin sitio para la casa');
+    ctx.civ.placeBuilding(v, BuildingType.HOUSE, spot.x, spot.y);
+    v.population = 6;
+    v.adults = 6;
+    v.housing = 10;
+    v.sites = 1;
+    v.resources = [0, 0, 0, 0, 0];
+    // Todos ocupados en oficios secundarios: antes nadie dejaba el suyo y la obra quedaba parada.
+    const jobs = [Job.GATHERER, Job.GATHERER, Job.WOODCUTTER, Job.WOODCUTTER, Job.HUNTER, Job.WARRIOR];
+    let k = 0;
+    for (let i = 0; i < ctx.units.highWater; i++) if (ctx.units.alive[i] && ctx.units.village[i] === v.id) ctx.units.job[i] = jobs[k++];
+    planVillage(ctx.civ, v, ctx);
+    let builders = 0;
+    for (let i = 0; i < ctx.units.highWater; i++) if (ctx.units.alive[i] && ctx.units.job[i] === Job.BUILDER) builders++;
+    expect(builders).toBeGreaterThan(0);
+  });
+
   it('una aldea grande y próspera envía colonos que fundan otra aldea', () => {
     const { ctx, v } = bigVillage(30);
     if (!v) throw new Error('sin aldea');

@@ -131,6 +131,13 @@ function desiredJobs(v: Village, hall: Building, atWar: boolean, docks: number):
   want[Job.MINER] = hall.level >= 2 || v.population >= 8 ? Math.max(1, Math.ceil(a * 0.15)) : 0;
   want[Job.HUNTER] = a >= 6 ? 1 : 0;
   want[Job.FISHER] = docks > 0 ? Math.min(docks * 2, Math.max(1, Math.ceil(a * (foodLow ? 0.2 : 0.1)))) : 0;
+  // Si no hay adultos para todo, se recortan los oficios menos prioritarios: si no, quien ya
+  // tiene un oficio secundario lo conserva y la aldea se queda sin constructores ni mineros.
+  let left = a;
+  for (const job of JOB_PRIORITY) {
+    want[job] = Math.min(want[job], left);
+    left -= want[job];
+  }
   return want;
 }
 

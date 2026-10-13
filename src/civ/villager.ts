@@ -17,7 +17,7 @@ const SEARCH_BACKOFF_TICKS = 40;
 const HUNGRY_FRACTION = 0.5;
 const MEAL_FRACTION = 0.6;
 const BREED_FRACTION = 0.6;
-const BREED_TRY_CHANCE = 0.15;
+const BREED_TRY_CHANCE = 0.3;
 const SEARCH_RADIUS = 18;
 /** Distancia máxima (Chebyshev) al ayuntamiento para buscar recursos. */
 const WORK_RANGE = 24;

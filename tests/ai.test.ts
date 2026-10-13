@@ -105,6 +105,17 @@ describe('herbívoros', () => {
     expect(ctx.stats.births).toBe(0);
   });
 
+  it('los depredadores no ocupan las plazas de cría de los herbívoros', () => {
+    // Límite 10: 2 ovejas + 7 lobeznos lejos. Contando a todos (9) ya no podrían criar.
+    const ctx = makeCtx(makeWorld(), 20, 10);
+    const a = spawn(ctx, Species.SHEEP, 8.5, 8.5, Sex.FEMALE);
+    const b = spawn(ctx, Species.SHEEP, 9.5, 8.5, Sex.MALE);
+    for (let k = 0; k < 7; k++) spawn(ctx, Species.WOLF, 38.5 + k, 40.5, Sex.FEMALE, false);
+    ctx.units.hunger[a] = ctx.units.hunger[b] = SPECIES[Species.SHEEP].maxHunger;
+    run(ctx, 200);
+    expect(ctx.units.speciesCount[Species.SHEEP]).toBeGreaterThan(2);
+  });
+
   it('las crías no se reproducen', () => {
     const ctx = makeCtx(makeWorld());
     spawn(ctx, Species.SHEEP, 20.5, 20.5, Sex.FEMALE, false);
@@ -124,6 +135,21 @@ describe('depredadores', () => {
     expect(ctx.stats.deaths[DeathCause.KILLED]).toBe(1);
     expect(ctx.units.kills[wolf]).toBe(1);
     expect(ctx.units.hunger[wolf]).toBeGreaterThan(100);
+  });
+
+  it('los lobos sólo crían si hay suficientes presas por lobo', () => {
+    const breedWolves = (prey: number): number => {
+      const ctx = makeCtx(makeWorld());
+      const a = spawn(ctx, Species.WOLF, 20.5, 20.5, Sex.FEMALE);
+      const b = spawn(ctx, Species.WOLF, 21.5, 20.5, Sex.MALE);
+      ctx.units.hunger[a] = ctx.units.hunger[b] = SPECIES[Species.WOLF].maxHunger;
+      // Corderos lejos, fuera de la vista de los lobos.
+      for (let k = 0; k < prey; k++) spawn(ctx, Species.SHEEP, 2.5 + (k % 8), 40.5 + Math.floor(k / 8), Sex.FEMALE, false);
+      run(ctx, 300);
+      return ctx.units.speciesCount[Species.WOLF];
+    };
+    expect(breedWolves(5)).toBe(2);
+    expect(breedWolves(40)).toBeGreaterThan(2);
   });
 });
 
