@@ -14,6 +14,7 @@ import { applyBrush, spawnInBrush } from '../powers/brush';
 import { generateWorld } from '../world/generator';
 import { isFertileTerrain } from '../world/terrain';
 import { VegetationSystem } from '../world/vegetation';
+import { Climate, ERA_INFO, neutralClimate } from '../world/climate';
 import { World } from '../world/world';
 import type { Command, CommandResult, LoggedCommand } from './commands';
 
@@ -56,6 +57,7 @@ export class Simulation {
   readonly hazards: HazardSystem;
   readonly powers: PowerSystem;
   readonly laws: WorldLaws = defaultLaws();
+  readonly climate: Climate;
   readonly stats: SimStats = { births: 0, deaths: new Uint32Array(DEATH_CAUSE_COUNT) };
   readonly commandLog: LoggedCommand[] = [];
   /** true si el registro superó su tamaño máximo (la repetición ya no sería exacta). */
@@ -82,6 +84,7 @@ export class Simulation {
     this.hazards = new HazardSystem(this.world);
     this.powers = new PowerSystem(this.world, this.units, this.hazards);
     this.unitLimit = options.capacity;
+    this.climate = new Climate(this.seed);
     const root = new Rng(this.seed);
     this.rngAi = root.fork(1);
     this.rngVeg = root.fork(2);
@@ -98,6 +101,7 @@ export class Simulation {
       pathfinder: this.pathfinder,
       civ: this.civ,
       laws: this.laws,
+      climate: neutralClimate(),
     };
     if (options.populate && !options.blank) this.populate(root.fork(4));
   }
@@ -126,6 +130,10 @@ export class Simulation {
       this.powers.drop(command.x, command.y);
       return { spawned: 0, limited: false };
     }
+    if (command.type === 'era') {
+      if (this.climate.setEra(command.era)) this.civ.addEvent('era', -1, `Por voluntad divina comienza la ${ERA_INFO[this.climate.era].name}`);
+      return { spawned: 0, limited: false };
+    }
     if (command.type === 'law') {
       this.laws[command.law] = command.value;
       return { spawned: 0, limited: false };
@@ -144,7 +152,9 @@ export class Simulation {
   step(): void {
     this.ctx.tick = this.tick;
     this.ctx.unitLimit = Math.min(this.unitLimit, this.units.capacity);
-    if (this.laws.vegetation) this.vegetation.step(this.rngVeg);
+    if (this.climate.update(this.tick)) this.civ.addEvent('era', -1, `Comienza la ${ERA_INFO[this.climate.era].name}`);
+    this.ctx.climate = this.climate.mods(this.tick, this.laws.seasons);
+    if (this.laws.vegetation) this.vegetation.step(this.rngVeg, this.ctx.climate, this.laws.magicSpread);
     if (this.world.regionsDirty && this.tick % REGION_RECOMPUTE_TICKS === 0) this.world.computeRegions();
     this.pathfinder.resetBudget();
     this.spatial.rebuild(this.units);
@@ -160,6 +170,7 @@ export class Simulation {
     h = hashMix(h, this.civ.stateHash());
     h = hashMix(h, this.powers.stateHash());
     h = hashMix(h, lawsHash(this.laws));
+    h = hashMix(h, this.climate.stateHash());
     h = hashMix(h, this.tick);
     h = hashMix(h, this.vegetation.getCursor());
     h = hashMix(h, this.unitLimit);

@@ -1,14 +1,19 @@
 import type { Rng } from '../core/rng';
 import type { UnitStore } from '../entities/units';
+import { BIOME_INFO } from '../world/terrain';
 import type { World } from '../world/world';
+
+const BIOME_SPEED: readonly number[] = BIOME_INFO.map((b) => b.speed);
 
 export const Move = { MOVING: 0, ARRIVED: 1, BLOCKED: 2 } as const;
 export type MoveResult = (typeof Move)[keyof typeof Move];
 
 /** Movimiento local voraz con deslizamiento por ejes cuando hay obstáculos. */
-export function moveToward(world: World, units: UnitStore, i: number, tx: number, ty: number, speed: number): MoveResult {
+export function moveToward(world: World, units: UnitStore, i: number, tx: number, ty: number, baseSpeed: number): MoveResult {
   const x = units.x[i];
   const y = units.y[i];
+  // El terreno que se pisa frena o acelera (pantano, nieve, sabana...).
+  const speed = baseSpeed * (BIOME_SPEED[world.biome[world.idx(Math.floor(x), Math.floor(y))]] ?? 1);
   const dx = tx - x;
   const dy = ty - y;
   const d2 = dx * dx + dy * dy;

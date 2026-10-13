@@ -1,6 +1,7 @@
 import { JOB_COUNT } from '../civ/model';
 import { ABOARD_FLAG, MAX_CAPACITY } from '../entities/units';
-import { LAW_IDS, type WorldLaws } from '../sim/laws';
+import { LAW_IDS, defaultLaws, type WorldLaws } from '../sim/laws';
+import { ERA_INFO } from '../world/climate';
 import { Simulation } from '../sim/simulation';
 import { checkSave, validateLoaded } from './validate';
 
@@ -11,9 +12,9 @@ import { checkSave, validateLoaded } from './validate';
  * `world.dataViews()` + `units.dataViews()`. El conjunto se comprime con gzip.
  */
 const MAGIC = [0x4d, 0x42, 0x58, 0x31];
-export const SAVE_VERSION = 2;
-/** Versiones que se pueden cargar (la 1, de la Fase E, se migra al cargar). */
-const SUPPORTED_VERSIONS: readonly number[] = [1, 2];
+export const SAVE_VERSION = 3;
+/** Versiones que se pueden cargar (las anteriores se migran al cargar). */
+const SUPPORTED_VERSIONS: readonly number[] = [1, 2, 3];
 const ALIGN = 8;
 const MIN_SIZE = 32;
 const MAX_SIZE = 1024;
@@ -43,6 +44,8 @@ interface Header {
   tick: number;
   unitLimit: number;
   laws: WorldLaws;
+  /** Era del mundo (desde la versión 3). */
+  climate?: { era: number; eraIndex: number };
   births: number;
   deaths: number[];
   rng: number[][];
@@ -100,6 +103,7 @@ export function serialize(sim: Simulation, meta: SaveMeta): Uint8Array {
     tick: sim.tick,
     unitLimit: sim.unitLimit,
     laws: { ...sim.laws },
+    climate: { era: sim.climate.era, eraIndex: sim.climate.eraIndex },
     births: sim.stats.births,
     deaths: [...sim.stats.deaths],
     rng: sim.getRngStates(),
@@ -155,7 +159,10 @@ function validateHeader(h: Header): void {
   if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY) fail('capacidad de criaturas');
   if (typeof h.options.seedText !== 'string') fail('semilla');
   if (!Number.isInteger(h.tick) || h.tick < 0) fail('fecha');
+  // Las leyes nuevas (estaciones, biomas mágicos) no existían antes de la versión 3: activadas.
+  if (h.version < 3 && h.laws && typeof h.laws === 'object') h.laws = { ...defaultLaws(), ...h.laws };
   for (const id of LAW_IDS) if (typeof h.laws?.[id] !== 'boolean') fail('leyes del mundo');
+  if (h.version >= 3 && (!h.climate || !isCount(h.climate.eraIndex) || !isCount(h.climate.era) || h.climate.era >= ERA_INFO.length)) fail('era del mundo');
   const c = h.civ;
   if (!c || !Array.isArray(c.villages) || !Array.isArray(c.buildings) || !Array.isArray(c.kingdoms) || !Array.isArray(c.wars) || !Array.isArray(c.chronicle)) fail('civilizaciones');
   const indexed = (list: readonly { id: number }[]): boolean => list.every((x, k) => x && x.id === k);
@@ -211,6 +218,13 @@ export function deserialize(bytes: Uint8Array): Simulation {
   sim.tick = h.tick;
   sim.unitLimit = Math.max(1, Math.min(sim.units.capacity, Math.floor(h.unitLimit)));
   Object.assign(sim.laws, h.laws);
+  if (h.climate) {
+    sim.climate.eraIndex = h.climate.eraIndex;
+    sim.climate.era = h.climate.era as typeof sim.climate.era;
+  } else {
+    // Partida anterior a las eras: empieza la que le toca por su fecha.
+    sim.climate.update(h.tick);
+  }
   sim.stats.births = h.births;
   sim.stats.deaths.set(h.deaths.slice(0, sim.stats.deaths.length));
   sim.setRngStates(h.rng);

@@ -4,6 +4,7 @@ import type { SpatialHash } from '../entities/spatial';
 import { NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 import type { World } from '../world/world';
 import type { WorldLaws } from '../sim/laws';
+import type { ClimateMods } from '../world/climate';
 import type { Pathfinder } from './pathfinder';
 
 export const DeathCause = { AGE: 0, HUNGER: 1, KILLED: 2, DROWNED: 3, DIVINE: 4, PLAGUE: 5, DISASTER: 6 } as const;
@@ -28,6 +29,8 @@ export interface AiContext {
   pathfinder: Pathfinder;
   civ: CivSystem;
   laws: WorldLaws;
+  /** Estación y era: multiplicadores del momento. */
+  climate: ClimateMods;
 }
 
 /** Cada cuántos ticks «piensa» una criatura (escalonado por índice). */

@@ -1,5 +1,6 @@
 import type { SpeciesDef } from '../entities/species';
 import { traitMods } from '../entities/traits';
+import { BIOME_INFO } from '../world/terrain';
 import type { UnitStore } from '../entities/units';
 import { DeathCause, killUnit, type AiContext } from './context';
 import { escapeBlockedTile } from './movement';
@@ -28,8 +29,11 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
     killUnit(ctx, i, DeathCause.AGE);
     return false;
   }
-  if (!updateHunger(ctx, i, def, mods.hunger)) return false;
-  if (u.hp[i] < def.maxHp && (ctx.tick + i) % HEAL_INTERVAL === 0 && u.hunger[i] > def.maxHunger * HEAL_MIN_HUNGER) {
+  const biome = BIOME_INFO[ctx.world.biome[ctx.world.idx(Math.floor(u.x[i]), Math.floor(u.y[i]))]] ?? BIOME_INFO[0];
+  if (!updateHunger(ctx, i, def, mods.hunger * biome.hunger * ctx.climate.hunger)) return false;
+  if (biome.vitality !== 0 && (ctx.tick + i) % HEAL_INTERVAL === 0 && !applyVitality(ctx, i, def, biome.vitality)) return false;
+  // En un yermo maldito nadie se recupera por sí solo.
+  if (biome.vitality >= 0 && u.hp[i] < def.maxHp && (ctx.tick + i) % HEAL_INTERVAL === 0 && u.hunger[i] > def.maxHunger * HEAL_MIN_HUNGER) {
     u.hp[i] = Math.min(def.maxHp, u.hp[i] + Math.max(1, Math.round(def.maxHp * HEAL_FRACTION * mods.heal)));
   }
   if (!ctx.world.isWalkableAt(u.x[i], u.y[i]) && !handleBlockedTile(ctx, i)) return false;
@@ -69,6 +73,20 @@ export function recordBirth(ctx: AiContext, a: number, b: number): void {
   ctx.stats.births++;
   if (u.children[a] < 0xffff) u.children[a]++;
   if (u.children[b] < 0xffff) u.children[b]++;
+}
+
+/** Biomas mágicos: la arboleda cura y el yermo maldito hiere. Devuelve false si la criatura murió. */
+function applyVitality(ctx: AiContext, i: number, def: SpeciesDef, vitality: number): boolean {
+  const u = ctx.units;
+  const amount = Math.max(1, Math.round(def.maxHp * Math.abs(vitality)));
+  if (vitality > 0) {
+    u.hp[i] = Math.min(def.maxHp, u.hp[i] + amount);
+    return true;
+  }
+  u.hp[i] -= amount;
+  if (u.hp[i] > 0) return true;
+  killUnit(ctx, i, DeathCause.DISASTER);
+  return false;
 }
 
 /** Devuelve false si la criatura murió atrapada (ahogada o aplastada). */

@@ -2,9 +2,9 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas) y F (mar: muelles, pesca y barcos) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos) y G (biomas, estaciones y eras) implementadas.**
 >
-> Pendiente para fases posteriores (para no dejarlo a medias): más biomas (nieve, pantano, selva, sabana) y los clanes. Los muelles, la pesca y los barcos llegaron en la Fase F.
+> Siguientes fases acordadas: monstruos; cultura, religión y clanes; sonido y caminos. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G.
 
 ---
 
@@ -103,12 +103,12 @@ Leyenda: **N** = Núcleo (sin esto no hay juego) · **I** = Importante (da profu
 | Capas: océano profundo, océano, aguas someras, arena, tierra baja/alta, colinas, montaña, cumbre | N | A |
 | 3 biomas base sobre la tierra (pradera, bosque, desierto) asignados por humedad y temperatura | N | A |
 | Vegetación: árboles y arbustos de bayas que crecen y se regeneran | N | A |
-| Más biomas (nieve, pantano, selva, sabana) | I | B |
-| Biomas mágicos (encantado, corrupto) con efectos sobre las unidades | E | D |
+| Más biomas (nieve, pantano, selva, sabana) | I | G |
+| Biomas mágicos (arboleda mágica, yermo maldito) con efectos sobre las unidades | E | G |
 | Recursos minables: rocas, vetas de hierro y oro | I | B |
 | Peces en el agua | I | B |
 | Fuego que se propaga, lava que se enfría | I | D |
-| Eras/estaciones globales | E | post-E |
+| Eras/estaciones globales | E | G |
 | Tamaños de mapa: Pequeño 192², Mediano 256², Grande 384², Enorme 512² (solo PC) | N | A |
 
 ### 3.2 Herramientas de dios
@@ -362,7 +362,15 @@ Unos 20 rasgos heredables y por eventos, stats completas, inspector de unidad, a
 - **Naufragios**: rayos, meteoritos, bombas, terremotos y tornados hunden barcos (el pasaje se ahoga). Si el agua bajo un barco se vuelve tierra, el pasaje baja a la orilla.
 - **Guardado**: formato MBX versión 2 (mares y barcos); las partidas de la versión 1 se migran al cargar.
 
-### Después de F (opcional)
+### Fase G — Biomas, estaciones y eras
+- **Biomas** (`BIOME_INFO`): cada uno define hierba, árboles, densidades al generar y multiplicadores de velocidad al caminar, hambre y cosechas. El generador elige por calor (que baja con la altitud), humedad y capa: tundra nevada, desierto, sabana, selva, pantano (tierras bajas muy húmedas), bosque y pradera.
+- **Biomas mágicos** (sólo con pincel): la arboleda mágica cura un 8 % de vida en cada pasada de curación; el yermo maldito quita un 6 % (sin curación natural), marchita las plantas y ambos se extienden a casillas fértiles vecinas (ley «Los biomas mágicos se extienden»).
+- **Estaciones** (se deducen del tick; ley «Estaciones»): primavera, verano, otoño, invierno, con multiplicadores de hierba, árboles, cosechas (0 en invierno) y hambre. El mapa se tiñe (nieve, ocres) y se repinta entero sólo al cambiar de estación.
+- **Eras** (`world/climate.ts`): cada 40 años, secuencia determinista por semilla (la primera es templada y nunca se repiten seguidas). Abundancia, glacial (el otoño ya es invierno), de hierro (umbral de guerra más fácil), de la concordia (guerras raras, paz antes) y arcana (biomas mágicos ×4). El jugador puede imponer una (comando `era`), que dura hasta la siguiente.
+- **Guardado**: formato MBX versión 3 (era en la cabecera); las partidas anteriores se migran con las leyes nuevas activadas y la era que les toca por fecha.
+
+### Después de G
+Monstruos; cultura, religión y clanes; sonido y caminos (en ese orden).
 Cultura, idioma y religión; clanes; eras; caminos; sonido; editor de estandartes; mods.
 
 ---

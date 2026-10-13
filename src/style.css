@@ -143,9 +143,23 @@ img {
   flex-direction: column;
   gap: 2px;
 }
+.hud-when {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
 .hud-date {
   font-weight: 600;
   font-size: 16px;
+  white-space: nowrap;
+}
+.hud-era {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .hud-pop {
   display: flex;
@@ -416,6 +430,9 @@ img {
 .chronicle-year {
   color: var(--muted);
 }
+.chronicle-era span:last-child {
+  color: #c9a6f0;
+}
 .chronicle-voyage span:last-child {
   color: #8ac4f0;
 }
@@ -623,6 +640,15 @@ img {
   flex-wrap: wrap;
   gap: 6px;
 }
+.era-box {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+.era-label {
+  font-size: 14px;
+  color: var(--muted);
+}
 .settings-row {
   display: flex;
   align-items: center;
@@ -699,6 +725,9 @@ img {
   }
   .hud-date {
     font-size: 14px;
+  }
+  .hud-era {
+    font-size: 11px;
   }
   .hud-pop {
     font-size: 12px;

@@ -130,6 +130,12 @@ const BIOME_FOR_BRUSH: Partial<Record<BrushToolId, number>> = {
   grass: Biome.GRASS,
   forest: Biome.FOREST,
   desert: Biome.DESERT,
+  snow: Biome.SNOW,
+  swamp: Biome.SWAMP,
+  jungle: Biome.JUNGLE,
+  savanna: Biome.SAVANNA,
+  grove: Biome.GROVE,
+  blight: Biome.BLIGHT,
 };
 const GRID_FOR_BRUSH: Partial<Record<BrushToolId, string>> = {
   raise: 'raise',

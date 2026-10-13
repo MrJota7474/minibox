@@ -14,6 +14,7 @@ import { StrokeController } from '../src/powers/stroke';
 import { toolById } from '../src/powers/tools';
 import type { Command } from '../src/sim/commands';
 import { defaultLaws } from '../src/sim/laws';
+import { neutralClimate } from '../src/world/climate';
 import { Simulation } from '../src/sim/simulation';
 import { Biome, Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
 import { World } from '../src/world/world';
@@ -48,6 +49,7 @@ function rig(forest = false): Rig {
     pathfinder: new Pathfinder(w),
     civ: new CivSystem(w, units),
     laws: defaultLaws(),
+    climate: neutralClimate(),
   };
   const hazards = new HazardSystem(w);
   return { ctx, hazards, powers: new PowerSystem(w, units, hazards), rng: new Rng(9) };

@@ -35,6 +35,8 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Imán', 'Mantén pulsado sobre criaturas para cogerlas, arrastra y suelta para dejarlas en otro sitio'],
   ['Leyes', 'En el menú puedes desactivar el hambre, la vejez, las guerras, las rebeliones, las plantas o el fuego'],
   ['Rasgos', 'Cada criatura puede tener rasgos (Fuerte, Longevo, Fértil…) que hereda de sus padres; Veterano y Superviviente se ganan'],
+  ['Biomas', 'Pinta nieve, pantano, selva, sabana, arboleda mágica (cura y se extiende) o yermo maldito (hiere y marchita) desde Naturaleza'],
+  ['Estaciones y eras', 'En invierno no crecen las cosechas y la hierba apenas vuelve; cada unos 40 años empieza una era nueva. En Leyes puedes imponer una'],
   ['Mar', 'Las aldeas de la costa construyen un muelle: allí pescan y botan barcos que llevan colonos a otras islas o ejércitos a costas enemigas'],
   ['Partidas', 'Menú › Guardar / cargar: 5 ranuras, autoguardado y exportar o importar un archivo .minibox'],
 ];

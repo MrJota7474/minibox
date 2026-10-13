@@ -119,7 +119,7 @@ export function runKingdomAi(ks: KingdomSystem, ctx: AiContext): void {
     for (const v of villages) v.loyalty = loyaltyOf(ks, v);
     if (ctx.laws.rebellions && handleRebellions(ks, K, villages, ctx)) continue;
     considerPeace(ks, K, ctx);
-    if (ctx.laws.wars) considerWar(ks, K, touching);
+    if (ctx.laws.wars) considerWar(ks, K, touching, ctx);
     considerAlliances(ks, K, touching);
     assignArmies(ks, K, villages, ctx);
   }
@@ -183,11 +183,12 @@ function considerPeace(ks: KingdomSystem, K: Kingdom, ctx: AiContext): void {
     let chance = 0.15 + w.losses[ownSide] / (10 + adults);
     if (K.personality === Personality.PEACEFUL) chance += 0.15;
     if (K.personality === Personality.AGGRESSIVE) chance -= 0.05;
+    chance -= ctx.climate.war / 100;
     if (duration > MAX_WAR_TICKS || ctx.rng.chance(chance)) ks.makePeace(w);
   }
 }
 
-function considerWar(ks: KingdomSystem, K: Kingdom, touching: Set<number>): void {
+function considerWar(ks: KingdomSystem, K: Kingdom, touching: Set<number>, ctx: AiContext): void {
   const wars = ks.activeWarsOf(K.id).length;
   if (wars > 0 && (K.personality !== Personality.AGGRESSIVE || wars >= 2)) return;
   if (ks.civ.tick - K.founded < MIN_KINGDOM_AGE) return;
@@ -198,7 +199,8 @@ function considerWar(ks: KingdomSystem, K: Kingdom, touching: Set<number>): void
   const capital = ks.civ.villages[K.capital];
   const myPower = kingdomPower(ks, K.id);
   let target = -1;
-  let worst = WAR_OPINION;
+  // En una era de hierro basta con caerse algo mal; en la de concordia hace falta odio.
+  let worst = WAR_OPINION + ctx.climate.war;
   for (const B of ks.kingdoms) {
     if (!B.alive || B.id === K.id || ks.areHostile(K.id, B.id) || ks.areAllied(K.id, B.id)) continue;
     if ((K.truce[B.id] ?? 0) > ks.civ.tick) continue;

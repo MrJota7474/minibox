@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 const SIM_FILES = ['src/core/rng.ts', 'src/core/hash.ts', 'src/core/time.ts', 'src/world/**', 'src/entities/**', 'src/ai/**', 'src/sim/**', 'src/civ/**', 'src/powers/brush.ts'];
 
 export default tseslint.config(
-  { ignores: ['dist', 'release', 'coverage', 'dev-dist', 'node_modules'] },
+  { ignores: ['dist', 'release', 'coverage', 'dev-dist', 'node_modules', '.claude'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

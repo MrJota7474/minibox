@@ -170,12 +170,14 @@ export class World {
   }
 
   /** Entrega y limpia la lista de chunks modificados (para el render). */
-  consumeDirtyChunks(visit: (cx: number, cy: number) => void): void {
-    for (const c of this.dirtyList) {
+  consumeDirtyChunks(visit: (cx: number, cy: number) => void, max = Infinity): void {
+    const n = Math.min(max, this.dirtyList.length);
+    for (let k = 0; k < n; k++) {
+      const c = this.dirtyList[k];
       this.dirty[c] = 0;
       visit(c % this.chunksX, Math.floor(c / this.chunksX));
     }
-    this.dirtyList.length = 0;
+    this.dirtyList.splice(0, n);
   }
 
   hasDirtyChunks(): boolean {

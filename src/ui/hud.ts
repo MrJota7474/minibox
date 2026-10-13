@@ -20,6 +20,9 @@ export interface HudCounts {
   villages: number;
   total: number;
   limit: number;
+  season: string;
+  era: string;
+  eraDescription: string;
 }
 
 const SPEED_LABELS: Readonly<Record<Speed, string>> = { 0: 'Pausa', 1: 'x1', 2: 'x2', 5: 'x5' };
@@ -28,12 +31,14 @@ const SPEED_LABELS: Readonly<Record<Speed, string>> = { 0: 'Pausa', 1: 'x1', 2: 
 export class Hud {
   readonly root: HTMLElement;
   private readonly date: HTMLElement;
+  private readonly era: HTMLElement;
   private readonly total: HTMLElement;
   private readonly counts: Record<'herbivores' | 'predators' | 'people' | 'villages' | 'wars', HTMLElement>;
   private readonly speedButtons = new Map<Speed, HTMLButtonElement>();
 
   constructor(atlas: SpriteAtlas, actions: HudActions) {
-    this.date = el('span', { class: 'hud-date', text: 'Año 1 · Mes 1' });
+    this.date = el('span', { class: 'hud-date', text: 'Año 1 · Primavera' });
+    this.era = el('span', { class: 'hud-era' });
     this.total = el('span', { class: 'hud-total' });
     const count = (icon: string, title: string): [HTMLElement, HTMLElement] => {
       const n = el('span', { text: '0' });
@@ -63,7 +68,7 @@ export class Hud {
       : null;
     this.root = el('header', { class: 'hud' }, [
       iconButton(gridIcon('menu'), 'Menú', { onClick: () => actions.openMenu() }),
-      el('div', { class: 'hud-info' }, [this.date, pop]),
+      el('div', { class: 'hud-info' }, [el('div', { class: 'hud-when' }, [this.date, this.era]), pop]),
       speeds,
       fullscreen,
     ]);
@@ -75,7 +80,10 @@ export class Hud {
 
   update(tick: number, c: HudCounts): void {
     const d = tickToDate(tick);
-    this.date.textContent = `Año ${d.year} · Mes ${d.month}`;
+    this.date.textContent = `Año ${d.year} · ${c.season}`;
+    this.date.title = `Mes ${d.month}`;
+    this.era.textContent = c.era;
+    this.era.title = c.eraDescription;
     this.counts.herbivores.textContent = String(c.herbivores);
     this.counts.predators.textContent = String(c.predators);
     this.counts.people.textContent = String(c.people);

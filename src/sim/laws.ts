@@ -6,6 +6,10 @@ export interface WorldLaws {
   rebellions: boolean;
   vegetation: boolean;
   fireSpread: boolean;
+  /** Primavera, verano, otoño e invierno (si no, verano eterno). */
+  seasons: boolean;
+  /** La arboleda mágica y el yermo maldito se extienden solos. */
+  magicSpread: boolean;
 }
 
 export type LawId = keyof WorldLaws;
@@ -17,12 +21,14 @@ export const LAW_LABELS: Readonly<Record<LawId, string>> = {
   rebellions: 'Rebeliones',
   vegetation: 'Crecimiento de plantas',
   fireSpread: 'El fuego se propaga',
+  seasons: 'Estaciones',
+  magicSpread: 'Los biomas mágicos se extienden',
 };
 
-export const LAW_IDS: readonly LawId[] = ['hunger', 'aging', 'wars', 'rebellions', 'vegetation', 'fireSpread'];
+export const LAW_IDS: readonly LawId[] = ['hunger', 'aging', 'wars', 'rebellions', 'vegetation', 'fireSpread', 'seasons', 'magicSpread'];
 
 export function defaultLaws(): WorldLaws {
-  return { hunger: true, aging: true, wars: true, rebellions: true, vegetation: true, fireSpread: true };
+  return { hunger: true, aging: true, wars: true, rebellions: true, vegetation: true, fireSpread: true, seasons: true, magicSpread: true };
 }
 
 export function lawsHash(laws: WorldLaws): number {

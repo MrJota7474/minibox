@@ -1,4 +1,5 @@
 import { defaultLaws } from '../src/sim/laws';
+import { neutralClimate } from '../src/world/climate';
 import { describe, expect, it } from 'vitest';
 import { DEATH_CAUSE_COUNT, DeathCause, type AiContext } from '../src/ai/context';
 import { Pathfinder } from '../src/ai/pathfinder';
@@ -33,6 +34,7 @@ function makeCtx(world: World, capacity = 100, limit = capacity): AiContext {
     pathfinder: new Pathfinder(world),
     civ: new CivSystem(world, units),
     laws: defaultLaws(),
+    climate: neutralClimate(),
     spatial: new SpatialHash(world.width, world.height, capacity),
     rng: new Rng(1),
     tick: 0,

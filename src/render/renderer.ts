@@ -23,11 +23,18 @@ export interface Overlay {
   selectedTile: number;
   /** Dónde dibujar las criaturas sujetas por el imán (casilla) o null. */
   heldAt: { x: number; y: number } | null;
+  /** Estación actual (tiñe el mapa). */
+  season: number;
 }
 
 /** Por debajo de este zoom las criaturas se dibujan como puntos. */
 const SPRITE_MIN_ZOOM = 5;
 const SPRITE_ZOOM_DIVISOR = 6;
+/**
+ * Chunks del terreno que se repintan por frame tras el primero: un cambio de estación
+ * repinta todo el mapa (~100 ms en 512×512) y así se reparte en varios frames sin tirones.
+ */
+const TERRAIN_CHUNKS_PER_FRAME = 24;
 
 /** Render en Canvas 2D (aislado tras esta clase para poder cambiarlo a WebGL). */
 export class Renderer {
@@ -46,6 +53,7 @@ export class Renderer {
   /** Capas que el jugador puede ocultar desde los ajustes. */
   showLabels = true;
   showTerritory = true;
+  private firstFrame = true;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -91,7 +99,12 @@ export class Renderer {
   }
 
   draw(alpha: number, tick: number, overlay: Overlay): void {
-    this.terrain.update();
+    if (overlay.season !== this.terrain.season) {
+      this.terrain.season = overlay.season;
+      this.world.markAllDirty();
+    }
+    this.terrain.update(this.firstFrame ? Infinity : TERRAIN_CHUNKS_PER_FRAME);
+    this.firstFrame = false;
     const ctx = this.ctx;
     const cam = this.camera;
     const now = performance.now();

@@ -79,8 +79,10 @@ function assignBiomes(world: World, seed: number): void {
     for (let x = 0; x < world.width; x++) {
       const i = y * world.width + x;
       const moisture = fbm(x * scale, y * scale, seed + 1001, 4);
-      const heat = fbm(x * scale, y * scale, seed + 2002, 3);
-      world.biome[i] = pickBiome(moisture, heat);
+      // Cuanto más alto, más frío.
+      const altitude = Math.max(0, (world.heightMap[i] - SEA_LEVEL) / (255 - SEA_LEVEL));
+      const heat = fbm(x * scale, y * scale, seed + 2002, 3) - altitude * ALTITUDE_COOLING;
+      world.biome[i] = pickBiome(moisture, heat, world.terrain[i]);
       if (isFertileTerrain(world.terrain[i])) {
         world.grass[i] = BIOME_INFO[world.biome[i]].grassMax;
       }
@@ -88,14 +90,24 @@ function assignBiomes(world: World, seed: number): void {
   }
 }
 
-function pickBiome(moisture: number, heat: number): BiomeId {
-  if (heat > 0.6 && moisture < 0.48) return Biome.DESERT;
+/** Bioma natural según humedad, calor y capa de terreno (los mágicos no se generan). */
+function pickBiome(moisture: number, heat: number, terrain: number): BiomeId {
+  if (heat < COLD) return Biome.SNOW;
+  if (heat > HOT) {
+    if (moisture < DRY) return Biome.DESERT;
+    return moisture > WET ? Biome.JUNGLE : Biome.SAVANNA;
+  }
+  // Las tierras bajas muy húmedas se encharcan.
+  if (moisture > 0.62 && terrain === Terrain.SOIL_LOW) return Biome.SWAMP;
   if (moisture > 0.54) return Biome.FOREST;
   return Biome.GRASS;
 }
 
-const TREE_DENSITY: readonly number[] = [0.03, 0.35, 0.004];
-const BUSH_DENSITY: readonly number[] = [0.02, 0.025, 0];
+const COLD = 0.26;
+const HOT = 0.55;
+const DRY = 0.45;
+const WET = 0.57;
+const ALTITUDE_COOLING = 0.18;
 
 /** Probabilidad de roca, hierro y oro por capa de terreno. */
 const DEPOSITS: Readonly<Record<number, readonly [number, number, number]>> = {
@@ -117,7 +129,8 @@ function seedVegetation(world: World, rng: Rng): void {
     if (!isFertileTerrain(world.terrain[i])) continue;
     const b = world.biome[i];
     const r = rng.float();
-    if (r < TREE_DENSITY[b]) world.flora[i] = Flora.TREE;
-    else if (r < TREE_DENSITY[b] + BUSH_DENSITY[b]) world.flora[i] = Flora.BERRY_BUSH;
+    const info = BIOME_INFO[b];
+    if (r < info.treeDensity) world.flora[i] = Flora.TREE;
+    else if (r < info.treeDensity + info.bushDensity) world.flora[i] = Flora.BERRY_BUSH;
   }
 }

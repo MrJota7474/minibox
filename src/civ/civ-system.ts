@@ -5,6 +5,8 @@ import { SPECIES, isCivilized, type SpeciesId } from '../entities/species';
 import { NO_VILLAGE, OFFMAP_FLAGS, UnitState, type UnitStore } from '../entities/units';
 import { isWalkableTerrain } from '../world/terrain';
 import { ZONE_SIZE, type World } from '../world/world';
+import { BIOME_INFO } from '../world/terrain';
+import { scaledStep } from '../ai/life';
 import {
   BUILDING_DEFS,
   BuildingType,
@@ -23,7 +25,7 @@ import { villageName } from './names';
 import { canPlace, clearFootprint, findBuildSpot } from './placement';
 import { planVillage } from './planner';
 
-export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck';
+export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era';
 
 export interface ChronicleEntry {
   readonly tick: number;
@@ -83,7 +85,7 @@ export class CivSystem {
     const t = ctx.tick;
     this.tick = t;
     updateBoats(this, ctx);
-    if (t % FARM_GROWTH_INTERVAL === 0) this.growFarms();
+    if (t % FARM_GROWTH_INTERVAL === 0) this.growFarms(ctx);
     if (t % CENSUS_INTERVAL === 0) {
       this.checkIntegrity();
       this.census();
@@ -359,10 +361,15 @@ export class CivSystem {
   }
 
   /** Crecen los cultivos y vuelven los peces a los muelles. */
-  private growFarms(): void {
+  private growFarms(ctx: AiContext): void {
+    const phase = Math.floor(ctx.tick / FARM_GROWTH_INTERVAL);
     for (const b of this.buildings) {
       if (!b.alive || b.level < 1) continue;
-      if (b.type === BuildingType.FARM && b.growth < 100) b.growth++;
+      if (b.type === BuildingType.FARM && b.growth < 100) {
+        // El bioma, la estación (en invierno no crece nada) y la era cambian el ritmo.
+        const biome = BIOME_INFO[this.world.biome[this.world.idx(b.x + 1, b.y + 1)]];
+        b.growth = Math.min(100, b.growth + scaledStep(1, biome.farm * ctx.climate.farm, phase + b.id));
+      }
       else if (b.type === BuildingType.DOCK) b.growth = Math.min(FISH_MAX, b.growth + FISH_REGEN);
     }
   }

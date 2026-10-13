@@ -54,6 +54,12 @@ const PAINT_BIOME: Partial<Record<BrushToolId, BiomeId>> = {
   grass: Biome.GRASS,
   forest: Biome.FOREST,
   desert: Biome.DESERT,
+  snow: Biome.SNOW,
+  swamp: Biome.SWAMP,
+  jungle: Biome.JUNGLE,
+  savanna: Biome.SAVANNA,
+  grove: Biome.GROVE,
+  blight: Biome.BLIGHT,
 };
 
 export function applyBrush(world: World, rng: Rng, tool: BrushToolId, cx: number, cy: number, size: number): void {

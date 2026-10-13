@@ -17,6 +17,12 @@ export type BrushToolId =
   | 'grass'
   | 'forest'
   | 'desert'
+  | 'snow'
+  | 'swamp'
+  | 'jungle'
+  | 'savanna'
+  | 'grove'
+  | 'blight'
   | 'tree'
   | 'bush'
   | 'clear-flora';
@@ -37,6 +43,8 @@ export type Command =
   /** Imán divino: coger criaturas y soltarlas en otro sitio. */
   | { readonly type: 'grab'; readonly x: number; readonly y: number; readonly size: number }
   | { readonly type: 'drop'; readonly x: number; readonly y: number }
+  /** Poder de dios: imponer una era (ver world/climate.ts). */
+  | { readonly type: 'era'; readonly era: number }
   /** Leyes del mundo. */
   | { readonly type: 'law'; readonly law: LawId; readonly value: boolean };
 

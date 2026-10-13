@@ -13,6 +13,7 @@ import { buildSpriteAtlas, type SpriteAtlas } from './render/sprites';
 import type { Command } from './sim/commands';
 import { Simulation } from './sim/simulation';
 import { isFertileTerrain } from './world/terrain';
+import { ERA_INFO, SEASON_INFO } from './world/climate';
 import { el } from './ui/dom';
 import { Hud, type HudCounts } from './ui/hud';
 import { Inspector } from './ui/inspector';
@@ -40,7 +41,9 @@ function hudCounts(sim: Simulation): HudCounts {
   });
   const villages = sim.civ.villages.reduce((n, v) => n + (v.alive ? 1 : 0), 0);
   const wars = sim.civ.kingdoms.wars.reduce((n, w) => n + (w.active ? 1 : 0), 0);
-  return { wars, herbivores, predators, people, villages, total: sim.units.count, limit: sim.unitLimit };
+  const era = ERA_INFO[sim.climate.era];
+  const season = SEASON_INFO[sim.climate.seasonAt(sim.tick, sim.laws.seasons)].name;
+  return { wars, herbivores, predators, people, villages, total: sim.units.count, limit: sim.unitLimit, season, era: era.name, eraDescription: era.description };
 }
 const PERF_WINDOW_MS = 5000;
 const LOW_FPS = 24;
@@ -146,6 +149,8 @@ export class Game {
       chronicle: () => this.sim?.civ.chronicle ?? [],
       laws: () => this.sim?.laws ?? null,
       setLaw: (law, value) => this.applyCommand({ type: 'law', law, value }),
+      era: () => this.sim?.climate.era ?? null,
+      setEra: (era) => this.applyCommand({ type: 'era', era }),
       saves: this.saves,
       settings: () => this.settings,
       setSettings: (s) => this.applySettings(s),
@@ -283,6 +288,7 @@ export class Game {
       selected: this.selectedHandle >= 0 ? sim.units.resolve(this.selectedHandle) : -1,
       selectedTile: this.selectedTile,
       heldAt: sim.powers.held.length > 0 ? this.hoverTile : null,
+      season: sim.climate.seasonAt(sim.tick, sim.laws.seasons),
     });
     if (now - this.lastUi >= UI_INTERVAL_MS) {
       this.lastUi = now;
@@ -298,7 +304,7 @@ export class Game {
     const sim = this.sim;
     if (!sim || !this.renderer) return;
     for (let t = 0; t < ticks; t++) sim.step();
-    this.renderer.draw(1, sim.tick, { brush: null, selected: -1, selectedTile: -1, heldAt: null });
+    this.renderer.draw(1, sim.tick, { brush: null, selected: -1, selectedTile: -1, heldAt: null, season: sim.climate.seasonAt(sim.tick, sim.laws.seasons) });
     this.updateUi(sim);
   }
 

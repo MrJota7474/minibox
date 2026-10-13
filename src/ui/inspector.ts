@@ -308,7 +308,7 @@ export class Inspector {
     this.title.textContent = TERRAIN_INFO[t].name;
     const rows: Row[] = [['Altura', String(w.heightMap[index])]];
     if (!isWaterTerrain(t)) {
-      rows.push(['Bioma', BIOME_INFO[w.biome[index]].name]);
+      rows.push(['Bioma', BIOME_INFO[w.biome[index]].name], ['Efecto', BIOME_INFO[w.biome[index]].description]);
       if (isFertileTerrain(t)) rows.push(['Hierba', this.bar(w.grass[index], Math.max(1, BIOME_INFO[w.biome[index]].grassMax), 'bar-food')]);
       rows.push(['Suelo', FLORA_NAMES[w.flora[index]]]);
     }

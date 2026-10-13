@@ -1,3 +1,4 @@
+import { Season } from '../world/climate';
 import { Biome, Flora, TERRAIN_INFO, Terrain } from '../world/terrain';
 import type { World } from '../world/world';
 
@@ -21,9 +22,22 @@ const TERRAIN_RGB: readonly Rgb[] = [
   '#eef1f3', // cumbre
 ].map(hexToRgb);
 
-/** Hierba plena por bioma (pradera, bosque, desierto). */
-const GRASS_RGB: readonly Rgb[] = ['#62ab3b', '#3e7f2d', '#d8b56c'].map(hexToRgb);
+/** Hierba plena por bioma (en el orden de Biome). */
+const GRASS_RGB: readonly Rgb[] = ['#62ab3b', '#3e7f2d', '#d8b56c', '#b9c9c0', '#56703c', '#2e9a3c', '#b9aa4c', '#4fc7a6', '#5e3f63'].map(hexToRgb);
 const DESERT_GROUND: Rgb = hexToRgb('#d2ad69');
+/** Suelo propio de algunos biomas (el resto usa el color de la capa de terreno). */
+const BIOME_GROUND: Readonly<Partial<Record<number, Rgb>>> = {
+  [Biome.SNOW]: hexToRgb('#e6ecef'),
+  [Biome.SWAMP]: hexToRgb('#4c4a33'),
+  [Biome.BLIGHT]: hexToRgb('#3e3040'),
+};
+/** Biomas cálidos: no nieva en invierno. Biomas de coníferas: no amarillean en otoño. */
+const WARM = new Set<number>([Biome.DESERT, Biome.JUNGLE, Biome.SAVANNA]);
+const EVERGREEN = new Set<number>([Biome.SNOW, Biome.JUNGLE, Biome.GROVE, Biome.BLIGHT]);
+const SNOW_RGB: Rgb = hexToRgb('#eef2f4');
+const AUTUMN_GRASS: Rgb = hexToRgb('#b8873a');
+const AUTUMN_TREE: Rgb = hexToRgb('#b5652a');
+const SPRING_GRASS: Rgb = hexToRgb('#7cc84a');
 
 const FLORA_RGB: Readonly<Record<number, Rgb>> = {
   [Flora.SAPLING]: hexToRgb('#79c74f'),
@@ -33,7 +47,7 @@ const FLORA_RGB: Readonly<Record<number, Rgb>> = {
   [Flora.IRON]: hexToRgb('#9a5b3c'),
   [Flora.GOLD]: hexToRgb('#f0c43a'),
 };
-const TREE_RGB: readonly Rgb[] = ['#2d6a26', '#1f4d1d', '#6f7d2c'].map(hexToRgb);
+const TREE_RGB: readonly Rgb[] = ['#2d6a26', '#1f4d1d', '#6f7d2c', '#2c5446', '#3a5530', '#14612a', '#7d8a35', '#2f8d99', '#3b2a40'].map(hexToRgb);
 
 export const BACKGROUND = '#0b1428';
 
@@ -68,9 +82,11 @@ function baseColor(world: World, i: number): [number, number, number] {
     if (biome === Biome.DESERT) {
       c = lerp(c, DESERT_GROUND, 0.85);
     } else {
+      const ground = BIOME_GROUND[biome];
+      if (ground) c = lerp(c, ground, 0.7);
       const level = (world.grass[i] >> 6) / 3;
       const cover = t === Terrain.HILLS ? level * 0.6 : level;
-      c = lerp(c, GRASS_RGB[biome], cover);
+      c = lerp(c, GRASS_RGB[biome], Math.max(cover, ground ? 0.35 : 0));
     }
   }
   // Agua más oscura cuanto más profunda; tierra más clara cuanto más alta.
@@ -82,7 +98,25 @@ function baseColor(world: World, i: number): [number, number, number] {
 const LAVA_RGB: Rgb = hexToRgb('#f05a1a');
 const FIRE_RGB: Rgb = hexToRgb('#7a2a12');
 
-export function tileColor(world: World, i: number): number {
+/** Tinte de la estación sobre la tierra (nieve en invierno, ocres en otoño, verde vivo en primavera). */
+function seasonTint(c: [number, number, number], world: World, i: number, season: number, tree: boolean): [number, number, number] {
+  const t = world.terrain[i];
+  if (season === Season.SUMMER || TERRAIN_INFO[t].water || t === Terrain.SUMMIT) return c;
+  const biome = world.biome[i];
+  if (season === Season.WINTER) {
+    if (WARM.has(biome)) return c;
+    const amount = biome === Biome.SNOW ? 0.8 : tree ? 0.3 : t === Terrain.SAND ? 0.25 : 0.55;
+    return lerp(c, SNOW_RGB, amount);
+  }
+  if (season === Season.AUTUMN) {
+    if (EVERGREEN.has(biome) || t === Terrain.SAND || t === Terrain.MOUNTAIN) return c;
+    return lerp(c, tree ? AUTUMN_TREE : AUTUMN_GRASS, tree ? 0.45 : 0.3);
+  }
+  if (tree || !TERRAIN_INFO[t].fertile || WARM.has(biome) || EVERGREEN.has(biome)) return c;
+  return lerp(c, SPRING_GRASS, 0.15);
+}
+
+export function tileColor(world: World, i: number, season: number = Season.SUMMER): number {
   const f = world.flora[i];
   let c: [number, number, number];
   if (world.lava[i] > 0) {
@@ -92,12 +126,12 @@ export function tileColor(world: World, i: number): number {
   if (world.fire[i] > 0) return pack(FIRE_RGB[0], FIRE_RGB[1], FIRE_RGB[2]);
   if (f === Flora.TREE) {
     const tree = TREE_RGB[world.biome[i]];
-    c = [tree[0], tree[1], tree[2]];
+    c = seasonTint([tree[0], tree[1], tree[2]], world, i, season, true);
   } else if (f !== Flora.NONE) {
     const fl = FLORA_RGB[f];
     c = [fl[0], fl[1], fl[2]];
   } else {
-    c = baseColor(world, i);
+    c = seasonTint(baseColor(world, i), world, i, season, false);
   }
   const j = tileJitter(i);
   return pack(c[0] + j, c[1] + j, c[2] + j);
@@ -111,3 +145,4 @@ export function terrainSwatch(terrain: number): Rgb {
 export function biomeSwatch(biome: number): Rgb {
   return biome === Biome.DESERT ? DESERT_GROUND : GRASS_RGB[biome];
 }
+

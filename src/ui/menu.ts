@@ -1,7 +1,7 @@
 import type { ChronicleEntry } from '../civ/civ-system';
 import type { LawId, WorldLaws } from '../sim/laws';
 import { chronicleContent } from './chronicle';
-import { lawsContent } from './laws-panel';
+import { eraContent, lawsContent } from './laws-panel';
 import { el } from './dom';
 import { helpContent } from './help';
 import { savesContent, type SaveActions } from './saves-panel';
@@ -14,6 +14,8 @@ export interface MenuActions {
   chronicle(): readonly ChronicleEntry[];
   laws(): WorldLaws | null;
   setLaw(law: LawId, value: boolean): void;
+  era(): number | null;
+  setEra(era: number): void;
   saves: SaveActions;
   settings(): Settings;
   setSettings(s: Settings): void;
@@ -74,7 +76,10 @@ export class Menu {
         item('Leyes del mundo', () => {
           const laws = actions.laws();
           this.lawsBox.hidden = !this.lawsBox.hidden || !laws;
-          if (!this.lawsBox.hidden && laws) this.lawsBox.replaceChildren(lawsContent(laws, (law, value) => actions.setLaw(law, value)));
+          const era = actions.era();
+          if (!this.lawsBox.hidden && laws) {
+            this.lawsBox.replaceChildren(lawsContent(laws, (law, value) => actions.setLaw(law, value)), era === null ? '' : eraContent(era, (e) => actions.setEra(e)));
+          }
         }),
         this.lawsBox,
         item('Ajustes', () => {
