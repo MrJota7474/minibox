@@ -2,9 +2,9 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos), G (biomas, estaciones y eras), H (monstruos) e I (cultura, religión y clanes) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos), G (biomas, estaciones y eras), H (monstruos), I (cultura, religión y clanes) y J (sonido y caminos) implementadas.**
 >
-> Siguiente fase acordada: sonido y caminos. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G; los monstruos, en la H.
+> La hoja de ruta acordada está completa. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G; los monstruos, en la H.
 
 ---
 
@@ -156,7 +156,7 @@ Leyenda: **N** = Núcleo (sin esto no hay juego) · **I** = Importante (da profu
 | Colonos que fundan aldeas nuevas | I | B |
 | Pescador, cazador, herrero (equipo que sube el daño y la armadura) | I | B/C |
 | Muelles y barcos para colonizar islas | I | F |
-| Caminos | E | post-E |
+| Caminos | E | J |
 | Cultura con rasgos y tecnología, religión (sin idiomas) | E | I |
 
 ### 3.5 Reinos
@@ -196,7 +196,7 @@ Leyenda: **N** = Núcleo (sin esto no hay juego) · **I** = Importante (da profu
 | PWA instalable y pantalla completa | N | A |
 | Ajuste automático según el dispositivo (tamaño de mapa y límite de unidades) | N | A |
 | Ajustes: calidad, tamaño de la barra, idioma (solo español por ahora) | I | A/E |
-| Sonido (efectos sintetizados con WebAudio) | E | post-E |
+| Sonido (efectos sintetizados con WebAudio) | E | J |
 
 ---
 
@@ -403,8 +403,16 @@ Tres capas sociales sobre las aldeas y los reinos (`civ/society.ts`), cada una c
 - **Visual**: santuario con la arquitectura de cada raza, pináculo dorado, braseros y destellos.
 - **Guardado**: formato MBX versión 5 (culturas, religiones y clanes en la cabecera; clan de cada criatura); las partidas de la versión 4 se migran: una cultura por reino, sin fe y con los clanes repartidos en el primer censo.
 
-### Después de I
-Sonido y caminos.
+### Fase J — Sonido y caminos
+- **Senderos por desgaste** (`world.road`, 0-255 por casilla): cada aldeano con aldea suma 10 al pisar una casilla nueva; cada pasada de vegetación resta 2. A partir de 80 es **sendero** (+15 % de velocidad) y de 170, **camino** (+30 %). Las rutas del ayuntamiento al bosque, la mina o las granjas se marcan solas y el centro de la aldea queda de tierra batida; sin tránsito, la hierba vuelve.
+- **Calzadas** (valor 255, no se borran, +40 %): al fundarse una colonia, su reino tiende una en línea recta hasta la capital si está en la misma isla y a menos de 70 casillas (sólo sobre tierra pisable y sin edificios). El jugador puede pintarlas con el pincel «Calzada» (pestaña Terreno).
+- Los retoños no brotan en senderos ni caminos; el inspector de casilla dice qué hay. Se pintan en la textura del terreno (tierra batida o empedrado) y sólo se repinta el chunk cuando una casilla cambia de categoría.
+- **Sonido** (`audio/sound.ts`, WebAudio): todo sintetizado con osciladores y ruido filtrado, sin archivos. El contexto de audio se crea con el primer toque o tecla (norma de los navegadores). Suenan los desastres y poderes (a través de los avisos visuales de la simulación), el trabajo y el combate cuando la cámara está cerca, los avisos del mundo (fundación, guerra, paz, rey, dinastía, monstruos, fe, descubrimientos) y la interfaz (clics, pinceles, crear criaturas). Lo que pasa fuera de la pantalla suena más bajo y cada sonido tiene un intervalo mínimo de repetición (`audio/sound-map.ts`, con pruebas).
+- **Ajustes**: casilla «Sonido» y volumen (0-100), guardados en el navegador. El sonido no forma parte de la simulación (no afecta al determinismo).
+- **Guardado**: formato MBX versión 6 (el array `road` al final); las partidas anteriores empiezan sin caminos.
+
+### Después de J
+La hoja de ruta original está completa. Ideas: comercio por los caminos, puentes, música ambiental, idiomas.
 
 ---
 

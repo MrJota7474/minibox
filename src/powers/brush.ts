@@ -15,7 +15,7 @@ import {
   type BiomeId,
   type TerrainId,
 } from '../world/terrain';
-import type { World } from '../world/world';
+import { ROAD_PATH, type World } from '../world/world';
 
 export const BRUSH_SIZES = [1, 3, 5, 9, 15] as const;
 export const MAX_BRUSH_SIZE = BRUSH_SIZES[BRUSH_SIZES.length - 1];
@@ -113,13 +113,19 @@ function applyTool(world: World, rng: Rng, tool: BrushToolId, i: number, single:
     case 'clear-flora':
       if (isPlant(world.flora[i])) world.setFlora(i, Flora.NONE);
       break;
+    case 'road':
+      // Una calzada se abre paso entre la vegetación.
+      if (isPlant(world.flora[i])) world.setFlora(i, Flora.NONE);
+      world.paveRoad(i);
+      break;
     default:
       break;
   }
 }
 
 function canPlant(world: World, i: number): boolean {
-  return world.flora[i] === Flora.NONE && isFertileTerrain(world.terrain[i]);
+  // Sobre un sendero, un camino o una calzada no se planta.
+  return world.flora[i] === Flora.NONE && world.road[i] < ROAD_PATH && isFertileTerrain(world.terrain[i]);
 }
 
 /** Número de criaturas que crea un toque del pincel de creación. */

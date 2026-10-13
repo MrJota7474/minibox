@@ -13,9 +13,9 @@ import { checkSave, validateLoaded } from './validate';
  * `world.dataViews()` + `units.dataViews()`. El conjunto se comprime con gzip.
  */
 const MAGIC = [0x4d, 0x42, 0x58, 0x31];
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 /** Versiones que se pueden cargar (las anteriores se migran al cargar). */
-const SUPPORTED_VERSIONS: readonly number[] = [1, 2, 3, 4, 5];
+const SUPPORTED_VERSIONS: readonly number[] = [1, 2, 3, 4, 5, 6];
 /** Flujos de azar que guardaban las partidas anteriores a la versión 4 (sin el de los monstruos). */
 const LEGACY_RNG_COUNT = 4;
 const ALIGN = 8;
@@ -79,7 +79,9 @@ interface Header {
 
 function allViews(sim: Simulation, version = SAVE_VERSION): ArrayBufferView[] {
   const units = sim.units.dataViews();
-  return [...sim.world.dataViews().slice(0, worldViewCount(version)), ...units.slice(0, units.length - newerUnitViews(version))];
+  const views = [...sim.world.dataViews().slice(0, worldViewCount(version)), ...units.slice(0, units.length - newerUnitViews(version))];
+  // Los caminos (versión 6) van al final del archivo, tras las criaturas.
+  return version >= 6 ? [...views, sim.world.road] : views;
 }
 
 function bytesOf(v: ArrayBufferView): Uint8Array {

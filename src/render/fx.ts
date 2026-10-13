@@ -154,6 +154,8 @@ export class FxLayer {
   /** Segundos del último frame. */
   private dt = 0.016;
   private readonly flames = buildFlames();
+  /** Aviso de cada efecto con su posición en casillas (para el sonido); lo conecta el juego. */
+  onSound: ((kind: string, x: number, y: number) => void) | null = null;
 
   constructor(
     private readonly powers: PowerSystem,
@@ -205,6 +207,8 @@ export class FxLayer {
   }
 
   private spawn(e: FxEvent): void {
+    // Una «explosión» sin radio es la sacudida de un terremoto.
+    this.onSound?.(e.kind === 'explosion' && e.r === 0 ? 'quake' : e.kind, e.x, e.y);
     switch (e.kind) {
       case 'lightning':
         this.bolts.push({ x: e.x, y: e.y, t: 0.35, seed: Math.random() * 1000 });
@@ -277,15 +281,18 @@ export class FxLayer {
         const f = t >= 0 && t < w.size ? w.flora[t] : -1;
         const kind = f === Flora.TREE ? 'chips' : f >= Flora.ROCK ? 'sparks' : 'dirt';
         this.burst(x + 0.4, y - 0.6, 3, kind);
+        this.onSound?.(kind, x, y);
         budget--;
       } else if (st === UnitState.FIGHT && u.attackCd[i] === 7) {
         this.burst(x + 0.4, y - 0.8, 4, 'hit');
+        this.onSound?.('hit', x, y);
         budget--;
       } else if (st === UnitState.MATE && r < 0.05) {
         this.burst(x, y - 1.6, 1, 'hearts');
         budget--;
       } else if (st === UnitState.RAZE && u.attackCd[i] === 7) {
         this.burst(u.tx[i], u.ty[i] - 0.4, 4, 'debris', 0.5);
+        this.onSound?.('debris', x, y);
         budget--;
       }
       if (isMonster(u.species[i])) budget -= this.monsterFx(u, i, x, y, r);

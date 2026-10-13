@@ -133,6 +133,11 @@ export class Renderer {
     this.fx = new FxLayer(powers, hazards, world, camera);
   }
 
+  /** Conecta los avisos de efectos (rayos, explosiones, golpes...) con quien los haga sonar. */
+  setSoundHook(hook: (kind: string, x: number, y: number) => void): void {
+    this.fx.onSound = hook;
+  }
+
   getDprCap(): number {
     return this.dprCap;
   }

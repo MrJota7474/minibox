@@ -8,6 +8,19 @@ import { updateMonster } from './monster-ai';
 import { OFFMAP_FLAGS } from '../entities/units';
 import { updateMadness, updatePlague } from '../powers/status';
 
+/** Desgaste que deja un aldeano en cada casilla nueva que pisa. */
+const ROAD_WEAR = 10;
+
+/** Los aldeanos van marcando senderos por donde pasan (ver world.road). */
+function wearPath(ctx: AiContext, i: number): void {
+  const u = ctx.units;
+  const w = ctx.world;
+  const x = Math.floor(u.x[i]);
+  const y = Math.floor(u.y[i]);
+  if ((x === Math.floor(u.px[i]) && y === Math.floor(u.py[i])) || !w.inBounds(x, y)) return;
+  w.wearRoad(w.idx(x, y), ROAD_WEAR);
+}
+
 /** Actualiza todas las criaturas un tick, en orden de índice (determinista). */
 export function updateUnits(ctx: AiContext): void {
   const u = ctx.units;
@@ -29,8 +42,10 @@ export function updateUnits(ctx: AiContext): void {
       if (u.isAlive(i)) u.stateTicks[i] = 0;
       continue;
     }
-    if (def.diet === 'civilized') updateVillager(ctx, i, def);
-    else if (def.diet === 'monster') updateMonster(ctx, i, def);
+    if (def.diet === 'civilized') {
+      updateVillager(ctx, i, def);
+      if (u.alive[i] === 1 && u.village[i] >= 0) wearPath(ctx, i);
+    } else if (def.diet === 'monster') updateMonster(ctx, i, def);
     else updateAnimal(ctx, i, def);
     if (!u.isAlive(i)) continue;
     u.stateTicks[i] = u.state[i] === before ? Math.min(0xffff, u.stateTicks[i] + 1) : 0;

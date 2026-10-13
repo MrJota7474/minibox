@@ -672,6 +672,13 @@ img {
   justify-content: space-between;
   gap: 8px;
 }
+.range {
+  flex: 1;
+  min-width: 90px;
+  max-width: 180px;
+  height: 36px;
+  accent-color: var(--accent);
+}
 .select {
   min-height: 36px;
   padding: 2px 8px;

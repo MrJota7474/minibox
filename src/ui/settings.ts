@@ -6,9 +6,13 @@ export interface Settings {
   readonly autosaveMinutes: number;
   readonly showLabels: boolean;
   readonly showTerritory: boolean;
+  /** Sonido activado y volumen (0-100). */
+  readonly sound: boolean;
+  readonly volume: number;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autosave: true, autosaveMinutes: 2, showLabels: true, showTerritory: true };
+export const DEFAULT_SETTINGS: Settings = { autosave: true, autosaveMinutes: 2, showLabels: true, showTerritory: true, sound: true, volume: 60 };
+const MAX_VOLUME = 100;
 export const AUTOSAVE_CHOICES: readonly number[] = [1, 2, 5, 10];
 const STORAGE_KEY = 'minibox.settings';
 
@@ -25,6 +29,8 @@ export function loadSettings(): Settings {
       autosaveMinutes: minutes,
       showLabels: bool(data.showLabels, DEFAULT_SETTINGS.showLabels),
       showTerritory: bool(data.showTerritory, DEFAULT_SETTINGS.showTerritory),
+      sound: bool(data.sound, DEFAULT_SETTINGS.sound),
+      volume: typeof data.volume === 'number' && data.volume >= 0 && data.volume <= MAX_VOLUME ? Math.round(data.volume) : DEFAULT_SETTINGS.volume,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -59,7 +65,11 @@ export function settingsContent(current: Settings, onChange: (s: Settings) => vo
   for (const m of AUTOSAVE_CHOICES) select.append(el('option', { text: `cada ${m} min`, attrs: { value: String(m) } }));
   select.value = String(s.autosaveMinutes);
   select.addEventListener('change', () => update({ autosaveMinutes: Number(select.value) }));
+  const volume = el('input', { class: 'range', attrs: { type: 'range', id: 'set-volume', min: '0', max: String(MAX_VOLUME), step: '5', 'aria-label': 'Volumen' } });
+  volume.value = String(s.volume);
+  volume.addEventListener('input', () => update({ volume: Number(volume.value) }));
   return el('div', { class: 'laws settings' }, [
+    el('div', { class: 'settings-row' }, [checkbox('set-sound', 'Sonido', s.sound, (v) => update({ sound: v })), volume]),
     el('div', { class: 'settings-row' }, [checkbox('set-autosave', 'Autoguardado', s.autosave, (v) => update({ autosave: v })), select]),
     checkbox('set-labels', 'Nombres de aldeas', s.showLabels, (v) => update({ showLabels: v })),
     checkbox('set-territory', 'Territorios', s.showTerritory, (v) => update({ showTerritory: v })),

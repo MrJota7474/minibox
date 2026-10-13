@@ -41,6 +41,8 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Cultura', 'Cada aldea que se funda sola crea una cultura con un rasgo propio; con el tiempo descubre agricultura, albañilería, forja y medicina. Las aldeas conquistadas acaban adoptando la de su nuevo reino'],
   ['Religión', 'Las aldeas con ayuntamiento levantan un santuario y adoptan o fundan una fe. Compartirla une a aldeas y reinos; las fes distintas los enfrentan'],
   ['Clanes', 'Cada aldeano pertenece a un clan que hereda de su padre. El trono pasa dentro del clan reinante; si el linaje se extingue hay cambio de dinastía y las aldeas se inquietan'],
+  ['Caminos', 'Donde los aldeanos pasan a menudo se marca un sendero y luego un camino, por los que se anda más deprisa; los reinos tienden calzadas hasta sus colonias y tú puedes pintarlas con «Calzada» (Terreno)'],
+  ['Sonido', 'Menú › Ajustes: activa o silencia el sonido y elige el volumen'],
   ['Mar','Las aldeas de la costa construyen un muelle: allí pescan y botan barcos que llevan colonos a otras islas o ejércitos a costas enemigas'],
   ['Partidas', 'Menú › Guardar / cargar: 5 ranuras, autoguardado y exportar o importar un archivo .minibox'],
 ];

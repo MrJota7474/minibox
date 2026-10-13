@@ -1,6 +1,6 @@
 import { Season } from '../world/climate';
 import { Biome, Flora, TERRAIN_INFO, Terrain } from '../world/terrain';
-import type { World } from '../world/world';
+import { ROAD_PATH, roadLevel, type World } from '../world/world';
 
 /** Paleta propia de MiniBox (tonos cálidos y saturados). */
 export type Rgb = readonly [number, number, number];
@@ -138,6 +138,11 @@ function seasonTint(c: [number, number, number], world: World, i: number, season
   return lerp(c, SPRING_GRASS, 0.15);
 }
 
+const DIRT_RGB: [number, number, number] = [150, 116, 76];
+const PAVED_RGB: [number, number, number] = [152, 146, 136];
+/** Cuánto tapa el camino el color del suelo, por categoría (sendero, camino, calzada). */
+const ROAD_BLEND: readonly number[] = [0, 0.45, 0.78, 0.85];
+
 export function tileColor(world: World, i: number, season: number = Season.SUMMER): number {
   const f = world.flora[i];
   let c: [number, number, number];
@@ -155,6 +160,9 @@ export function tileColor(world: World, i: number, season: number = Season.SUMME
     c = seasonTint(baseColor(world, i), world, i, season, false);
   }
   const t = world.terrain[i];
+  // Senderos y caminos de tierra batida; calzadas de piedra.
+  const road = world.road[i] >= ROAD_PATH && !TERRAIN_INFO[t].water && f !== Flora.TREE ? roadLevel(world.road[i]) : 0;
+  if (road > 0) c = lerp(c, road === 3 ? PAVED_RGB : DIRT_RGB, ROAD_BLEND[road]);
   if (TERRAIN_INFO[t].water) {
     // Espuma en la orilla.
     if (t === Terrain.SHALLOW && touchesOther(world, i, true)) c = lerp(c, FOAM_RGB, 0.38);

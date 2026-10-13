@@ -1,8 +1,10 @@
 import type { Rng } from '../core/rng';
 import { neutralClimate, type ClimateMods } from './climate';
 import { BIOME_INFO, Biome, Flora, isFertileTerrain, isMagicBiome, isPlant } from './terrain';
-import type { World } from './world';
+import { ROAD_PATH, type World } from './world';
 
+/** Desgaste que pierde un sendero en cada pasada (unos 24 al año). */
+const ROAD_DECAY = 2;
 /** Ticks que tarda una pasada completa de vegetación sobre todo el mapa (5 s en x1). */
 export const VEGETATION_PASS_TICKS = 50;
 
@@ -43,6 +45,8 @@ export class VegetationSystem {
     const w = this.world;
     const end = Math.min(this.cursor + this.tilesPerTick, w.size);
     for (let i = this.cursor; i < end; i++) {
+      // Los senderos sin tránsito se van borrando (también en arena o roca).
+      if (w.road[i] > 0) w.decayRoad(i, ROAD_DECAY);
       if (!isFertileTerrain(w.terrain[i])) continue;
       this.growGrass(i, climate.grass);
       this.growFlora(i, rng, climate.tree);
@@ -105,6 +109,7 @@ export class VegetationSystem {
     const ny = y + dy * 2;
     if (!w.inBounds(nx, ny)) return;
     const j = w.idx(nx, ny);
-    if (w.flora[j] === Flora.NONE && w.buildingAt[j] === 0 && isFertileTerrain(w.terrain[j])) w.setFlora(j, Flora.SAPLING);
+    // En los senderos y caminos no brota nada.
+    if (w.flora[j] === Flora.NONE && w.buildingAt[j] === 0 && w.road[j] < ROAD_PATH && isFertileTerrain(w.terrain[j])) w.setFlora(j, Flora.SAPLING);
   }
 }

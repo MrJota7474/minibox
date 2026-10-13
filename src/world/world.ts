@@ -15,6 +15,20 @@ export const CHUNK_SIZE = 32;
 /** Lado de una zona de territorio (en casillas). */
 export const ZONE_SIZE = 8;
 
+/** Desgaste a partir del cual una casilla es sendero, camino o calzada empedrada. */
+export const ROAD_PATH = 80;
+export const ROAD_WORN = 170;
+export const ROAD_PAVED = 255;
+/** Categorías de camino: nada, sendero, camino y calzada. */
+export const RoadLevel = { NONE: 0, PATH: 1, WORN: 2, PAVED: 3 } as const;
+export const ROAD_NAMES: readonly string[] = ['Ninguno', 'Sendero', 'Camino', 'Calzada'];
+/** Lo que acelera caminar por cada categoría. */
+export const ROAD_SPEED: readonly number[] = [1, 1.15, 1.3, 1.4];
+
+export function roadLevel(wear: number): number {
+  return wear >= ROAD_PAVED ? RoadLevel.PAVED : wear >= ROAD_WORN ? RoadLevel.WORN : wear >= ROAD_PATH ? RoadLevel.PATH : RoadLevel.NONE;
+}
+
 /**
  * Estado del mapa en arrays tipados planos (índice = y * width + x).
  * Excepción documentada a la inmutabilidad: es estado de simulación mutable por rendimiento.
@@ -46,6 +60,8 @@ export class World {
   /** Fuego y lava por casilla (0 = nada; si no, intensidad o calor restante). */
   readonly fire: Uint8Array;
   readonly lava: Uint8Array;
+  /** Desgaste del suelo por el paso de los aldeanos (ver ROAD_PATH, ROAD_WORN y ROAD_PAVED). */
+  readonly road: Uint8Array;
 
   readonly chunksX: number;
   readonly chunksY: number;
@@ -70,6 +86,7 @@ export class World {
     this.zoneOwner = new Uint16Array(this.zonesX * this.zonesY);
     this.fire = new Uint8Array(this.size);
     this.lava = new Uint8Array(this.size);
+    this.road = new Uint8Array(this.size);
     this.chunksX = Math.ceil(width / CHUNK_SIZE);
     this.chunksY = Math.ceil(height / CHUNK_SIZE);
     this.dirty = new Uint8Array(this.chunksX * this.chunksY);
@@ -113,6 +130,8 @@ export class World {
     if (this.terrain[i] !== t) {
       if (isWalkableTerrain(this.terrain[i]) !== isWalkableTerrain(t) || isWaterTerrain(this.terrain[i]) !== isWaterTerrain(t)) this.regionsDirty = true;
       this.terrain[i] = t;
+      // Bajo el agua o en una cumbre no queda camino ni calzada.
+      if (!isWalkableTerrain(t)) this.road[i] = 0;
       if (isWaterTerrain(t)) {
         this.flora[i] = Flora.NONE;
         this.grass[i] = 0;
@@ -143,6 +162,41 @@ export class World {
     // Sólo se redibuja cuando cambia el escalón visual de la hierba.
     if ((this.grass[i] >> 6) !== (v >> 6)) this.markDirtyIdx(i);
     this.grass[i] = v;
+  }
+
+  /** Cambia el desgaste de una casilla; sólo se redibuja si pasa de una categoría de camino a otra. */
+  private setRoad(i: number, value: number): void {
+    const before = roadLevel(this.road[i]);
+    this.road[i] = value;
+    if (roadLevel(value) !== before) this.markDirtyIdx(i);
+  }
+
+  /** Un aldeano pisa la casilla: se desgasta un poco más (nunca llega a calzada por sí sola). */
+  wearRoad(i: number, amount: number): void {
+    const r = this.road[i];
+    if (r >= ROAD_PAVED - 1 || this.buildingAt[i] !== 0 || !isWalkableTerrain(this.terrain[i])) return;
+    this.setRoad(i, Math.min(ROAD_PAVED - 1, r + amount));
+  }
+
+  /** Sin tránsito, la hierba recupera los senderos (las calzadas no se borran). */
+  decayRoad(i: number, amount: number): void {
+    const r = this.road[i];
+    if (r > 0 && r < ROAD_PAVED) this.setRoad(i, Math.max(0, r - amount));
+  }
+
+  /** Empiedra la casilla (si es tierra pisable y sin edificio). */
+  paveRoad(i: number): void {
+    if (this.buildingAt[i] === 0 && isWalkableTerrain(this.terrain[i])) this.setRoad(i, ROAD_PAVED);
+  }
+
+  /** Calzada en línea recta entre dos casillas, sólo sobre tierra pisable. */
+  paveLine(x0: number, y0: number, x1: number, y1: number): void {
+    const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    for (let k = 0; k <= steps; k++) {
+      const x = Math.round(x0 + ((x1 - x0) * k) / Math.max(1, steps));
+      const y = Math.round(y0 + ((y1 - y0) * k) / Math.max(1, steps));
+      if (this.inBounds(x, y)) this.paveRoad(this.idx(x, y));
+    }
   }
 
   markDirtyIdx(i: number): void {
@@ -276,6 +330,6 @@ export class World {
   }
 
   stateHash(): number {
-    return hashViews([this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.zoneOwner, this.fire, this.lava]);
+    return hashViews([this.heightMap, this.terrain, this.biome, this.grass, this.flora, this.buildingAt, this.reserved, this.zoneOwner, this.fire, this.lava, this.road]);
   }
 }

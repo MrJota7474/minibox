@@ -12,6 +12,7 @@ import { STATE_LABELS, Sex } from '../entities/units';
 import type { CreatureAtlas } from '../render/creature-art';
 import type { Simulation } from '../sim/simulation';
 import { BIOME_INFO, FLORA_NAMES, TERRAIN_INFO, isFertileTerrain, isWaterTerrain } from '../world/terrain';
+import { ROAD_NAMES, ROAD_PATH, roadLevel } from '../world/world';
 import { el, iconButton, setPressed } from './dom';
 import { gridIcon, speciesIcon } from './icons';
 
@@ -339,6 +340,7 @@ export class Inspector {
       rows.push(['Bioma', BIOME_INFO[w.biome[index]].name], ['Efecto', BIOME_INFO[w.biome[index]].description]);
       if (isFertileTerrain(t)) rows.push(['Hierba', this.bar(w.grass[index], Math.max(1, BIOME_INFO[w.biome[index]].grassMax), 'bar-food')]);
       rows.push(['Suelo', FLORA_NAMES[w.flora[index]]]);
+      if (w.road[index] >= ROAD_PATH) rows.push(['Camino', `${ROAD_NAMES[roadLevel(w.road[index])]} (se camina más rápido)`]);
     }
     const x = index % w.width;
     const owner = w.ownerAt(x, (index - x) / w.width);

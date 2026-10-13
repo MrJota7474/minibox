@@ -1,3 +1,5 @@
+import { SoundEngine } from './audio/sound';
+import { OFFSCREEN_GAIN, soundForCommand, soundForEvent, soundForFx } from './audio/sound-map';
 import { FixedClock, type Speed } from './core/clock';
 import type { DeviceProfile } from './core/device';
 import { SPECIES, Species } from './entities/species';
@@ -88,6 +90,7 @@ export class Game {
   private pendingUpdate: (() => void) | null = null;
   private settings: Settings = loadSettings();
   private readonly saves: SaveController;
+  private readonly sound = new SoundEngine();
 
   private lastFrame = 0;
   private lastUi = 0;
@@ -188,6 +191,27 @@ export class Game {
     this.brushSize = this.toolbar.brushSize;
     this.stroke.size = this.brushSize;
     this.setSpeed(1);
+    this.setupSound(root);
+  }
+
+  /** El audio sólo puede arrancar con un gesto del jugador; cada botón hace clic. */
+  private setupSound(root: HTMLElement): void {
+    this.sound.configure(this.settings.sound, this.settings.volume);
+    const unlock = (): void => this.sound.unlock();
+    // En táctil sólo cuentan como gesto válido el fin del toque y el clic.
+    for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown'] as const) window.addEventListener(type, unlock);
+    window.addEventListener('click', unlock, true);
+    root.addEventListener('click', (e) => {
+      if (e.target instanceof Element && e.target.closest('button')) this.sound.play('click');
+    });
+  }
+
+  /** Sonido de un efecto del mapa: más bajo si ocurre fuera de la pantalla. */
+  private playAt(kind: string, x: number, y: number): void {
+    const cam = this.camera;
+    if (!cam) return;
+    const visible = x >= cam.left && y >= cam.top && x <= cam.left + cam.viewW / cam.zoom && y <= cam.top + cam.viewH / cam.zoom;
+    this.sound.play(soundForFx(kind), visible ? 1 : OFFSCREEN_GAIN);
   }
 
   /** Llega una versión nueva (service worker): se aplica sin interrumpir una partida en curso. */
@@ -228,6 +252,7 @@ export class Game {
   private applySettings(s: Settings): void {
     this.settings = s;
     if (!saveSettings(s)) this.toasts.show('Los ajustes sólo durarán esta sesión');
+    this.sound.configure(s.sound, s.volume);
     if (this.renderer) {
       this.renderer.showLabels = s.showLabels;
       this.renderer.showTerritory = s.showTerritory;
@@ -256,6 +281,7 @@ export class Game {
     this.renderer = new Renderer(this.canvas, sim.world, sim.units, camera, sim.civ, sim.powers, sim.hazards, this.device.dprCap, this.atlas);
     this.renderer.showLabels = this.settings.showLabels;
     this.renderer.showTerritory = this.settings.showTerritory;
+    this.renderer.setSoundHook((kind, x, y) => this.playAt(kind, x, y));
     this.renderer.resize();
     camera.fitWorld();
     camera.zoomAt(INITIAL_ZOOM_FACTOR, camera.viewW / 2, camera.viewH / 2);
@@ -369,6 +395,7 @@ export class Game {
   private applyCommand(c: Command): void {
     if (!this.sim) return;
     const r = this.sim.apply(c);
+    this.sound.play(soundForCommand(c));
     if (r.limited) this.toasts.show(`Límite de criaturas alcanzado (${this.sim.unitLimit})`, LIMIT_TOAST_COOLDOWN_MS);
   }
 
@@ -477,6 +504,9 @@ export class Game {
   private showCivEvents(sim: Simulation): void {
     const events = sim.civ.events;
     for (const e of events) this.toasts.show(e.text);
+    // Un solo sonido por tanda de avisos: el del primero que tenga uno.
+    const first = events.map((e) => soundForEvent(e.type)).find((id) => id !== null);
+    if (first) this.sound.play(first);
     events.length = 0;
   }
 

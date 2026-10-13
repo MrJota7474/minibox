@@ -75,6 +75,7 @@ export const TOOLS: readonly ToolDef[] = [
   brush('terreno', 'raise', 'Elevar', HEIGHT_REPEAT_MS),
   brush('terreno', 'lower', 'Hundir', HEIGHT_REPEAT_MS),
   brush('terreno', 'sponge', 'Secar'),
+  brush('terreno', 'road', 'Calzada'),
   brush('naturaleza', 'grass', 'Pradera'),
   brush('naturaleza', 'forest', 'Bosque'),
   brush('naturaleza', 'desert', 'Desierto'),

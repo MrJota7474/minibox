@@ -271,8 +271,8 @@ describe('guardado del clima', () => {
     const len = new DataView(bytes.buffer, bytes.byteOffset).getUint32(4, true);
     const h = JSON.parse(new TextDecoder().decode(bytes.subarray(8, 8 + len))) as Record<string, unknown> & { laws: Record<string, boolean> };
     h.version = 2;
-    // Sin el array de clanes (versión 5); el mundo de prueba no tiene aldeas ni reinos.
-    (h.views as number[]).pop();
+    // Sin los arrays de caminos (versión 6) ni de clanes (versión 5); el mundo de prueba no tiene aldeas ni reinos.
+    (h.views as number[]).splice(-2, 2);
     delete h.climate;
     delete h.laws.seasons;
     delete h.laws.magicSpread;

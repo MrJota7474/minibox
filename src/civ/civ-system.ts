@@ -57,6 +57,8 @@ const STARTING_RESOURCES: readonly number[] = [12, 8, 0, 0, 0];
 const BOAT_FRAGILITY = 10;
 const SAME_KINGDOM_PULL = 0.25;
 const FISH_REGEN = 2;
+/** Distancia máxima (casillas) a la capital para tender una calzada desde una colonia nueva. */
+const ROYAL_ROAD_REACH = 70;
 
 /**
  * Estado y reglas de las civilizaciones: aldeas, edificios, territorio y censo.
@@ -207,7 +209,11 @@ export class CivSystem {
       v.kingdom = kingdom;
       v.loyalty = 70;
       // Las colonias llevan consigo la cultura de la capital de su reino.
-      v.culture = this.villages[this.kingdoms.kingdoms[kingdom].capital]?.culture ?? -1;
+      const capital = this.villages[this.kingdoms.kingdoms[kingdom].capital];
+      v.culture = capital?.culture ?? -1;
+      // El reino tiende una calzada hasta la capital si está cerca y en la misma isla.
+      const near = capital && (capital.cx - v.cx) * (capital.cx - v.cx) + (capital.cy - v.cy) * (capital.cy - v.cy) <= ROYAL_ROAD_REACH * ROYAL_ROAD_REACH;
+      if (capital && near && this.world.regionAt(capital.cx, capital.cy) === this.world.regionAt(v.cx, v.cy)) this.world.paveLine(v.cx, v.cy, capital.cx, capital.cy);
     } else {
       this.kingdoms.create(v);
     }

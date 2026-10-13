@@ -186,6 +186,13 @@ const BRUSH_DRAW: Readonly<Record<string, (p: Pix) => void>> = {
     p.set(13, 2, '#8ac0f0');
     p.set(14, 3, '#8ac0f0');
   },
+  road: (p) => {
+    block(p, '#62ab3b', '#7b5d38', '#7cc84a');
+    // Calzada que cruza el bloque en diagonal.
+    for (let k = 0; k < 6; k++) p.rect(2 + k * 2, 12 - k, 3, 1, k % 2 ? '#b0a898' : '#989080');
+    p.set(5, 10, '#6e675c');
+    p.set(10, 8, '#6e675c');
+  },
   'clear-flora': (p) => {
     for (let k = 0; k < 10; k++) p.set(4 + k, 4 + k, '#8a5a2a');
     for (let k = 0; k < 10; k++) p.set(5 + k, 4 + k, '#6a4422');

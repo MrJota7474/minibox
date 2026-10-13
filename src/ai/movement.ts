@@ -1,7 +1,7 @@
 import type { Rng } from '../core/rng';
 import type { UnitStore } from '../entities/units';
 import { BIOME_INFO } from '../world/terrain';
-import type { World } from '../world/world';
+import { ROAD_PATH, ROAD_SPEED, roadLevel, type World } from '../world/world';
 
 const BIOME_SPEED: readonly number[] = BIOME_INFO.map((b) => b.speed);
 
@@ -13,7 +13,9 @@ export function moveToward(world: World, units: UnitStore, i: number, tx: number
   const x = units.x[i];
   const y = units.y[i];
   // El terreno que se pisa frena o acelera (pantano, nieve, sabana...).
-  const speed = baseSpeed * (BIOME_SPEED[world.biome[world.idx(Math.floor(x), Math.floor(y))]] ?? 1);
+  const tile = world.idx(Math.floor(x), Math.floor(y));
+  // ...y por un sendero, un camino o una calzada se va más deprisa.
+  const speed = baseSpeed * (BIOME_SPEED[world.biome[tile]] ?? 1) * (world.road[tile] >= ROAD_PATH ? ROAD_SPEED[roadLevel(world.road[tile])] : 1);
   const dx = tx - x;
   const dy = ty - y;
   const d2 = dx * dx + dy * dy;

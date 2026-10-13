@@ -194,8 +194,45 @@ function olderThan5(h: Record<string, unknown>): Record<string, unknown> {
     });
   civ.villages = strip(civ.villages, ['culture', 'religion']);
   civ.kingdoms = strip(civ.kingdoms, ['clan', 'dynastyTick']);
-  return { ...h, civ, views: (h.views as number[]).slice(0, -1) };
+  // Los dos últimos arrays son los caminos (versión 6) y el clan de cada criatura (versión 5).
+  return { ...h, civ, views: (h.views as number[]).slice(0, -2) };
 }
+
+describe('partidas con caminos', () => {
+  function withRoads(): Simulation {
+    const sim = new Simulation({ seedText: 'guardado', size: 128, capacity: 400, populate: true });
+    sim.apply({ type: 'law', law: 'monsters', value: false });
+    sim.apply({ type: 'spawn', species: Species.HUMAN, x: 50, y: 64, size: 9 });
+    sim.apply({ type: 'brush', tool: 'road', x: 60, y: 64, size: 5 });
+    for (let t = 0; t < 900; t++) sim.step();
+    return sim;
+  }
+
+  it('se guardan y continúan exactamente igual', () => {
+    const sim = withRoads();
+    expect(sim.world.road.some((r) => r === 255)).toBe(true);
+    expect(sim.world.road.some((r) => r > 0 && r < 255)).toBe(true);
+    const loaded = deserialize(serialize(sim, meta(sim)));
+    expect(Array.from(loaded.world.road)).toEqual(Array.from(sim.world.road));
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+    for (let t = 0; t < 900; t++) {
+      sim.step();
+      loaded.step();
+    }
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+  });
+
+  it('una partida de la versión 5 se carga sin caminos y los va marcando', () => {
+    const sim = withRoads();
+    const v5 = patchHeader(serialize(sim, meta(sim)), (h) => ({ ...h, version: 5, views: (h.views as number[]).slice(0, -1) }));
+    const loaded = deserialize(v5);
+    expect(loaded.world.road.every((r) => r === 0)).toBe(true);
+    expect(loaded.units.count).toBe(sim.units.count);
+    expect(loaded.civ.clans).toEqual(sim.civ.clans);
+    for (let t = 0; t < 300; t++) loaded.step();
+    expect(loaded.world.road.some((r) => r > 0)).toBe(true);
+  });
+});
 
 describe('partidas con cultura, religión y clanes', () => {
   /** Un reino con santuario, fe y casa reinante. */
@@ -318,9 +355,9 @@ function toVersion1(bytes: Uint8Array): Uint8Array {
   });
   chunks.splice(11, 1);
   h.views.splice(11, 1);
-  // ...y el último (el clan de cada criatura, de la versión 5).
-  chunks.pop();
-  h.views.pop();
+  // ...y los dos últimos (los caminos, de la versión 6, y el clan de cada criatura, de la 5).
+  chunks.splice(-2, 2);
+  h.views.splice(-2, 2);
   h.version = 1;
   delete h.civ.boats;
   for (const v of h.civ.villages) v.jobCounts = v.jobCounts.slice(0, 9);

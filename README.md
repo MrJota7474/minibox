@@ -19,8 +19,9 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Estaciones largas y más detalle** — cada estación dura 5 años por defecto (se puede elegir 3 meses, 1 año, 5 o 10 años en Leyes del mundo), con inviernos más suaves para que las aldeas aguanten. Relieve con luz y sombra en montañas y colinas, espuma en la orilla, arena mojada, destellos en el agua, nieve que cae en invierno (lluvia en los biomas cálidos), hojas en otoño, pétalos en primavera y placas con el nombre de cada aldea.
 - **Fase H (monstruos)** — tres criaturas propias que asaltan las aldeas: los **penantes** (almas en pena que salen del yermo maldito y de los aldeanos malditos al morir; la luz divina los deshace), los **escorios** (bestias de roca y lava que nacen de la lava al enfriarse, prenden lo que golpean y acaban convertidos en roca) y los **cenagosos** (moles de fango que salen solas de los pantanos y atacan en oleadas). Arrasan edificios, los guerreros defienden la aldea aunque haya paz, la aldea amenazada recluta milicia y los civiles huyen. Pestaña «Monstruos» para crearlos, ley del mundo «Aparecen monstruos», contador en la barra superior y avisos en la crónica. Las partidas anteriores se migran solas.
 - **Fase I (cultura, religión y clanes)** — cada aldea que se funda sola crea una **cultura** con un rasgo propio (laboriosa, belicosa, hospitalaria o erudita) que acumula saber y descubre agricultura, albañilería, forja y medicina; las aldeas conquistadas acaban asimilándose. Las aldeas levantan un **santuario** y adoptan o fundan una **religión** con su precepto (pacífica, celosa o devota): compartir la fe une a aldeas y reinos, y las fes distintas los enfrentan. Cada aldeano pertenece a un **clan** que hereda de su padre; el trono pasa dentro del clan reinante y, si el linaje se extingue, hay cambio de dinastía y las aldeas se inquietan. Todo se ve en el inspector y en la crónica. Las partidas anteriores se migran solas.
+- **Fase J (sonido y caminos)** — donde los aldeanos pasan a menudo se marca un **sendero** y luego un **camino**, por los que se anda más deprisa (y que la hierba recupera si dejan de usarse); los reinos tienden **calzadas** empedradas hasta sus colonias y el jugador puede pintarlas con el pincel «Calzada». **Sonido** sintetizado con WebAudio, sin archivos de audio: desastres y poderes, trabajo y combate al acercar la cámara, avisos del mundo e interfaz, con volumen y silencio en los ajustes.
 
-Ver [DESIGN.md](DESIGN.md) para el diseño completo y las próximas fases.
+Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 
 ## Ejecutar en local
 
@@ -65,6 +66,7 @@ src/
   render/    cámara, capa de terreno, sprites generados por código, renderer Canvas 2D
   input/     reconocedor de gestos, Pointer Events, teclado
   ui/        barra superior, barra de herramientas, inspector, menús
+  audio/     efectos de sonido sintetizados con WebAudio
 ```
 
 La simulación no depende de la interfaz y es determinista: la misma semilla y los mismos comandos producen exactamente el mismo mundo (hay una prueba que lo verifica con un hash del estado). Una partida guardada y cargada tiene el mismo hash y continúa de forma idéntica.
