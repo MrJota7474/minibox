@@ -209,6 +209,45 @@ function dock(p: Pix, s: Style): void {
   p.set(14, g - 5, '#8a7a5a');
 }
 
+/** Santuario: templete sobre una escalinata, con braseros y un pináculo dorado; cada raza lo levanta a su manera. */
+function shrine(p: Pix, s: Style): void {
+  const g = p.h - 1;
+  const gold = '#f2d16b';
+  // Escalinata de piedra.
+  p.rect(0, g - 1, 16, 2, s.stone);
+  p.rect(1, g - 3, 14, 2, shade(s.stone, 1.15));
+  p.rect(1, g - 1, 14, 1, shade(s.stone, 0.8));
+  let top: number;
+  if (s.roofShape === 'tent') {
+    tent(p, s, 3, 12, g - 3, 12);
+    top = g - 17;
+  } else {
+    // Cella con dos columnas claras y la puerta abierta a oscuras.
+    wall(p, s, 4, g - 10, 8, 7);
+    p.rect(3, g - 10, 1, 7, shade(s.stone, 1.3));
+    p.rect(12, g - 10, 1, 7, shade(s.stone, 1.3));
+    p.rect(7, g - 7, 2, 4, '#2a1d14');
+    p.set(7, g - 8, gold);
+    p.set(8, g - 8, gold);
+    if (s.roofShape === 'gable') gable(p, s, 2, 13, g - 11);
+    else if (s.roofShape === 'dome') dome(p, s, 7.5, g - 11, 6, 5);
+    else flatRoof(p, s, 3, 12, g - 11, 3);
+    top = s.roofShape === 'flat' ? g - 15 : g - 18;
+  }
+  // Pináculo: un disco dorado sobre un vástago.
+  p.rect(7, top, 2, 3, s.stone);
+  p.rect(6, top - 3, 4, 3, gold);
+  p.rect(7, top - 4, 2, 5, gold);
+  p.set(7, top - 3, '#fff6c0');
+  p.set(8, top - 1, shade(gold, 0.75));
+  // Braseros a los lados de la escalera.
+  for (const x of [1, 14]) {
+    p.set(x, g - 4, s.trim);
+    p.set(x, g - 5, '#ff9a2a');
+    p.set(x, g - 6, '#ffd04a');
+  }
+}
+
 /** Hoguera del primer nivel del ayuntamiento: anillo de piedras, troncos, llamas y una tienda. */
 function bonfire(p: Pix, s: Style): void {
   const g = p.h - 6;
@@ -307,6 +346,7 @@ const SPRITES: readonly Sprite[] = [
   { type: BuildingType.HOUSE, level: 3, w: 16, h: 30, draw: (p, s) => house(p, s, 3) },
   { type: BuildingType.STORAGE, level: 1, w: 16, h: 24, draw: (p, s) => storage(p, s) },
   { type: BuildingType.DOCK, level: 1, w: 16, h: 24, draw: (p, s) => dock(p, s) },
+  { type: BuildingType.SHRINE, level: 1, w: 16, h: 28, draw: (p, s) => shrine(p, s) },
 ];
 const CELL_W = 26;
 const CELL_H = 42;

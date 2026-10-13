@@ -31,6 +31,9 @@ export interface Kingdom {
   hadKing: boolean;
   /** Tick de la última rebelión dentro del reino. */
   lastRebellion: number;
+  /** Clan reinante (id, -1 si aún no hay) y tick del último cambio de dinastía. */
+  clan: number;
+  dynastyTick: number;
 }
 
 export interface War {
@@ -91,6 +94,8 @@ export class KingdomSystem {
       allies: [],
       hadKing: false,
       lastRebellion: -1e9,
+      clan: -1,
+      dynastyTick: -1e9,
     };
     this.kingdoms.push(k);
     capital.kingdom = id;
@@ -121,6 +126,12 @@ export class KingdomSystem {
 
   activeWarsOf(k: number): War[] {
     return this.wars.filter((w) => w.active && (w.attackers.includes(k) || w.defenders.includes(k)));
+  }
+
+  /** Clan (id) del líder de una aldea, o -1 si no hay líder o no tiene clan. */
+  leaderClan(v: Village): number {
+    const i = this.units.resolve(v.leader);
+    return i < 0 ? -1 : this.units.clan[i] - 1;
   }
 
   kingName(k: Kingdom): string {
@@ -334,6 +345,8 @@ export class KingdomSystem {
       h = hashMix(h, k.alive ? 1 : 0);
       h = hashMix(h, k.capital);
       h = hashMix(h, k.king);
+      h = hashMix(h, k.clan);
+      h = hashMix(h, k.dynastyTick);
       h = hashMix(h, k.allies.length);
     }
     for (const w of this.wars) {

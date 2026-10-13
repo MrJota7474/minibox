@@ -77,6 +77,8 @@ export interface SpawnOptions {
   village?: number;
   /** Máscara de rasgos (ver entities/traits.ts). */
   traits?: number;
+  /** Clan + 1 que hereda (0 = ninguno). */
+  clan?: number;
 }
 
 /**
@@ -136,6 +138,8 @@ export class UnitStore {
   readonly traits: Uint32Array;
   /** Crías que ha tenido. */
   readonly children: Uint16Array;
+  /** Clan + 1 (0 = sin clan): ver civ/society.ts. */
+  readonly clan: Uint16Array;
   readonly pathLen: Uint8Array;
   readonly pathIdx: Uint8Array;
   /** Waypoints (x, y) de la ruta: PATH_MAX pares por criatura. */
@@ -183,6 +187,7 @@ export class UnitStore {
     this.mad = new Uint16Array(capacity);
     this.traits = new Uint32Array(capacity);
     this.children = new Uint16Array(capacity);
+    this.clan = new Uint16Array(capacity);
     this.pathLen = new Uint8Array(capacity);
     this.pathIdx = new Uint8Array(capacity);
     this.path = new Int16Array(capacity * PATH_MAX * 2);
@@ -231,6 +236,7 @@ export class UnitStore {
     this.mad[i] = 0;
     this.traits[i] = opts.traits ?? 0;
     this.children[i] = 0;
+    this.clan[i] = opts.clan ?? 0;
     this.pathLen[i] = 0;
     this.pathIdx[i] = 0;
     this.count++;
@@ -281,6 +287,8 @@ export class UnitStore {
       this.job, this.carry, this.carryAmount, this.work, this.workTimer, this.nameSeed, this.gear,
       this.homeKingdom, this.status, this.plague, this.mad, this.traits, this.children,
       this.pathLen, this.pathIdx, this.path, this.free,
+      // Los arrays nuevos van siempre al final (las partidas antiguas traen menos).
+      this.clan,
     ];
   }
 
@@ -345,6 +353,7 @@ export class UnitStore {
       this.mad,
       this.traits,
       this.children,
+      this.clan,
     ]);
   }
 }

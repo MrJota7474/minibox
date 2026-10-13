@@ -24,8 +24,9 @@ import { boatsHash, updateBoats, wreckBoatsIn, type Boat } from './boats';
 import { villageName } from './names';
 import { canPlace, clearFootprint, findBuildSpot } from './placement';
 import { planVillage } from './planner';
+import { assignClans, buildBonus, createCulture, onShrineBuilt, societyHash, type Clan, type Culture, type Religion } from './society';
 
-export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era' | 'monster';
+export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era' | 'monster' | 'culture' | 'faith' | 'dynasty';
 
 export interface ChronicleEntry {
   readonly tick: number;
@@ -72,6 +73,10 @@ export class CivSystem {
   readonly kingdoms: KingdomSystem;
   /** Barcos (los hundidos o desarmados quedan con alive = false). */
   readonly boats: Boat[] = [];
+  /** Culturas, religiones y clanes (ver society.ts); los ids son índices y nunca se borran. */
+  readonly cultures: Culture[] = [];
+  readonly religions: Religion[] = [];
+  readonly clans: Clan[] = [];
   /** Aldeas con monstruos cerca este tick (índice = id; derivado, ver markMonsterAlerts). */
   readonly monsterAlert: boolean[] = [];
   tick = 0;
@@ -168,6 +173,8 @@ export class CivSystem {
       founded: ctx.tick,
       hallId: -1,
       kingdom: -1,
+      culture: -1,
+      religion: -1,
       loyalty: 100,
       capturedTick: -1,
       captureBy: -1,
@@ -199,9 +206,12 @@ export class CivSystem {
     if (kingdom >= 0 && this.kingdoms.kingdoms[kingdom]?.alive) {
       v.kingdom = kingdom;
       v.loyalty = 70;
+      // Las colonias llevan consigo la cultura de la capital de su reino.
+      v.culture = this.villages[this.kingdoms.kingdoms[kingdom].capital]?.culture ?? -1;
     } else {
       this.kingdoms.create(v);
     }
+    if (v.culture < 0) v.culture = createCulture(this, v).id;
     for (const m of members) this.joinVillage(m, v);
     this.addEvent('founded', id, `Se fundó ${v.name} (${SPECIES[race].plural})`);
     return v;
@@ -279,14 +289,15 @@ export class CivSystem {
   /** Suma trabajo a una obra; si se completa, sube de nivel. */
   addWork(b: Building, amount: number): void {
     if (!b.alive || !b.underConstruction) return;
-    b.progress += amount;
+    const v = this.villages[b.village];
+    b.progress += amount * buildBonus(this, v);
     const needed = BUILDING_DEFS[b.type].work[b.level];
     if (b.progress < needed) return;
     b.level++;
     b.underConstruction = false;
     b.progress = 0;
+    if (b.type === BuildingType.SHRINE) onShrineBuilt(this, v);
     if (b.type === BuildingType.HALL) {
-      const v = this.villages[b.village];
       this.addEvent('upgraded', v.id, `${v.name} ya tiene ${hallLevelName(b.level).toLowerCase()}`);
     }
   }
@@ -477,6 +488,7 @@ export class CivSystem {
       if (v.alive) for (const id of v.buildingIds) this.countBuilding(v, this.buildings[id]);
     }
     this.countUnits();
+    assignClans(this, this.units);
   }
 
   private countBuilding(v: Village, b: Building): void {
@@ -574,6 +586,8 @@ export class CivSystem {
       h = hashMix(h, v.alive ? 1 : 0);
       h = hashMix(h, v.zones);
       h = hashMix(h, v.kingdom);
+      h = hashMix(h, v.culture);
+      h = hashMix(h, v.religion);
       h = hashMix(h, v.loyalty);
       for (const r of v.resources) h = hashMix(h, r);
     }
@@ -584,6 +598,7 @@ export class CivSystem {
       h = hashMix(h, b.burn);
     }
     h = hashMix(h, boatsHash(this.boats));
+    h = hashMix(h, societyHash(this));
     return hashMix(h, this.kingdoms.stateHash());
   }
 }

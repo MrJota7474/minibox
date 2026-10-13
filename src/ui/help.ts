@@ -38,6 +38,9 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Biomas', 'Pinta nieve, pantano, selva, sabana, arboleda mágica (cura y se extiende) o yermo maldito (hiere y marchita) desde Naturaleza'],
   ['Estaciones y eras', 'En invierno no crecen las cosechas y la hierba apenas vuelve; cada unos 40 años empieza una era nueva. En Leyes puedes imponer una'],
   ['Monstruos', 'Los penantes salen del yermo maldito y de los muertos malditos (la luz divina los deshace), los escorios nacen de la lava y los cenagosos, de los pantanos. Asaltan las aldeas y los guerreros las defienden; se desactivan en Leyes'],
+  ['Cultura', 'Cada aldea que se funda sola crea una cultura con un rasgo propio; con el tiempo descubre agricultura, albañilería, forja y medicina. Las aldeas conquistadas acaban adoptando la de su nuevo reino'],
+  ['Religión', 'Las aldeas con ayuntamiento levantan un santuario y adoptan o fundan una fe. Compartirla une a aldeas y reinos; las fes distintas los enfrentan'],
+  ['Clanes', 'Cada aldeano pertenece a un clan que hereda de su padre. El trono pasa dentro del clan reinante; si el linaje se extingue hay cambio de dinastía y las aldeas se inquietan'],
   ['Mar','Las aldeas de la costa construyen un muelle: allí pescan y botan barcos que llevan colonos a otras islas o ejércitos a costas enemigas'],
   ['Partidas', 'Menú › Guardar / cargar: 5 ranuras, autoguardado y exportar o importar un archivo .minibox'],
 ];

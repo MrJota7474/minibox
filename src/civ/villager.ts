@@ -7,6 +7,7 @@ import { SPECIES, type RaceTraits, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
 import { actFight, actFlee, actMarch, defendFromMonsters, fleeIfThreatened, thinkWarrior } from './combat';
+import { farmBonus, workBonus } from './society';
 import { BuildingType, FARM_HARVEST_FOOD, FARM_RIPE, FISH_CATCH, FISH_FOOD, Job, Resource, type Building, type Village } from './model';
 
 const CIV_TIMEOUT_TICKS = 600;
@@ -321,7 +322,7 @@ function beginWork(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (w < ctx.world.size) {
     const spec = TILE_WORK[ctx.world.flora[w]];
     if (!spec) return abandonTask(ctx, i);
-    u.workTimer[i] = Math.max(5, Math.round(spec.ticks / (traitFor(def, spec.trait) * traitMods(u.traits[i]).work)));
+    u.workTimer[i] = Math.max(5, Math.round(spec.ticks / (traitFor(def, spec.trait) * traitMods(u.traits[i]).work * workBonus(ctx.civ, ctx.civ.villageOf(i)))));
   } else {
     const b = ctx.civ.buildings[w - ctx.world.size];
     u.workTimer[i] = b && b.type === BuildingType.DOCK && !b.underConstruction ? FISH_SHIFT_TICKS : FARM_SHIFT_TICKS;
@@ -376,7 +377,7 @@ function workBuilding(ctx: AiContext, i: number, def: SpeciesDef, id: number): v
     if (b.growth >= FARM_RIPE) {
       b.growth = 0;
       ctx.civ.releaseWork(i);
-      setCarry(u, i, Resource.FOOD, Math.round(FARM_HARVEST_FOOD * traitFor(def, 'farm')));
+      setCarry(u, i, Resource.FOOD, Math.round(FARM_HARVEST_FOOD * traitFor(def, 'farm') * farmBonus(ctx.civ, ctx.civ.villageOf(i))));
       u.state[i] = UnitState.IDLE;
       u.think[i] = 1;
       return;
@@ -531,6 +532,8 @@ function mate(ctx: AiContext, i: number, def: SpeciesDef): void {
       nameSeed: ctx.rng.nextU32(),
       village: v.id,
       traits: inheritTraits(u.traits[i], u.traits[partner], ctx.rng),
+      // El clan se hereda del padre (o de la madre, si él no tiene).
+      clan: u.clan[mother === i ? partner : i] || u.clan[mother],
     });
     if (child !== NO_UNIT) {
       recordBirth(ctx, i, partner);

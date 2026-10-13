@@ -2,9 +2,9 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos), G (biomas, estaciones y eras) y H (monstruos) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos), G (biomas, estaciones y eras), H (monstruos) e I (cultura, religión y clanes) implementadas.**
 >
-> Siguientes fases acordadas: cultura, religión y clanes; sonido y caminos. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G; los monstruos, en la H.
+> Siguiente fase acordada: sonido y caminos. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G; los monstruos, en la H.
 
 ---
 
@@ -157,7 +157,7 @@ Leyenda: **N** = Núcleo (sin esto no hay juego) · **I** = Importante (da profu
 | Pescador, cazador, herrero (equipo que sube el daño y la armadura) | I | B/C |
 | Muelles y barcos para colonizar islas | I | F |
 | Caminos | E | post-E |
-| Cultura con rasgos y tecnología, idioma, religión | E | post-E |
+| Cultura con rasgos y tecnología, religión (sin idiomas) | E | I |
 
 ### 3.5 Reinos
 
@@ -172,7 +172,7 @@ Leyenda: **N** = Núcleo (sin esto no hay juego) · **I** = Importante (da profu
 | Alianzas defensivas | I | C |
 | Rebeliones por baja lealtad | I | C |
 | Sucesión del rey (heredero o fractura) | I | C |
-| Clanes y genealogía | E | post-E |
+| Clanes y sucesión dinástica | E | I |
 
 ### 3.6 Unidades, rasgos e inspector
 
@@ -393,8 +393,18 @@ Criaturas propias y peligrosas (nada de monstruos icónicos de otros juegos). So
 - **Visual**: sprites por código (más grandes que un aldeano en el escorio y el cenagoso), resplandor bajo el escorio, ascuas, jirones y goterones; motas sobre el yermo maldito y la arboleda mágica; humo en los edificios dañados.
 - **Guardado**: formato MBX versión 4 (ley nueva y un quinto flujo de azar); las partidas de la versión 3 se migran al cargar.
 
-### Después de H
-Cultura, religión y clanes; sonido y caminos (en ese orden).
+### Fase I — Cultura, religión y clanes
+Tres capas sociales sobre las aldeas y los reinos (`civ/society.ts`), cada una con pocas reglas y efecto visible.
+
+- **Cultura**: nace con cada aldea que se funda por su cuenta; las colonias heredan la de la capital de su reino. Tiene un **rasgo** fijo (Laboriosa: +10 % de trabajo; Belicosa: +10 % de daño de sus guerreros y −10 de opinión hacia otras culturas; Hospitalaria: +10 de lealtad y de opinión; Erudita: +50 % de saber) y acumula **saber** en cada pasada de reinos (adultos/10 por aldea). Con 40, 120, 280 y 520 de saber descubre, en orden, **Agricultura** (cosechas +25 %), **Albañilería** (obras +30 %), **Forja** (armas de hierro +25 % de daño) y **Medicina** (curación ×2). Una aldea de otra cultura que la de su capital es menos leal (−15) y, tras 15 años, puede asimilarse (8 % por pasada).
+- **Religión**: edificio nuevo, el **santuario** (2×2; desde la hoguera, 10 habitantes, 12 de madera y 6 de piedra). Al terminarlo, la aldea adopta la fe de su capital; si no la tiene, la de la aldea con fe más cercana (a 45 casillas, 60 %); si no, **funda una**. Cada fe tiene un **precepto**: Pacífica (+15 de opinión hacia todos y paz más fácil), Celosa (−30 hacia reinos de otra fe en vez de −15, +25 hacia la suya) o Devota (+10 de lealtad). La fe del reino es la de su capital: misma fe +10 de lealtad, distinta −15 (y un 10 % por pasada de convertirse). Entre reinos: misma fe +20 de opinión, distinta −15.
+- **Clanes**: cada aldeano lleva un clan (`units.clan`); los hijos heredan el del padre. En cada censo, quien no tiene clan funda uno si su aldea tiene menos de dos, o entra en el menor. **Sucesión**: hereda el adulto de más edad del clan reinante (primero en la capital, luego en el resto del reino); si sólo quedan menores reina un niño, y si el linaje se ha extinguido en el reino sube otro clan: **cambio de dinastía** (crónica y −15 de lealtad durante 10 años). Una aldea cuyo líder es del clan reinante es más leal (+10).
+- **Interfaz**: el inspector muestra cultura, saberes y religión de la aldea, la casa reinante del reino y el clan de cada aldeano; la crónica anuncia culturas, descubrimientos, religiones, conversiones y dinastías.
+- **Visual**: santuario con la arquitectura de cada raza, pináculo dorado, braseros y destellos.
+- **Guardado**: formato MBX versión 5 (culturas, religiones y clanes en la cabecera; clan de cada criatura); las partidas de la versión 4 se migran: una cultura por reino, sin fe y con los clanes repartidos en el primer censo.
+
+### Después de I
+Sonido y caminos.
 
 ---
 

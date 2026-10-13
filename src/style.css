@@ -446,6 +446,13 @@ img {
 .chronicle-monster span:last-child {
   color: #f0a45a;
 }
+.chronicle-culture span:last-child {
+  color: #8fd6c2;
+}
+.chronicle-faith span:last-child,
+.chronicle-dynasty span:last-child {
+  color: #f2d16b;
+}
 .chronicle-shipwreck span:last-child,
 .chronicle-war span:last-child,
 .chronicle-conquest span:last-child {

@@ -19,7 +19,7 @@ export type JobId = (typeof Job)[keyof typeof Job];
 export const JOB_COUNT = 10;
 export const JOB_NAMES: readonly string[] = ['Sin oficio', 'Recolector', 'Leñador', 'Minero', 'Granjero', 'Constructor', 'Cazador', 'Colono', 'Guerrero', 'Pescador'];
 
-export const BuildingType = { HALL: 0, HOUSE: 1, STORAGE: 2, FARM: 3, DOCK: 4 } as const;
+export const BuildingType = { HALL: 0, HOUSE: 1, STORAGE: 2, FARM: 3, DOCK: 4, SHRINE: 5 } as const;
 export type BuildingTypeId = (typeof BuildingType)[keyof typeof BuildingType];
 
 export interface BuildingDef {
@@ -97,6 +97,17 @@ export const BUILDING_DEFS: readonly BuildingDef[] = [
     hallLevel: [2],
     minPop: [10],
   },
+  {
+    names: ['Santuario'],
+    w: 2,
+    h: 2,
+    cost: [[0, 12, 6, 0, 0]],
+    work: [140],
+    housing: [0],
+    storage: [0],
+    hallLevel: [1],
+    minPop: [10],
+  },
 ];
 
 /** Crecimiento de una granja hasta la cosecha. */
@@ -138,6 +149,9 @@ export interface Village {
   hallId: number;
   /** Reino al que pertenece. */
   kingdom: number;
+  /** Cultura (id) y religión (id, -1 = sin fe): ver civ/society.ts. */
+  culture: number;
+  religion: number;
   /** Lealtad al reino (0-100); por debajo de cierto umbral puede rebelarse. */
   loyalty: number;
   /** Tick de la última conquista (-1 si nunca). */

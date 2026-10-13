@@ -4,6 +4,7 @@ import { BIOME_INFO, isWalkableTerrain } from '../world/terrain';
 import type { UnitStore } from '../entities/units';
 import { DeathCause, killUnit, type AiContext } from './context';
 import { escapeBlockedTile } from './movement';
+import { healBonus } from '../civ/society';
 
 const STARVE_INTERVAL = 50;
 const STARVE_DAMAGE_FRACTION = 0.1;
@@ -36,7 +37,9 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
   if (vitality !== 0 && (ctx.tick + i) % HEAL_INTERVAL === 0 && !applyVitality(ctx, i, def, vitality)) return false;
   // En un yermo maldito nadie se recupera por sí solo.
   if (vitality >= 0 && u.hp[i] < def.maxHp && (ctx.tick + i) % HEAL_INTERVAL === 0 && u.hunger[i] > def.maxHunger * HEAL_MIN_HUNGER) {
-    u.hp[i] = Math.min(def.maxHp, u.hp[i] + Math.max(1, Math.round(def.maxHp * HEAL_FRACTION * mods.heal)));
+    // La medicina de su cultura cura antes a los aldeanos.
+    const medicine = def.diet === 'civilized' ? healBonus(ctx.civ, ctx.civ.villageOf(i)) : 1;
+    u.hp[i] = Math.min(def.maxHp, u.hp[i] + Math.max(1, Math.round(def.maxHp * HEAL_FRACTION * mods.heal * medicine)));
   }
   if (!ctx.world.isWalkableAt(u.x[i], u.y[i]) && !(def.monster?.fiery && standsOnLava(ctx, i)) && !handleBlockedTile(ctx, i)) return false;
   return true;

@@ -1,4 +1,5 @@
 import { JOB_COUNT } from '../civ/model';
+import { migrateSociety } from '../civ/society';
 import { ABOARD_FLAG, MAX_CAPACITY } from '../entities/units';
 import { LAW_IDS, defaultLaws, type WorldLaws } from '../sim/laws';
 import { DEFAULT_SEASON_TICKS, ERA_INFO, isSeasonLength } from '../world/climate';
@@ -12,9 +13,9 @@ import { checkSave, validateLoaded } from './validate';
  * `world.dataViews()` + `units.dataViews()`. El conjunto se comprime con gzip.
  */
 const MAGIC = [0x4d, 0x42, 0x58, 0x31];
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 /** Versiones que se pueden cargar (las anteriores se migran al cargar). */
-const SUPPORTED_VERSIONS: readonly number[] = [1, 2, 3, 4];
+const SUPPORTED_VERSIONS: readonly number[] = [1, 2, 3, 4, 5];
 /** Flujos de azar que guardaban las partidas anteriores a la versión 4 (sin el de los monstruos). */
 const LEGACY_RNG_COUNT = 4;
 const ALIGN = 8;
@@ -24,6 +25,8 @@ const MAX_SIZE = 1024;
 const MAX_UNPACKED_BYTES = 128 * 1024 * 1024;
 /** Arrays del mapa (`world.dataViews()`) según la versión: la 2 añadió los mares. */
 const worldViewCount = (version: number): number => (version >= 2 ? 12 : 11);
+/** Arrays de criaturas (al final de `units.dataViews()`) que una versión antigua aún no guardaba: la 5 añadió el clan. */
+const newerUnitViews = (version: number): number => (version >= 5 ? 0 : 1);
 
 /** Resumen visible de una partida (lista de ranuras). */
 export interface SaveMeta {
@@ -65,13 +68,18 @@ interface Header {
     wars: Civ['kingdoms']['wars'];
     /** Desde la versión 2. */
     boats?: Civ['boats'];
+    /** Desde la versión 5. */
+    cultures?: Civ['cultures'];
+    religions?: Civ['religions'];
+    clans?: Civ['clans'];
   };
   /** Longitud en bytes de cada array (comprobación al cargar). */
   views: number[];
 }
 
 function allViews(sim: Simulation, version = SAVE_VERSION): ArrayBufferView[] {
-  return [...sim.world.dataViews().slice(0, worldViewCount(version)), ...sim.units.dataViews()];
+  const units = sim.units.dataViews();
+  return [...sim.world.dataViews().slice(0, worldViewCount(version)), ...units.slice(0, units.length - newerUnitViews(version))];
 }
 
 function bytesOf(v: ArrayBufferView): Uint8Array {
@@ -114,7 +122,7 @@ export function serialize(sim: Simulation, meta: SaveMeta): Uint8Array {
     units: sim.units.getCounters(),
     hazards: sim.hazards.getLists(),
     powers: { effects: sim.powers.effects, held: sim.powers.held },
-    civ: { tick: civ.tick, villages: civ.villages, buildings: civ.buildings, chronicle: civ.chronicle, kingdoms: civ.kingdoms.kingdoms, wars: civ.kingdoms.wars, boats: civ.boats },
+    civ: { tick: civ.tick, villages: civ.villages, buildings: civ.buildings, chronicle: civ.chronicle, kingdoms: civ.kingdoms.kingdoms, wars: civ.kingdoms.wars, boats: civ.boats, cultures: civ.cultures, religions: civ.religions, clans: civ.clans },
     views: views.map((v) => v.byteLength),
   };
   const json = new TextEncoder().encode(JSON.stringify(header));
@@ -172,6 +180,8 @@ function validateHeader(h: Header): void {
   const indexed = (list: readonly { id: number }[]): boolean => list.every((x, k) => x && x.id === k);
   if (h.version >= 2 && !Array.isArray(c.boats)) fail('barcos');
   if (!indexed(c.villages) || !indexed(c.buildings) || !indexed(c.kingdoms) || !indexed(c.wars) || !indexed(c.boats ?? [])) fail('identificadores de civilización');
+  if (h.version >= 5 && (!Array.isArray(c.cultures) || !Array.isArray(c.religions) || !Array.isArray(c.clans))) fail('culturas, religiones o clanes');
+  if (!indexed(c.cultures ?? []) || !indexed(c.religions ?? []) || !indexed(c.clans ?? [])) fail('identificadores de sociedad');
   if (!Array.isArray(h.deaths) || !h.deaths.every(isCount) || !isCount(h.births)) fail('estadísticas');
   if (!Array.isArray(h.powers?.effects) || !Array.isArray(h.powers?.held)) fail('efectos');
   if (!Array.isArray(h.hazards?.burning) || !Array.isArray(h.hazards?.molten)) fail('fuego y lava');
@@ -248,6 +258,11 @@ export function deserialize(bytes: Uint8Array): Simulation {
   civ.kingdoms.kingdoms.push(...h.civ.kingdoms);
   civ.kingdoms.wars.push(...h.civ.wars);
   civ.boats.push(...(h.civ.boats ?? []));
+  civ.cultures.push(...(h.civ.cultures ?? []));
+  civ.religions.push(...(h.civ.religions ?? []));
+  civ.clans.push(...(h.civ.clans ?? []));
+  // Antes de la versión 5 no había culturas ni clanes: una cultura por reino y sin fe.
+  if (h.version < 5) migrateSociety(civ);
   // Versión 1: aún no existía el oficio de pescador.
   for (const v of civ.villages) while (Array.isArray(v.jobCounts) && v.jobCounts.length < JOB_COUNT) v.jobCounts.push(0);
   validateLoaded(sim);

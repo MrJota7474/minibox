@@ -304,6 +304,11 @@ export class FxLayer {
         this.burst(b.x + b.w * 0.7, b.y - (b.type === BuildingType.HALL ? 1.2 : 0.8), 1, 'smoke', 0.3);
         budget--;
       }
+      // Los santuarios despiden destellos.
+      if (b.type === BuildingType.SHRINE && b.level >= 1 && Math.random() < 0.04) {
+        this.burst(b.x + 0.4 + Math.random() * 1.2, b.y - 0.6, 1, 'blessing');
+        budget--;
+      }
       // Los edificios dañados (por el fuego o por los monstruos) humean hasta que se reparan.
       if (b.burn > SMOKING_BURN && Math.random() < 0.08) {
         this.burst(b.x + Math.random() * b.w, b.y + Math.random() * b.h * 0.5, 1, 'smoke', 0.4);

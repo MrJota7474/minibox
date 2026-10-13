@@ -1,5 +1,6 @@
 import { BUILDING_DEFS, JOB_COUNT, RESOURCE_COUNT, VILLAGE_COLORS } from '../civ/model';
 import { PERSONALITY_NAMES } from '../civ/kingdoms';
+import { CULTURE_TRAITS, TECHS, TENETS } from '../civ/society';
 import { SPECIES, isMonster } from '../entities/species';
 import { UnitState } from '../entities/units';
 import type { Simulation } from '../sim/simulation';
@@ -41,6 +42,7 @@ function validateVillages(sim: Simulation): void {
     checkSave(typeof v.name === 'string' && inRange(v.race, 0, SPECIES.length) && inRange(v.colorIndex, 0, VILLAGE_COLORS.length) && typeof v.alive === 'boolean', 'aldea');
     checkSave([v.cx, v.cy, v.founded, v.loyalty, v.capturedTick, v.captureProgress, v.leader, v.lastSettlers].every(isNum), 'datos de aldea');
     checkSave(inRange(v.hallId, -1, nB) && inRange(v.kingdom, -1, nK) && inRange(v.armyTarget, -1, nV) && inRange(v.captureBy, -1, nK), 'referencias de aldea');
+    checkSave(inRange(v.culture, 0, civ.cultures.length) && inRange(v.religion, -1, civ.religions.length), 'cultura o religión de aldea');
     checkSave(intList(v.buildingIds, 0, nB), 'edificios de aldea');
     checkSave(Array.isArray(v.resources) && v.resources.length === RESOURCE_COUNT && v.resources.every(isNum), 'recursos de aldea');
     checkSave(Array.isArray(v.jobCounts) && v.jobCounts.length === JOB_COUNT && v.jobCounts.every(isInt), 'oficios de aldea');
@@ -65,7 +67,8 @@ function validateKingdoms(sim: Simulation): void {
     checkSave(typeof k.name === 'string' && inRange(k.race, 0, SPECIES.length) && inRange(k.colorIndex, 0, VILLAGE_COLORS.length) && typeof k.alive === 'boolean', 'reino');
     checkSave(inRange(k.capital, -1, sim.civ.villages.length) && inRange(k.personality, 0, PERSONALITY_NAMES.length) && isInt(k.king), 'referencias de reino');
     checkSave(intList(k.allies, 0, nK) && numRecord(k.grievances, nK) && numRecord(k.truce, nK), 'relaciones de reino');
-    checkSave([k.founded, k.lastRebellion].every(isNum) && typeof k.hadKing === 'boolean', 'datos de reino');
+    checkSave([k.founded, k.lastRebellion, k.dynastyTick].every(isNum) && typeof k.hadKing === 'boolean', 'datos de reino');
+    checkSave(inRange(k.clan, -1, sim.civ.clans.length), 'casa reinante');
   }
   for (const war of ks.wars) {
     checkSave(intList(war.attackers, 0, nK) && intList(war.defenders, 0, nK) && typeof war.active === 'boolean' && isNum(war.start), 'guerra');
@@ -127,8 +130,23 @@ function validateBoats(sim: Simulation): void {
   }
 }
 
+function validateSociety(sim: Simulation): void {
+  const civ = sim.civ;
+  const nV = civ.villages.length;
+  const named = (x: { name: unknown; race: unknown; founded: unknown }): boolean => typeof x.name === 'string' && inRange(x.race, 0, SPECIES.length) && isNum(x.founded);
+  for (const c of civ.cultures) {
+    checkSave(named(c) && inRange(c.origin, 0, nV) && inRange(c.trait, 0, CULTURE_TRAITS.length), 'cultura');
+    checkSave(isNum(c.knowledge) && c.knowledge >= 0 && inRange(c.level, 0, TECHS.length + 1), 'saber de una cultura');
+  }
+  for (const r of civ.religions) checkSave(named(r) && inRange(r.origin, 0, nV) && inRange(r.tenet, 0, TENETS.length), 'religión');
+  for (const c of civ.clans) checkSave(named(c) && isInt(c.members) && c.members >= 0 && isInt(c.crowns) && c.crowns >= 0, 'clan');
+  const u = sim.units;
+  for (let i = 0; i < u.highWater; i++) checkSave(u.alive[i] === 0 || u.clan[i] <= civ.clans.length, 'clan de una criatura');
+}
+
 /** Comprueba todas las referencias cruzadas de una partida cargada. */
 export function validateLoaded(sim: Simulation): void {
+  validateSociety(sim);
   validateVillages(sim);
   validateBuildings(sim);
   validateKingdoms(sim);

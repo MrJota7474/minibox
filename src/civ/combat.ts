@@ -6,6 +6,7 @@ import { isMonster, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, UnitState } from '../entities/units';
 import { damageMultiplier, damageTakenMultiplier } from '../powers/status';
 import { Job, type Village } from './model';
+import { gearBonus, warriorBonus } from './society';
 
 /** Los guerreros sólo combaten contra guerreros: las guerras cambian fronteras, no exterminan pueblos. */
 const ENGAGE_SIGHT = 9;
@@ -201,7 +202,10 @@ export function actFight(ctx: AiContext, i: number, def: SpeciesDef): void {
   }
   if (u.attackCd[i] > 0) return;
   u.attackCd[i] = ATTACK_COOLDOWN;
-  const damage = def.damage * (u.gear[i] ? GEAR_DAMAGE : 1) * (u.gear[enemy] ? GEAR_ARMOR : 1) * damageMultiplier(u, i) * damageTakenMultiplier(u, enemy);
+  // La cultura de su aldea cuenta: la forja mejora las armas y las culturas belicosas pegan más.
+  const home = ctx.civ.villageOf(i);
+  const weapon = u.gear[i] ? GEAR_DAMAGE * gearBonus(ctx.civ, home) : 1;
+  const damage = def.damage * weapon * warriorBonus(ctx.civ, home) * (u.gear[enemy] ? GEAR_ARMOR : 1) * damageMultiplier(u, i) * damageTakenMultiplier(u, enemy);
   u.hp[enemy] -= Math.max(1, Math.round(damage));
   if (u.hp[enemy] > 0) return;
   if (!monster) ks.recordLoss(ks.kingdomOfUnit(enemy));

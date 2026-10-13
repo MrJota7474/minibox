@@ -27,6 +27,8 @@ const MAX_STORAGES = 3;
 /** Cada cuántos ticks mira una aldea si puede construir un muelle (buscar sitio en la costa cuesta). */
 const DOCK_CHECK_TICKS = 300;
 const CENSUS_TICKS = 30;
+/** Cada cuántos ticks mira una aldea sin fe si puede levantar su santuario. */
+const SHRINE_CHECK_TICKS = 150;
 /** Prioridad al repartir oficios (de más a menos importante). */
 const JOB_PRIORITY: readonly JobId[] = [Job.FARMER, Job.FISHER, Job.WARRIOR, Job.BUILDER, Job.GATHERER, Job.WOODCUTTER, Job.MINER, Job.HUNTER];
 
@@ -51,6 +53,10 @@ function chooseConstruction(civ: CivSystem, v: Village, hall: Building, ctx: AiC
   }
   const farmsWanted = Math.ceil(v.population / 7);
   if (countOfType(civ, v, BuildingType.FARM) < farmsWanted && v.resources[Resource.FOOD] < v.population * 3 && tryBuild(civ, v, BuildingType.FARM, hall)) return;
+  // Un santuario por aldea: al terminarlo, la aldea adopta o funda una religión.
+  // (Sólo si aún no tiene fe, y mirando de vez en cuando: buscar sitio cuesta.)
+  const shrineTurn = (ctx.tick + v.id * CENSUS_TICKS) % SHRINE_CHECK_TICKS === 0;
+  if (v.religion < 0 && shrineTurn && countOfType(civ, v, BuildingType.SHRINE) === 0 && tryBuild(civ, v, BuildingType.SHRINE, hall)) return;
   const fullest = Math.max(...v.resources);
   if (fullest >= v.storageCap * 0.8 && countOfType(civ, v, BuildingType.STORAGE) < MAX_STORAGES) tryBuild(civ, v, BuildingType.STORAGE, hall);
 }

@@ -5,6 +5,7 @@ import { totalStored, Job, type Village } from './model';
 import { Personality, type Kingdom, type KingdomSystem } from './kingdoms';
 import { personName } from './names';
 import { navalReach } from './boats';
+import { CultureTrait, DYNASTY_UNREST_TICKS, Tenet, cultureOf, kingdomFaith, stepSociety } from './society';
 
 const WAR_OPINION = -25;
 const ALLY_OPINION = 45;
@@ -87,6 +88,27 @@ export function opinion(ks: KingdomSystem, a: number, b: number, touching: Set<n
   const ca = ks.civ.villages[A.capital];
   const cb = ks.civ.villages[B.capital];
   if (ca && cb && dist(ca, cb) > 80) o += 10;
+  return o + societyOpinion(ks, A, B);
+}
+
+/** Lo que la cultura y la fe de cada reino (las de su capital) pesan en la opinión de A sobre B. */
+function societyOpinion(ks: KingdomSystem, A: Kingdom, B: Kingdom): number {
+  const civ = ks.civ;
+  const ca = cultureOf(civ, civ.villages[A.capital] ?? null);
+  const cb = cultureOf(civ, civ.villages[B.capital] ?? null);
+  let o = 0;
+  if (ca && cb) {
+    if (ca.id === cb.id) o += 10;
+    else o -= ca.trait === CultureTrait.WARLIKE ? 15 : 5;
+  }
+  if (cb?.trait === CultureTrait.WELCOMING) o += 10;
+  const fa = kingdomFaith(civ, A);
+  const fb = kingdomFaith(civ, B);
+  if (fa?.tenet === Tenet.PEACEFUL) o += 15;
+  if (fa && fb) {
+    const zealous = fa.tenet === Tenet.ZEALOUS;
+    o += fa.id === fb.id ? (zealous ? 25 : 20) : zealous ? -30 : -15;
+  }
   return o;
 }
 
@@ -102,6 +124,17 @@ export function loyaltyOf(ks: KingdomSystem, v: Village): number {
   l -= Math.max(0, ks.villagesOf(K.id).length - 8) * 3;
   if (K.personality === Personality.WISE) l += 10;
   else if (K.personality === Personality.AGGRESSIVE) l -= 5;
+  // Cultura, fe y linaje: lo que une o separa a la aldea de su capital.
+  if (capital) {
+    if (v.culture !== capital.culture) l -= 15;
+    if (v.religion >= 0 && capital.religion >= 0) {
+      if (v.religion !== capital.religion) l -= 15;
+      else l += ks.civ.religions[v.religion]?.tenet === Tenet.DEVOUT ? 20 : 10;
+    }
+  }
+  if (cultureOf(ks.civ, v)?.trait === CultureTrait.WELCOMING) l += 10;
+  if (K.clan >= 0 && ks.leaderClan(v) === K.clan) l += 10;
+  if (ks.civ.tick - K.dynastyTick < DYNASTY_UNREST_TICKS) l -= 15;
   return Math.max(0, Math.min(100, Math.round(l)));
 }
 
@@ -123,28 +156,54 @@ export function runKingdomAi(ks: KingdomSystem, ctx: AiContext): void {
     considerAlliances(ks, K, touching);
     assignArmies(ks, K, villages, ctx);
   }
+  stepSociety(ks.civ, ctx);
 }
 
-/** Si el rey murió, hereda el adulto de más edad de la capital (o de la aldea más poblada). */
+/**
+ * Si el rey murió, hereda el adulto de más edad de su mismo clan (primero en la capital,
+ * luego en el resto del reino). Si el linaje se ha extinguido, sube al trono otro clan
+ * (el adulto de más edad de la capital o de la aldea más poblada): cambio de dinastía.
+ */
 function ensureKing(ks: KingdomSystem, K: Kingdom, ctx: AiContext): void {
   const u = ctx.units;
   const current = u.resolve(K.king);
-  if (current >= 0 && ks.kingdomOfUnit(current) === K.id) return;
-  const pick = (villageId: number): number => {
+  if (current >= 0 && ks.kingdomOfUnit(current) === K.id) {
+    // El primer rey pudo coronarse antes de que el censo repartiera los clanes.
+    const house = K.clan < 0 ? ks.civ.clans[u.clan[current] - 1] : undefined;
+    if (house) {
+      K.clan = house.id;
+      house.crowns++;
+    }
+    return;
+  }
+  /** El mejor heredero de una aldea; con `clan` >= 0, sólo de ese clan (y entonces vale también un menor). */
+  const pick = (villageId: number, clan: number, minors = false): number => {
     let best = -1;
     let oldest = -1;
     for (let i = 0; i < u.highWater; i++) {
       const def = SPECIES[u.species[i]];
-      if (u.alive[i] === 0 || u.village[i] !== villageId || u.age[i] < def.adultTicks) continue;
+      if (u.alive[i] === 0 || u.village[i] !== villageId || (!minors && u.age[i] < def.adultTicks)) continue;
+      if (clan >= 0 && u.clan[i] - 1 !== clan) continue;
       if (oldest < 0 || u.age[i] > u.age[oldest]) oldest = i;
       if (u.age[i] <= def.lifespanTicks * HEIR_MAX_AGE_FRACTION && (best < 0 || u.age[i] > u.age[best])) best = i;
     }
     return best >= 0 ? best : oldest;
   };
-  let heir = pick(K.capital);
+  let heir = -1;
+  if (K.clan >= 0) {
+    // Primero un adulto del linaje; si sólo quedan menores, reina un niño antes que otra casa.
+    for (const minors of [false, true]) {
+      if (heir < 0) heir = pick(K.capital, K.clan, minors);
+      for (const v of ks.villagesOf(K.id)) {
+        if (heir >= 0) break;
+        heir = pick(v.id, K.clan, minors);
+      }
+    }
+  }
+  if (heir < 0) heir = pick(K.capital, -1);
   if (heir < 0) {
     for (const v of ks.villagesOf(K.id)) {
-      heir = pick(v.id);
+      heir = pick(v.id, -1);
       if (heir >= 0) {
         K.capital = v.id;
         break;
@@ -156,7 +215,18 @@ function ensureKing(ks: KingdomSystem, K: Kingdom, ctx: AiContext): void {
   K.hadKing = true;
   K.king = u.handleOf(heir);
   K.personality = (u.nameSeed[heir] >>> 3) % 4;
-  if (!first) ks.civ.addEvent('king', K.capital, `${personName(u.species[heir], u.nameSeed[heir])} es el nuevo rey de ${K.name}`);
+  const name = personName(u.species[heir], u.nameSeed[heir]);
+  const clan = ks.civ.clans[u.clan[heir] - 1];
+  if (clan) clan.crowns++;
+  // También cuenta si el heredero aún no tiene clan (un recién llegado): la casa anterior se acabó.
+  const newHouse = K.clan >= 0 && clan?.id !== K.clan;
+  if (newHouse) {
+    K.dynastyTick = ks.civ.tick;
+    ks.civ.addEvent('dynasty', K.capital, `Cambio de dinastía en ${K.name}: sube al trono ${clan ? `el ${clan.name} con ${name}` : name}`);
+  } else if (!first) {
+    ks.civ.addEvent('king', K.capital, `${name}${clan ? ` (${clan.name})` : ''} es el nuevo rey de ${K.name}`);
+  }
+  K.clan = clan ? clan.id : -1;
 }
 
 function handleRebellions(ks: KingdomSystem, K: Kingdom, villages: Village[], ctx: AiContext): boolean {
@@ -183,6 +253,7 @@ function considerPeace(ks: KingdomSystem, K: Kingdom, ctx: AiContext): void {
     let chance = 0.15 + w.losses[ownSide] / (10 + adults);
     if (K.personality === Personality.PEACEFUL) chance += 0.15;
     if (K.personality === Personality.AGGRESSIVE) chance -= 0.05;
+    if (kingdomFaith(ks.civ, K)?.tenet === Tenet.PEACEFUL) chance += 0.1;
     chance -= ctx.climate.war / 100;
     if (duration > MAX_WAR_TICKS || ctx.rng.chance(chance)) ks.makePeace(w);
   }

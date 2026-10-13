@@ -135,7 +135,8 @@ describe('partidas guardadas', () => {
     u.kill(animal);
     const { freeTop } = u.getCounters();
     expect(freeTop).toBeGreaterThan(0);
-    const free = u.dataViews().at(-1) as Int32Array;
+    // La lista de huecos es el penúltimo array (el último es el clan, añadido en la versión 5).
+    const free = u.dataViews().at(-2) as Int32Array;
     const saved = free[0];
     free[0] = villager;
     expect(() => deserialize(serialize(sim, meta(sim)))).toThrow(/huecos/);
@@ -164,7 +165,7 @@ describe('migración de partidas antiguas', () => {
     const v3 = patchHeader(serialize(sim, meta(sim)), (h) => {
       const laws = { ...(h.laws as Record<string, boolean>) };
       delete laws.monsters;
-      return { ...h, version: 3, laws, rng: (h.rng as number[][]).slice(0, 4) };
+      return { ...olderThan5(h), version: 3, laws, rng: (h.rng as number[][]).slice(0, 4) };
     });
     const loaded = deserialize(v3);
     expect(loaded.laws.monsters).toBe(true);
@@ -176,6 +177,90 @@ describe('migración de partidas antiguas', () => {
     // Una partida actual sí debe traer sus cinco flujos de azar.
     const short = patchHeader(serialize(sim, meta(sim)), (h) => ({ ...h, rng: (h.rng as number[][]).slice(0, 4) }));
     expect(() => deserialize(short)).toThrow(/aleatorio/);
+  });
+});
+
+/** Cabecera sin lo que añadió la versión 5: culturas, religiones, clanes y el array de clanes. */
+function olderThan5(h: Record<string, unknown>): Record<string, unknown> {
+  const civ = { ...(h.civ as Record<string, unknown>) };
+  delete civ.cultures;
+  delete civ.religions;
+  delete civ.clans;
+  const strip = (list: unknown, keys: string[]): unknown[] =>
+    (list as Record<string, unknown>[]).map((x) => {
+      const copy = { ...x };
+      for (const k of keys) delete copy[k];
+      return copy;
+    });
+  civ.villages = strip(civ.villages, ['culture', 'religion']);
+  civ.kingdoms = strip(civ.kingdoms, ['clan', 'dynastyTick']);
+  return { ...h, civ, views: (h.views as number[]).slice(0, -1) };
+}
+
+describe('partidas con cultura, religión y clanes', () => {
+  /** Un reino con santuario, fe y casa reinante. */
+  function society(): Simulation {
+    const sim = new Simulation({ seedText: 'guardado', size: 128, capacity: 400, populate: true });
+    sim.apply({ type: 'law', law: 'monsters', value: false });
+    sim.apply({ type: 'spawn', species: Species.HUMAN, x: 50, y: 64, size: 9 });
+    sim.apply({ type: 'spawn', species: Species.TUSKER, x: 80, y: 64, size: 9 });
+    for (let t = 0; t < 700; t++) sim.step();
+    return sim;
+  }
+
+  it('se guardan y continúan exactamente igual', () => {
+    const sim = society();
+    expect(sim.civ.cultures.length).toBeGreaterThanOrEqual(2);
+    expect(sim.civ.clans.length).toBeGreaterThanOrEqual(2);
+    expect(sim.units.clan.some((c) => c > 0)).toBe(true);
+    const loaded = deserialize(serialize(sim, meta(sim)));
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+    expect(loaded.civ.cultures).toEqual(sim.civ.cultures);
+    expect(loaded.civ.clans).toEqual(sim.civ.clans);
+    for (let t = 0; t < 1200; t++) {
+      sim.step();
+      loaded.step();
+    }
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+  });
+
+  it('carga una partida de la versión 4: una cultura por reino, sin fe, y reparte los clanes', () => {
+    const sim = society();
+    const v4 = patchHeader(serialize(sim, meta(sim)), (h) => ({ ...olderThan5(h), version: 4 }));
+    const loaded = deserialize(v4);
+    const alive = loaded.civ.villages.filter((v) => v.alive);
+    expect(alive.length).toBeGreaterThan(0);
+    for (const v of alive) {
+      expect(loaded.civ.cultures[v.culture]).toBeDefined();
+      expect(v.religion).toBe(-1);
+    }
+    expect(loaded.civ.kingdoms.kingdoms.every((k) => k.clan === -1)).toBe(true);
+    expect(loaded.units.clan.every((c) => c === 0)).toBe(true);
+    for (let t = 0; t < 400; t++) loaded.step();
+    const u = loaded.units;
+    for (let i = 0; i < u.highWater; i++) if (u.alive[i] === 1 && u.village[i] >= 0) expect(u.clan[i]).toBeGreaterThan(0);
+    expect(loaded.civ.kingdoms.kingdoms.some((k) => k.alive && k.clan >= 0)).toBe(true);
+  });
+
+  it('rechaza culturas y clanes fuera de rango (archivo manipulado)', () => {
+    const sim = society();
+    const good = serialize(sim, meta(sim));
+    type Civ = { villages: { culture: number }[]; kingdoms: { clan: number }[] };
+    const badCulture = patchHeader(good, (h) => {
+      (h.civ as Civ).villages[0].culture = 999;
+      return h;
+    });
+    expect(() => deserialize(badCulture)).toThrow(/cultura/);
+    const badHouse = patchHeader(good, (h) => {
+      (h.civ as Civ).kingdoms[0].clan = 9999;
+      return h;
+    });
+    expect(() => deserialize(badHouse)).toThrow(/casa reinante/);
+    const u = sim.units;
+    let someone = -1;
+    for (let i = 0; i < u.highWater && someone < 0; i++) if (u.alive[i] === 1) someone = i;
+    u.clan[someone] = 60000;
+    expect(() => deserialize(serialize(sim, meta(sim)))).toThrow(/clan/);
   });
 });
 
@@ -233,6 +318,9 @@ function toVersion1(bytes: Uint8Array): Uint8Array {
   });
   chunks.splice(11, 1);
   h.views.splice(11, 1);
+  // ...y el último (el clan de cada criatura, de la versión 5).
+  chunks.pop();
+  h.views.pop();
   h.version = 1;
   delete h.civ.boats;
   for (const v of h.civ.villages) v.jobCounts = v.jobCounts.slice(0, 9);

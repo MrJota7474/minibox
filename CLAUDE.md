@@ -19,7 +19,7 @@ Este archivo es el traspaso de contexto para cualquier sesión de Claude que tra
 | Copia local del usuario | `C:\Users\sscri\Documents\minibox` (Windows 11) |
 | Zips para itch.io | `release/minibox-<versión>-itch.zip` (no se suben al repo) |
 
-Versión actual: **0.10.0**.
+Versión actual: **0.11.0**.
 
 ## 3. Cómo se ejecuta
 
@@ -28,7 +28,7 @@ npm install
 npm run dev          # servidor de desarrollo (vite --host)
 npm run build        # tsc --noEmit && vite build → dist/
 npm run build:itch   # build + zip con index.html en la raíz → release/
-npm test             # vitest run (232 pruebas, 18 archivos)
+npm test             # vitest run (253 pruebas, 19 archivos)
 npm run lint         # eslint (incluye reglas de determinismo)
 npm run coverage
 ```
@@ -53,15 +53,24 @@ TypeScript (~6.0; typescript-eslint exige <6.1) + HTML5 Canvas 2D + Vite 8. Sin 
 | Visual | Renovación completa: criaturas por partes con posturas y herramientas, edificios por raza, árboles por bioma y estación, efectos, iconos |
 | 0.9.0 | Estaciones de 5 años por defecto (selector 3 meses / 1 año / 5 años / 10 años en «Leyes del mundo»), relieve con luz, espuma, destellos en el agua, nieve/lluvia/hojas/pétalos, placas de nombre de aldea |
 | H (0.10.0) | Monstruos: penantes (no-muertos del yermo maldito y de los malditos), escorios (nacen de la lava) y cenagosos (salen de los pantanos). Asaltan aldeas y arrasan edificios; milicia, huida de civiles, reparación de edificios; pestaña «Monstruos», ley «Aparecen monstruos», guardado MBX v4 |
+| I (0.11.0) | Cultura (rasgo + saber → agricultura, albañilería, forja, medicina; asimilación), religión (santuario, preceptos, conversión; pesa en lealtad y opinión) y clanes (herencia paterna, sucesión dinástica, cambio de dinastía). Guardado MBX v5 |
 
 ## 6. Qué falta (hoja de ruta elegida por el usuario, en este orden)
 
-1. **Cultura, religión y clanes** — rasgos culturales y tecnología; religión que afecte lealtad y diplomacia; clanes/linajes en la sucesión de reyes.
-2. **Sonido y caminos** — efectos sintetizados con WebAudio (nada de archivos de audio copiados) con control de volumen; caminos entre edificios y aldeas.
+1. **Sonido y caminos** — efectos sintetizados con WebAudio (nada de archivos de audio copiados) con control de volumen; caminos entre edificios y aldeas.
 
 Además, **en cada fase seguir mejorando el aspecto visual** (petición explícita del usuario: «cada vez que se vaya viendo mejor»).
 
 Ideas abiertas: optimizar `tileColor` en `render/palette.ts` (~0,75 ms por chunk al repintar); en algún mundo los lobos se extinguen por azar (aceptado); un volcán provoca incendios que duran décadas y pueden despoblar el mapa entero (ya pasaba antes de los monstruos: lo midió el sondeo de la Fase H con la ley de monstruos desactivada); los monstruos sólo tienen sprite de lado (como el resto de criaturas).
+
+### Notas de la Fase I (cultura, religión y clanes)
+
+- Todo vive en `civ/society.ts`; `CivSystem` guarda `cultures`, `religions` y `clans` (ids = índices, nunca se borran) y cada criatura lleva `units.clan` (clan + 1; 0 = sin clan).
+- Nombres y rasgos salen de `mix()` (`civ/names.ts`), sin consumir RNG. Sólo la asimilación y las conversiones tiran del azar (`ctx.rng`, dentro de `stepSociety`, al final de `runKingdomAi`).
+- Añadir una tecnología: entrada en `TECHS`, `Tech` y `TECH_KNOWLEDGE`, una función `xxxBonus` y su uso en el punto de la simulación que mejore.
+- Los arrays nuevos por criatura van **al final** de `UnitStore.dataViews()` y se declaran en `newerUnitViews` (`persistence/snapshot.ts`) para que las partidas antiguas carguen.
+- El primer rey suele coronarse antes del primer censo (sin clan): `ensureKing` adopta su clan como casa reinante en la siguiente pasada.
+- Equilibrio medido (256², 60 años, las cuatro semillas de siempre): 620–700 habitantes y 6–8 reinos vivos; las culturas llegan a 2–4 tecnologías; 4–7 religiones repartidas en 10–15 aldeas de 20–31; 0–2 rebeliones y 0–1 cambios de dinastía por mundo.
 
 ### Notas de la Fase H (para quien toque los monstruos)
 
@@ -79,10 +88,11 @@ world/       terrain (Terrain 0–8, Biome 0–8, BIOME_INFO, Flora), world (arr
 entities/    species, traits, units (UnitStore SoA con handles generacionales), spatial (hash espacial)
 ai/          context, life, movement, animal-ai, monster-ai, monster-spawn, navigation, pathfinder (A* con presupuesto),
              sea-route, update
-civ/         model, civ-system, planner, villager, combat, diplomacy, kingdoms, boats, placement, names
+civ/         model, civ-system, planner, villager, combat, diplomacy, kingdoms, society (culturas, religiones, clanes),
+             boats, placement, names
 powers/      brush, stroke, tools (pestañas), disasters, hazards, status
 sim/         simulation (bucle de tick), commands (registro para replay), laws
-persistence/ snapshot (formato MBX v4), validate, db (IndexedDB)
+persistence/ snapshot (formato MBX v5), validate, db (IndexedDB)
 render/      renderer, camera, palette, pixel (Pix), creature-art, monster-art, building-art, flora-art, flora-layer,
              terrain-layer, civ-layer, boat-layer, fx, sprites
 ui/          hud, toolbar, inspector, laws-panel, menu, saves-panel, settings, start-menu, help,
@@ -96,7 +106,7 @@ game.ts, save-controller.ts, main.ts
 - **Determinismo**. La simulación (core rng/hash/time, world, entities, ai, sim, civ, powers/brush) es determinista por semilla. ESLint lo impone en esos archivos: prohibido `Math.random`, `Math.sin/cos/pow`, `Date.now`, `performance.now` y prohibido importar desde `render/`, `ui/`, `input/` o `game.ts`. Usa los streams de RNG existentes (`rngAi` fork 1, `rngVeg` 2, `rngCmd` 3, populate 4, `rngPower` 5, `rngMonster` 6) o crea uno nuevo con `fork` (y añádelo **al final** de `Simulation.rngs()`, que es el orden en que se guardan). Render y UI sí pueden usar `Math.random`.
 - **Tick fijo** 10 Hz (`TICK_MS` 100). `TICKS_PER_YEAR` = 600, mes = 50 ticks. Velocidades 0/1/2/5, máx. 8 ticks por frame.
 - **Cualquier acción del jugador que cambie la simulación** va como comando en `sim/commands.ts` (se registran con su tick para el replay) y se aplica en `Simulation.apply`.
-- **Guardado MBX v4**: `"MBX1"` + u32 longitud + cabecera JSON + arrays tipados alineados a 8 bytes, comprimido con gzip (CompressionStream). **Todo estado nuevo de simulación** debe añadirse a `persistence/snapshot.ts` (guardar y cargar), a `persistence/validate.ts` (validación de partidas importadas) y al `stateHash` correspondiente; si no, las partidas cargadas divergen. Si cambias el formato, sube `SAVE_VERSION` y añade migración (ya hay migraciones v1/v2/v3→v4 y pruebas en `tests/persistence.test.ts`).
+- **Guardado MBX v5**: `"MBX1"` + u32 longitud + cabecera JSON + arrays tipados alineados a 8 bytes, comprimido con gzip (CompressionStream). **Todo estado nuevo de simulación** debe añadirse a `persistence/snapshot.ts` (guardar y cargar), a `persistence/validate.ts` (validación de partidas importadas) y al `stateHash` correspondiente; si no, las partidas cargadas divergen. Si cambias el formato, sube `SAVE_VERSION` y añade migración (ya hay migraciones v1–v4→v5 y pruebas en `tests/persistence.test.ts`).
 - **Mapa** en arrays tipados planos (índice = y·width + x). Modifica casillas con `setHeight`/`setBiome`/`setFlora`/`setGrass` (marcan chunks sucios para el render). Chunks 32×32, zonas de territorio 8×8, regiones = islas (`world.region`), mares (`world.sea`).
 - **Criaturas**: `UnitStore` SoA; handle = gen·65536 + índice (gen 15 bits). Nunca guardes índices crudos entre ticks: usa handles y comprueba que siguen vivos.
 - **Arte por código**: todo sprite se dibuja con `Pix` (`render/pixel.ts`, contorno automático) y se cachea en atlas. Nada de PNG externos.

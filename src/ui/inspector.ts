@@ -1,6 +1,7 @@
 import { PERSONALITY_NAMES } from '../civ/kingdoms';
 import { BUILDING_DEFS, BuildingType, JOB_NAMES, RESOURCE_NAMES, VILLAGE_COLORS, hallLevelName, type Village } from '../civ/model';
 import { BOAT_KIND_NAMES, BOAT_STATE_NAMES } from '../civ/boats';
+import { CULTURE_TRAITS, TECHS, TENETS, cultureOf, faithOf } from '../civ/society';
 import type { DiplomacyAction } from '../sim/commands';
 import { Status, damageMultiplier, damageTakenMultiplier } from '../powers/status';
 import { TRAITS, hasTrait, traitMods } from '../entities/traits';
@@ -149,6 +150,8 @@ export class Inspector {
       if (u.gear[i]) rows.push(['Equipo', 'Armas de hierro']);
       if (u.carry[i] !== 0) rows.push(['Carga', `${u.carryAmount[i]} de ${RESOURCE_NAMES[u.carry[i] - 1].toLowerCase()}`]);
       if (def.race) rows.push(['Don racial', def.race.trait]);
+      const clan = sim.civ.clans[u.clan[i] - 1];
+      if (clan) rows.push(['Clan', k >= 0 && sim.civ.kingdoms.kingdoms[k].clan === clan.id ? `${clan.name} (casa reinante)` : clan.name]);
     }
     const states = [
       u.status[i] & Status.BLESSED ? 'Bendecido' : '',
@@ -243,10 +246,32 @@ export class Inspector {
       ['En obras', String(v.sites)],
       ['Territorio', `${v.zones} zonas`],
       ['Fundada', `Año ${founded.year}`],
+      ...this.societyRows(sim, v),
     ];
     rows.push(...this.kingdomRows(sim, v));
     this.rows(rows);
     this.renderDiplomacy(sim, v);
+  }
+
+  /** Cultura (rasgo y saberes) y religión (precepto) de la aldea. */
+  private societyRows(sim: Simulation, v: Village): Row[] {
+    const rows: Row[] = [];
+    const culture = cultureOf(sim.civ, v);
+    if (culture) {
+      const trait = CULTURE_TRAITS[culture.trait];
+      rows.push(['Cultura', el('span', { text: `${culture.name} · ${trait.name}`, title: trait.description })]);
+      const techs = TECHS.slice(0, culture.level);
+      rows.push([
+        'Saberes',
+        techs.length === 0
+          ? el('span', { class: 'insp-muted', text: 'Ninguno aún' })
+          : el('span', { class: 'trait-chips' }, techs.map((t) => el('span', { class: 'chip', text: t.name, title: t.description }))),
+      ]);
+    }
+    const faith = faithOf(sim.civ, v);
+    const tenet = faith ? TENETS[faith.tenet] : null;
+    rows.push(['Religión', faith && tenet ? el('span', { text: `${faith.name} · ${tenet.name}`, title: tenet.description }) : el('span', { class: 'insp-muted', text: 'Sin fe' })]);
+    return rows;
   }
 
   private kingdomRows(sim: Simulation, v: Village): Row[] {
@@ -254,9 +279,11 @@ export class Inspector {
     const K = ks.kingdoms[v.kingdom];
     if (!K) return [];
     const leader = sim.units.resolve(v.leader);
+    const house = sim.civ.clans[K.clan];
     const rows: Row[] = [
       ['Reino', K.capital === v.id ? `${K.name} (capital)` : K.name],
       ['Rey', `${ks.kingName(K)} · ${PERSONALITY_NAMES[K.personality]}`],
+      ['Casa reinante', house ? `${house.name} · ${house.crowns} ${house.crowns === 1 ? 'rey' : 'reyes'}` : '—'],
       ['Líder', leader >= 0 ? personName(sim.units.species[leader], sim.units.nameSeed[leader]) : '—'],
       ['Lealtad', this.bar(v.loyalty, 100, 'bar-pop')],
     ];
