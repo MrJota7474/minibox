@@ -26,7 +26,8 @@ export type BrushToolId =
   | 'tree'
   | 'bush'
   | 'clear-flora'
-  | 'road';
+  | 'road'
+  | 'bridge';
 
 /**
  * Acciones del jugador sobre la simulación. Son datos planos (serializables)

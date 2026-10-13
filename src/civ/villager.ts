@@ -8,6 +8,7 @@ import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
 import { actFight, actFlee, actMarch, defendFromMonsters, fleeIfThreatened, thinkWarrior } from './combat';
 import { farmBonus, workBonus } from './society';
+import { finishTrade, startTrade } from './trade';
 import { BuildingType, FARM_HARVEST_FOOD, FARM_RIPE, FISH_CATCH, FISH_FOOD, Job, Resource, type Building, type Village } from './model';
 
 const CIV_TIMEOUT_TICKS = 600;
@@ -47,7 +48,8 @@ export function updateVillager(ctx: AiContext, i: number, def: SpeciesDef): void
   u.think[i]--;
   if (u.think[i] === 0) {
     u.think[i] = THINK_INTERVAL;
-    const limit = u.state[i] === UnitState.SETTLE || u.state[i] === UnitState.BOARD ? SETTLE_TIMEOUT_TICKS : CIV_TIMEOUT_TICKS;
+    const longTrip = u.state[i] === UnitState.SETTLE || u.state[i] === UnitState.BOARD || u.state[i] === UnitState.TRADE;
+    const limit = longTrip ? SETTLE_TIMEOUT_TICKS : CIV_TIMEOUT_TICKS;
     if (u.stateTicks[i] > limit) {
       abandonTask(ctx, i);
       if (u.job[i] === Job.SETTLER) ctx.civ.leaveVillage(i);
@@ -85,7 +87,7 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (home && u.job[i] !== Job.WARRIOR && fleeIfThreatened(ctx, i, home)) return;
   const s = u.state[i];
   if (s === UnitState.WORK || s === UnitState.DELIVER || s === UnitState.EAT_GO || s === UnitState.SETTLE || s === UnitState.MATE || s === UnitState.HUNT || s === UnitState.BOARD) return;
-  if (s === UnitState.FIGHT || s === UnitState.MARCH || s === UnitState.FLEE) return;
+  if (s === UnitState.FIGHT || s === UnitState.MARCH || s === UnitState.FLEE || s === UnitState.TRADE) return;
   const v = ctx.civ.villageOf(i);
   const canForage = u.carry[i] === 0 && s !== UnitState.WORK_GO && u.workTimer[i] === 0;
   if (canForage && u.hunger[i] < def.maxHunger * HUNGRY_FRACTION && (!v || v.resources[Resource.FOOD] === 0)) {
@@ -171,6 +173,8 @@ function startJob(ctx: AiContext, i: number, v: Village): boolean {
       return startBuildingWork(ctx, i, v, (b) => b.type === BuildingType.FARM && b.level >= 1);
     case Job.HUNTER:
       return startHunt(ctx, i);
+    case Job.MERCHANT:
+      return startTrade(ctx, i, v);
     case Job.FISHER:
       return startBuildingWork(ctx, i, v, (b) => b.type === BuildingType.DOCK && b.level >= 1 && !b.underConstruction && b.growth >= FISH_CATCH);
     default:
@@ -275,6 +279,9 @@ function act(ctx: AiContext, i: number, def: SpeciesDef): void {
       break;
     case UnitState.EAT_GO:
       travel(ctx, i, def, () => eatAtStore(ctx, i, def));
+      break;
+    case UnitState.TRADE:
+      travel(ctx, i, def, () => finishTrade(ctx, i));
       break;
     case UnitState.SETTLE:
       settle(ctx, i, def);
@@ -492,7 +499,7 @@ function canBreed(ctx: AiContext, i: number, def: SpeciesDef, v: Village): boole
 function tryFindMate(ctx: AiContext, i: number, def: SpeciesDef, v: Village): boolean {
   const u = ctx.units;
   if (!canBreed(ctx, i, def, v)) return false;
-  const busy = (s: number): boolean => s === UnitState.MATE || s === UnitState.WORK || s === UnitState.HUNT || s === UnitState.SETTLE;
+  const busy = (s: number): boolean => s === UnitState.MATE || s === UnitState.WORK || s === UnitState.HUNT || s === UnitState.SETTLE || s === UnitState.TRADE;
   const mate = ctx.spatial.nearest(u, u.x[i], u.y[i], def.sight, (j) =>
     j !== i && u.village[j] === v.id && u.sex[j] !== u.sex[i] && !busy(u.state[j]) && canBreed(ctx, j, def, v),
   );

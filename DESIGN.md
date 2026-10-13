@@ -2,7 +2,7 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos), G (biomas, estaciones y eras), H (monstruos), I (cultura, religión y clanes) y J (sonido y caminos) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos), G (biomas, estaciones y eras), H (monstruos), I (cultura, religión y clanes), J (sonido y caminos) y K (puentes y comercio) implementadas.**
 >
 > La hoja de ruta acordada está completa. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G; los monstruos, en la H.
 
@@ -411,8 +411,15 @@ Tres capas sociales sobre las aldeas y los reinos (`civ/society.ts`), cada una c
 - **Ajustes**: casilla «Sonido» y volumen (0-100), guardados en el navegador. El sonido no forma parte de la simulación (no afecta al determinismo).
 - **Guardado**: formato MBX versión 6 (el array `road` al final); las partidas anteriores empiezan sin caminos.
 
-### Después de J
-La hoja de ruta original está completa. Ideas: comercio por los caminos, puentes, música ambiental, idiomas.
+### Fase K — Puentes y comercio
+- **Puentes**: una casilla de agua (somera u océano, no abismo) con calzada (`world.road` = 255) es un puente: se puede pisar (`world.canWalk`), une islas en las regiones y en el A*, y se pinta de madera. Los barcos pasan por debajo. Aguanta mientras debajo haya agua que no sea abismo; si el fondo se hunde hasta el abismo, se pierde; si se rellena, queda calzada.
+- Los **reinos** los construyen solos: la calzada de una colonia a su capital (a menos de 70 casillas) avanza en escalera (nunca en diagonal) y cruza con puente los tramos de agua de hasta 8 casillas de puente con tierra firme en ambas orillas; si algún tramo no se puede cruzar y las aldeas están en islas distintas, no se tiende nada, así que también une aldeas separadas por un río o un estrecho. El jugador tiene el pincel «Puente» (pestaña Terreno).
+- **Comercio**: oficio nuevo, el **mercader** (1 por aldea con 10 adultos, 2 con 25; va tras granjeros, pescadores, guerreros y constructores; nunca en guerra ni con monstruos cerca). Elige la aldea alcanzable más cercana que no sea enemiga (misma isla, hasta 45 casillas, la que más diferencia de existencias tiene), carga hasta 8 unidades del recurso que a su aldea le sobra y a la otra le falta, camina hasta su almacén (estado «Comerciando»), lo entrega y vuelve con lo que allí sobra. Cada entrega da 1 de oro a las dos aldeas y, entre reinos distintos, quita 1 de agravio en cada sentido.
+- Como van a pie, senderos, calzadas y puentes acortan sus viajes, y su ir y venir marca caminos entre aldeas.
+- **Guardado**: sin cambio de formato (los puentes viven en el array de caminos; las aldeas de partidas anteriores reciben el recuento del oficio nuevo al cargar).
+
+### Después de K
+La hoja de ruta original está completa. Ideas: música ambiental, idiomas.
 
 ---
 

@@ -14,10 +14,10 @@ export function emptyResources(): Resources {
 }
 
 /** Oficios de los aldeanos. */
-export const Job = { NONE: 0, GATHERER: 1, WOODCUTTER: 2, MINER: 3, FARMER: 4, BUILDER: 5, HUNTER: 6, SETTLER: 7, WARRIOR: 8, FISHER: 9 } as const;
+export const Job = { NONE: 0, GATHERER: 1, WOODCUTTER: 2, MINER: 3, FARMER: 4, BUILDER: 5, HUNTER: 6, SETTLER: 7, WARRIOR: 8, FISHER: 9, MERCHANT: 10 } as const;
 export type JobId = (typeof Job)[keyof typeof Job];
-export const JOB_COUNT = 10;
-export const JOB_NAMES: readonly string[] = ['Sin oficio', 'Recolector', 'Leñador', 'Minero', 'Granjero', 'Constructor', 'Cazador', 'Colono', 'Guerrero', 'Pescador'];
+export const JOB_COUNT = 11;
+export const JOB_NAMES: readonly string[] = ['Sin oficio', 'Recolector', 'Leñador', 'Minero', 'Granjero', 'Constructor', 'Cazador', 'Colono', 'Guerrero', 'Pescador', 'Mercader'];
 
 export const BuildingType = { HALL: 0, HOUSE: 1, STORAGE: 2, FARM: 3, DOCK: 4, SHRINE: 5 } as const;
 export type BuildingTypeId = (typeof BuildingType)[keyof typeof BuildingType];

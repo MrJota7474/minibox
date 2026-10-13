@@ -24,6 +24,8 @@ export const UnitState = {
   BOARD: 14,
   /** Monstruos: echar abajo un edificio. */
   RAZE: 15,
+  /** Mercaderes: llevar mercancía al almacén de otra aldea. */
+  TRADE: 16,
 } as const;
 export type UnitStateId = (typeof UnitState)[keyof typeof UnitState];
 
@@ -44,6 +46,7 @@ export const STATE_LABELS: readonly string[] = [
   'Combatiendo',
   'Embarcando',
   'Arrasando',
+  'Comerciando',
 ];
 
 export const Sex = { FEMALE: 0, MALE: 1 } as const;

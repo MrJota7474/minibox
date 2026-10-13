@@ -59,6 +59,8 @@ const SAME_KINGDOM_PULL = 0.25;
 const FISH_REGEN = 2;
 /** Distancia máxima (casillas) a la capital para tender una calzada desde una colonia nueva. */
 const ROYAL_ROAD_REACH = 70;
+/** Tramo de agua más largo (casillas) que una calzada real cruza con un puente. */
+const ROYAL_BRIDGE_SPAN = 8;
 
 /**
  * Estado y reglas de las civilizaciones: aldeas, edificios, territorio y censo.
@@ -213,7 +215,8 @@ export class CivSystem {
       v.culture = capital?.culture ?? -1;
       // El reino tiende una calzada hasta la capital si está cerca y en la misma isla.
       const near = capital && (capital.cx - v.cx) * (capital.cx - v.cx) + (capital.cy - v.cy) * (capital.cy - v.cy) <= ROYAL_ROAD_REACH * ROYAL_ROAD_REACH;
-      if (capital && near && this.world.regionAt(capital.cx, capital.cy) === this.world.regionAt(v.cx, v.cy)) this.world.paveLine(v.cx, v.cy, capital.cx, capital.cy);
+      // (Los ríos y estrechos cortos se cruzan con un puente.)
+      if (capital && near) this.world.paveLine(v.cx, v.cy, capital.cx, capital.cy, ROYAL_BRIDGE_SPAN);
     } else {
       this.kingdoms.create(v);
     }

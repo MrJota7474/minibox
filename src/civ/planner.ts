@@ -30,7 +30,10 @@ const CENSUS_TICKS = 30;
 /** Cada cuántos ticks mira una aldea sin fe si puede levantar su santuario. */
 const SHRINE_CHECK_TICKS = 150;
 /** Prioridad al repartir oficios (de más a menos importante). */
-const JOB_PRIORITY: readonly JobId[] = [Job.FARMER, Job.FISHER, Job.WARRIOR, Job.BUILDER, Job.GATHERER, Job.WOODCUTTER, Job.MINER, Job.HUNTER];
+const JOB_PRIORITY: readonly JobId[] = [Job.FARMER, Job.FISHER, Job.WARRIOR, Job.BUILDER, Job.MERCHANT, Job.GATHERER, Job.WOODCUTTER, Job.MINER, Job.HUNTER];
+/** Adultos a partir de los cuales una aldea tiene uno y dos mercaderes. */
+const MERCHANT_ADULTS = 10;
+const SECOND_MERCHANT_ADULTS = 25;
 
 /** Decisiones periódicas de una aldea (cada censo). */
 export function planVillage(civ: CivSystem, v: Village, ctx: AiContext): void {
@@ -137,6 +140,8 @@ function desiredJobs(v: Village, hall: Building, atWar: boolean, docks: number):
   want[Job.WOODCUTTER] = Math.max(1, Math.ceil(a * 0.25));
   want[Job.MINER] = hall.level >= 2 || v.population >= 8 ? Math.max(1, Math.ceil(a * 0.15)) : 0;
   want[Job.HUNTER] = a >= 6 ? 1 : 0;
+  // En guerra o con monstruos cerca nadie sale a comerciar.
+  want[Job.MERCHANT] = atWar ? 0 : a >= SECOND_MERCHANT_ADULTS ? 2 : a >= MERCHANT_ADULTS ? 1 : 0;
   want[Job.FISHER] = docks > 0 ? Math.min(docks * 2, Math.max(1, Math.ceil(a * (foodLow ? 0.2 : 0.1)))) : 0;
   // Si no hay adultos para todo, se recortan los oficios menos prioritarios: si no, quien ya
   // tiene un oficio secundario lo conserva y la aldea se queda sin constructores ni mineros.

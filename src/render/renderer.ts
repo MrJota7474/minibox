@@ -43,7 +43,7 @@ const GLINT_DENSITY = 0.05;
 /** Píxeles de sprite por casilla: una criatura mide algo más de 1,5 casillas. */
 const SPRITE_PX_PER_TILE = 11;
 /** Herramienta de cada oficio (índice = Job). */
-const JOB_TOOLS: readonly (string | null)[] = [null, 'basket', 'axe', 'pick', 'hoe', 'hammer', 'bow', 'bundle', 'spear', 'rod'];
+const JOB_TOOLS: readonly (string | null)[] = [null, 'basket', 'axe', 'pick', 'hoe', 'hammer', 'bow', 'bundle', 'spear', 'rod', 'bundle'];
 const CARGO_SPRITES: readonly string[] = ['food', 'log', 'stone', 'ore', 'gold'];
 
 /** Patrón de grano: píxeles algo más claros u oscuros, siempre los mismos. */

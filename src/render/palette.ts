@@ -140,6 +140,7 @@ function seasonTint(c: [number, number, number], world: World, i: number, season
 
 const DIRT_RGB: [number, number, number] = [150, 116, 76];
 const PAVED_RGB: [number, number, number] = [152, 146, 136];
+const BRIDGE_RGB: [number, number, number] = [176, 128, 80];
 /** Cuánto tapa el camino el color del suelo, por categoría (sendero, camino, calzada). */
 const ROAD_BLEND: readonly number[] = [0, 0.45, 0.78, 0.85];
 
@@ -161,6 +162,12 @@ export function tileColor(world: World, i: number, season: number = Season.SUMME
   }
   const t = world.terrain[i];
   // Senderos y caminos de tierra batida; calzadas de piedra.
+  // Un puente: tablones de madera, alternando claros y oscuros.
+  if (world.isBridge(i)) {
+    const plank = (i % world.width) + Math.floor(i / world.width);
+    const k = plank % 2 === 0 ? 1 : 0.84;
+    return pack(BRIDGE_RGB[0] * k, BRIDGE_RGB[1] * k, BRIDGE_RGB[2] * k);
+  }
   const road = world.road[i] >= ROAD_PATH && !TERRAIN_INFO[t].water && f !== Flora.TREE ? roadLevel(world.road[i]) : 0;
   if (road > 0) c = lerp(c, road === 3 ? PAVED_RGB : DIRT_RGB, ROAD_BLEND[road]);
   if (TERRAIN_INFO[t].water) {

@@ -153,7 +153,7 @@ describe('migración de partidas antiguas', () => {
     const loaded = deserialize(v1);
     expect(loaded.units.count).toBe(sim.units.count);
     expect(loaded.civ.boats).toHaveLength(0);
-    expect(loaded.civ.villages.every((v) => v.jobCounts.length === 10)).toBe(true);
+    expect(loaded.civ.villages.every((v) => v.jobCounts.length === 11)).toBe(true);
     // Los mares se recalculan al cargar.
     expect(Array.from(loaded.world.sea)).toEqual(Array.from(sim.world.sea));
     expect(loaded.world.seaSizes).toEqual(sim.world.seaSizes);

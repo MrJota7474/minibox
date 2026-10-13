@@ -336,6 +336,7 @@ export class Inspector {
     this.setPortrait(null);
     this.title.textContent = TERRAIN_INFO[t].name;
     const rows: Row[] = [['Altura', String(w.heightMap[index])]];
+    if (w.isBridge(index)) rows.push(['Puente', 'Se cruza a pie; los barcos pasan por debajo']);
     if (!isWaterTerrain(t)) {
       rows.push(['Bioma', BIOME_INFO[w.biome[index]].name], ['Efecto', BIOME_INFO[w.biome[index]].description]);
       if (isFertileTerrain(t)) rows.push(['Hierba', this.bar(w.grass[index], Math.max(1, BIOME_INFO[w.biome[index]].grassMax), 'bar-food')]);

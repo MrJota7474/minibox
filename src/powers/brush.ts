@@ -118,6 +118,10 @@ function applyTool(world: World, rng: Rng, tool: BrushToolId, i: number, single:
       if (isPlant(world.flora[i])) world.setFlora(i, Flora.NONE);
       world.paveRoad(i);
       break;
+    case 'bridge':
+      // Sólo sobre el agua que no sea abismo; en tierra no hace nada.
+      world.buildBridge(i);
+      break;
     default:
       break;
   }

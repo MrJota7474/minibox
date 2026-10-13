@@ -5,6 +5,7 @@ import {
   isFertileTerrain,
   isWalkableTerrain,
   isWaterTerrain,
+  Terrain,
   terrainFromHeight,
   type BiomeId,
   type FloraId,
@@ -106,7 +107,28 @@ export class World {
     const ty = Math.floor(y);
     if (!this.inBounds(tx, ty)) return false;
     const i = ty * this.width + tx;
-    return isWalkableTerrain(this.terrain[i]) && this.lava[i] === 0;
+    return this.canWalk(i) && this.lava[i] === 0;
+  }
+
+  /** ¿Es un puente? (una calzada tendida sobre el agua) */
+  isBridge(i: number): boolean {
+    return this.road[i] === ROAD_PAVED && isWaterTerrain(this.terrain[i]);
+  }
+
+  /** Terreno pisable o puente (sin mirar la lava). */
+  canWalk(i: number): boolean {
+    return isWalkableTerrain(this.terrain[i]) || this.isBridge(i);
+  }
+
+  /** Tiende un puente sobre una casilla de agua que no sea abismo. Devuelve false si no se puede. */
+  buildBridge(i: number): boolean {
+    const t = this.terrain[i];
+    if (!isWaterTerrain(t) || t === Terrain.DEEP) return false;
+    if (this.road[i] === ROAD_PAVED) return true;
+    this.road[i] = ROAD_PAVED;
+    this.regionsDirty = true;
+    this.markDirtyIdx(i);
+    return true;
   }
 
   isWaterIdx(i: number): boolean {
@@ -129,9 +151,15 @@ export class World {
     const t = terrainFromHeight(clamped);
     if (this.terrain[i] !== t) {
       if (isWalkableTerrain(this.terrain[i]) !== isWalkableTerrain(t) || isWaterTerrain(this.terrain[i]) !== isWaterTerrain(t)) this.regionsDirty = true;
+      const wasBridge = this.isBridge(i);
       this.terrain[i] = t;
-      // Bajo el agua o en una cumbre no queda camino ni calzada.
-      if (!isWalkableTerrain(t)) this.road[i] = 0;
+      // Bajo el agua o en una cumbre no queda camino ni calzada (un puente se pierde si cambia su fondo).
+      // Un puente aguanta mientras debajo siga habiendo agua que no sea abismo.
+      const keepsBridge = wasBridge && isWaterTerrain(t) && t !== Terrain.DEEP;
+      if (!isWalkableTerrain(t) && !keepsBridge) {
+        if (this.road[i] === ROAD_PAVED) this.regionsDirty = true;
+        this.road[i] = 0;
+      }
       if (isWaterTerrain(t)) {
         this.flora[i] = Flora.NONE;
         this.grass[i] = 0;
@@ -189,14 +217,47 @@ export class World {
     if (this.buildingAt[i] === 0 && isWalkableTerrain(this.terrain[i])) this.setRoad(i, ROAD_PAVED);
   }
 
-  /** Calzada en línea recta entre dos casillas, sólo sobre tierra pisable. */
-  paveLine(x0: number, y0: number, x1: number, y1: number): void {
+  /**
+   * Calzada en línea recta entre dos casillas: empiedra la tierra pisable y cruza con
+   * puente los tramos de agua de hasta `maxBridge` casillas (los más largos se quedan sin unir).
+   */
+  paveLine(x0: number, y0: number, x1: number, y1: number, maxBridge = 0): void {
     const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+    const line: number[] = [];
+    let px = x0;
+    let py = y0;
     for (let k = 0; k <= steps; k++) {
       const x = Math.round(x0 + ((x1 - x0) * k) / Math.max(1, steps));
       const y = Math.round(y0 + ((y1 - y0) * k) / Math.max(1, steps));
-      if (this.inBounds(x, y)) this.paveRoad(this.idx(x, y));
+      if (!this.inBounds(x, y)) return;
+      // Pasos en escalera (nunca en diagonal): sobre el agua, dos casillas que sólo se
+      // tocan por la esquina no forman un puente transitable.
+      if (x !== px && y !== py) line.push(this.idx(x, py));
+      line.push(this.idx(x, y));
+      px = x;
+      py = y;
     }
+    // Tramos de agua de la línea: [inicio, fin) y si se pueden cruzar con un puente.
+    const spans: { from: number; to: number; ok: boolean }[] = [];
+    for (let k = 0; k < line.length; k++) {
+      if (!isWaterTerrain(this.terrain[line[k]])) continue;
+      let end = k;
+      let deep = false;
+      while (end < line.length && isWaterTerrain(this.terrain[line[end]])) {
+        if (this.terrain[line[end]] === Terrain.DEEP) deep = true;
+        end++;
+      }
+      // Corto, sin abismo y con tierra firme en las dos orillas.
+      const shores = k > 0 && end < line.length && isWalkableTerrain(this.terrain[line[k - 1]]) && isWalkableTerrain(this.terrain[line[end]]);
+      spans.push({ from: k, to: end, ok: !deep && shores && end - k <= maxBridge });
+      k = end - 1;
+    }
+    // Si algún tramo no se puede cruzar y las puntas están en islas distintas, no se hace
+    // nada (quedarían dos trozos de calzada que no unen nada).
+    const sameIsland = line.length > 0 && this.region[line[0]] !== 0 && this.region[line[0]] === this.region[line[line.length - 1]];
+    if (!sameIsland && spans.some((s) => !s.ok)) return;
+    for (const i of line) if (!isWaterTerrain(this.terrain[i])) this.paveRoad(i);
+    for (const s of spans) if (s.ok) for (let j = s.from; j < s.to; j++) this.buildBridge(line[j]);
   }
 
   markDirtyIdx(i: number): void {
@@ -270,7 +331,7 @@ export class World {
   /** Etiqueta las islas pisables y los mares con un relleno por inundación (BFS, 4 vecinos). */
   computeRegions(): void {
     const queue = new Int32Array(this.size);
-    this.label(this.region, (t) => isWalkableTerrain(t), queue);
+    this.label(this.region, (_t, i) => this.canWalk(i), queue);
     this.seaSizes = this.label(this.sea, (t) => isWaterTerrain(t), queue);
     this.regionsDirty = false;
   }
@@ -293,20 +354,20 @@ export class World {
   }
 
   /** Relleno por inundación genérico; devuelve el tamaño de cada etiqueta. */
-  private label(out: Int32Array, accept: (terrain: number) => boolean, queue: Int32Array): number[] {
+  private label(out: Int32Array, accept: (terrain: number, i: number) => boolean, queue: Int32Array): number[] {
     const { width: w, height: h, terrain } = this;
     out.fill(0);
     const sizes = [0];
     let label = 0;
     for (let start = 0; start < this.size; start++) {
-      if (out[start] !== 0 || !accept(terrain[start])) continue;
+      if (out[start] !== 0 || !accept(terrain[start], start)) continue;
       label++;
       let head = 0;
       let tail = 0;
       queue[tail++] = start;
       out[start] = label;
       const visit = (j: number): void => {
-        if (out[j] !== 0 || !accept(terrain[j])) return;
+        if (out[j] !== 0 || !accept(terrain[j], j)) return;
         out[j] = label;
         queue[tail++] = j;
       };

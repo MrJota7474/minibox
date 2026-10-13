@@ -19,7 +19,7 @@ Este archivo es el traspaso de contexto para cualquier sesión de Claude que tra
 | Copia local del usuario | `C:\Users\sscri\Documents\minibox` (Windows 11) |
 | Zips para itch.io | `release/minibox-<versión>-itch.zip` (no se suben al repo) |
 
-Versión actual: **0.12.0** (hoja de ruta original completa).
+Versión actual: **0.13.0** (hoja de ruta original completa; después, puentes y comercio).
 
 ## 3. Cómo se ejecuta
 
@@ -28,7 +28,7 @@ npm install
 npm run dev          # servidor de desarrollo (vite --host)
 npm run build        # tsc --noEmit && vite build → dist/
 npm run build:itch   # build + zip con index.html en la raíz → release/
-npm test             # vitest run (275 pruebas, 21 archivos)
+npm test             # vitest run (289 pruebas, 22 archivos)
 npm run lint         # eslint (incluye reglas de determinismo)
 npm run coverage
 ```
@@ -54,15 +54,22 @@ TypeScript (~6.0; typescript-eslint exige <6.1) + HTML5 Canvas 2D + Vite 8. Sin 
 | 0.9.0 | Estaciones de 5 años por defecto (selector 3 meses / 1 año / 5 años / 10 años en «Leyes del mundo»), relieve con luz, espuma, destellos en el agua, nieve/lluvia/hojas/pétalos, placas de nombre de aldea |
 | H (0.10.0) | Monstruos: penantes (no-muertos del yermo maldito y de los malditos), escorios (nacen de la lava) y cenagosos (salen de los pantanos). Asaltan aldeas y arrasan edificios; milicia, huida de civiles, reparación de edificios; pestaña «Monstruos», ley «Aparecen monstruos», guardado MBX v4 |
 | I (0.11.0) | Cultura (rasgo + saber → agricultura, albañilería, forja, medicina; asimilación), religión (santuario, preceptos, conversión; pesa en lealtad y opinión) y clanes (herencia paterna, sucesión dinástica, cambio de dinastía). Guardado MBX v5 |
+| K (0.13.0) | Puentes (calzada sobre el agua: los tienden los reinos en ríos y estrechos de hasta 8 casillas y el jugador con el pincel «Puente») y comercio (mercaderes que llevan excedentes entre aldeas no enemigas; oro para ambas y menos agravios entre reinos) |
 | J (0.12.0) | Caminos (senderos por desgaste, calzadas de los reinos y pincel «Calzada»; más velocidad al caminar) y sonido sintetizado con WebAudio (desastres, trabajo, combate, avisos, interfaz; volumen en ajustes). Guardado MBX v6 |
 
 ## 6. Qué falta
 
-La hoja de ruta que eligió el usuario está **completa**. Ideas para seguir (sin orden acordado; preguntar al usuario): comercio por los caminos, puentes, música o ambiente sonoro, idiomas, editor de estandartes, optimizaciones.
+La hoja de ruta que eligió el usuario está **completa**. Ideas para seguir (sin orden acordado; preguntar al usuario): música o ambiente sonoro, idiomas, editor de estandartes, optimizaciones.
 
 Además, **en cada fase seguir mejorando el aspecto visual** (petición explícita del usuario: «cada vez que se vaya viendo mejor»).
 
 Ideas abiertas: optimizar `tileColor` en `render/palette.ts` (~0,75 ms por chunk al repintar); en algún mundo los lobos se extinguen por azar (aceptado); un volcán provoca incendios que duran décadas y pueden despoblar el mapa entero (ya pasaba antes de los monstruos: lo midió el sondeo de la Fase H con la ley de monstruos desactivada); los monstruos sólo tienen sprite de lado (como el resto de criaturas).
+
+### Notas de la Fase K (puentes y comercio)
+
+- **Puente** = casilla de agua (no abismo) con `world.road === 255`. Para saber si se puede pisar usa siempre `world.canWalk(i)` / `world.isWalkableAt(x, y)`, no `isWalkableTerrain(terrain)` a secas (eso es sólo «tierra firme»: edificios, territorio, apariciones).
+- Tender o perder un puente marca `regionsDirty`: las islas (`world.region`) se recalculan en el siguiente múltiplo de 10 ticks.
+- **Mercader** (`Job.MERCHANT`, estado `TRADE`, lógica en `civ/trade.ts`): la mercancía viaja en `units.carry`/`carryAmount` y el almacén de destino en `units.work` (`world.size + id`). No hay formato de guardado nuevo.
 
 ### Notas de la Fase J (sonido y caminos)
 
@@ -95,7 +102,7 @@ world/       terrain (Terrain 0–8, Biome 0–8, BIOME_INFO, Flora), world (arr
 entities/    species, traits, units (UnitStore SoA con handles generacionales), spatial (hash espacial)
 ai/          context, life, movement, animal-ai, monster-ai, monster-spawn, navigation, pathfinder (A* con presupuesto),
              sea-route, update
-civ/         model, civ-system, planner, villager, combat, diplomacy, kingdoms, society (culturas, religiones, clanes),
+civ/         model, civ-system, planner, villager, combat, diplomacy, kingdoms, society (culturas, religiones, clanes), trade (mercaderes),
              boats, placement, names
 powers/      brush, stroke, tools (pestañas), disasters, hazards, status
 sim/         simulation (bucle de tick), commands (registro para replay), laws

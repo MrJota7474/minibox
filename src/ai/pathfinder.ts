@@ -1,4 +1,3 @@
-import { isWalkableTerrain } from '../world/terrain';
 import type { World } from '../world/world';
 
 const SQRT2 = 1.4142135623730951;
@@ -61,7 +60,7 @@ export class Pathfinder {
     const w = this.world;
     if (!w.inBounds(sx, sy) || !w.inBounds(tx, ty)) return 0;
     const goal = w.idx(tx, ty);
-    if (!isWalkableTerrain(w.terrain[goal])) return 0;
+    if (!w.canWalk(goal)) return 0;
     this.budget--;
     this.stamp++;
     this.heapSize = 0;
@@ -91,10 +90,10 @@ export class Pathfinder {
       const ny = cy + dy;
       if (!w.inBounds(nx, ny)) continue;
       const n = ny * w.width + nx;
-      if (!isWalkableTerrain(w.terrain[n]) || this.closed[n] === this.stamp) continue;
+      if (!w.canWalk(n) || this.closed[n] === this.stamp) continue;
       // No cortar esquinas en diagonal.
       if (dx !== 0 && dy !== 0) {
-        if (!isWalkableTerrain(w.terrain[cy * w.width + nx]) || !isWalkableTerrain(w.terrain[ny * w.width + cx])) continue;
+        if (!w.canWalk(cy * w.width + nx) || !w.canWalk(ny * w.width + cx)) continue;
       }
       const g = this.g[cur] + cost;
       if (this.seen[n] === this.stamp && g >= this.g[n]) continue;

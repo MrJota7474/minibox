@@ -193,6 +193,15 @@ const BRUSH_DRAW: Readonly<Record<string, (p: Pix) => void>> = {
     p.set(5, 10, '#6e675c');
     p.set(10, 8, '#6e675c');
   },
+  bridge: (p) => {
+    block(p, '#4a8ad0', '#2e66a8', '#8ac0f0');
+    // Tablones sobre el agua, con sus pilotes.
+    p.rect(1, 8, 14, 3, '#a8784a');
+    for (let x = 2; x < 15; x += 3) p.rect(x, 8, 1, 3, '#7a5430');
+    p.rect(1, 7, 14, 1, '#c89a64');
+    p.rect(3, 11, 1, 3, '#5a3e22');
+    p.rect(12, 11, 1, 3, '#5a3e22');
+  },
   'clear-flora': (p) => {
     for (let k = 0; k < 10; k++) p.set(4 + k, 4 + k, '#8a5a2a');
     for (let k = 0; k < 10; k++) p.set(5 + k, 4 + k, '#6a4422');
