@@ -126,10 +126,9 @@ export function tileColor(world: World, i: number, season: number = Season.SUMME
   if (world.fire[i] > 0) return pack(FIRE_RGB[0], FIRE_RGB[1], FIRE_RGB[2]);
   if (f === Flora.TREE) {
     const tree = TREE_RGB[world.biome[i]];
-    c = seasonTint([tree[0], tree[1], tree[2]], world, i, season, true);
+    c = seasonTint(lerp(baseColor(world, i), tree, 0.75), world, i, season, true);
   } else if (f !== Flora.NONE) {
-    const fl = FLORA_RGB[f];
-    c = [fl[0], fl[1], fl[2]];
+    c = lerp(seasonTint(baseColor(world, i), world, i, season, false), FLORA_RGB[f], 0.55);
   } else {
     c = seasonTint(baseColor(world, i), world, i, season, false);
   }

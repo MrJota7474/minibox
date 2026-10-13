@@ -1,6 +1,6 @@
 import { BRUSH_SIZES } from '../powers/brush';
 import { TABS, TOOLS, type TabId, type ToolDef } from '../powers/tools';
-import type { SpriteAtlas } from '../render/sprites';
+import type { CreatureAtlas } from '../render/creature-art';
 import { el, iconButton, setPressed } from './dom';
 import { gridIcon, toolIcon } from './icons';
 
@@ -25,7 +25,7 @@ export class Toolbar {
   private sizeIndex = 1;
 
   constructor(
-    private readonly atlas: SpriteAtlas,
+    private readonly atlas: CreatureAtlas,
     private readonly actions: ToolbarActions,
   ) {
     const tabs = el(

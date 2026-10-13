@@ -1,7 +1,7 @@
 import { SPEEDS, type Speed } from '../core/clock';
 import { tickToDate } from '../core/time';
 import { Species } from '../entities/species';
-import type { SpriteAtlas } from '../render/sprites';
+import type { CreatureAtlas } from '../render/creature-art';
 import { el, iconButton, setPressed } from './dom';
 import { gridIcon, speciesIcon } from './icons';
 
@@ -36,7 +36,7 @@ export class Hud {
   private readonly counts: Record<'herbivores' | 'predators' | 'people' | 'villages' | 'wars', HTMLElement>;
   private readonly speedButtons = new Map<Speed, HTMLButtonElement>();
 
-  constructor(atlas: SpriteAtlas, actions: HudActions) {
+  constructor(atlas: CreatureAtlas, actions: HudActions) {
     this.date = el('span', { class: 'hud-date', text: 'Año 1 · Primavera' });
     this.era = el('span', { class: 'hud-era' });
     this.total = el('span', { class: 'hud-total' });
@@ -64,7 +64,7 @@ export class Hud {
       }),
     );
     const fullscreen = document.fullscreenEnabled
-      ? iconButton(gridIcon('fullscreen'), 'Pantalla completa (F)', { onClick: () => actions.toggleFullscreen() })
+      ? iconButton(gridIcon('fullscreen'), 'Pantalla completa (F)', { class: 'btn-fullscreen', onClick: () => actions.toggleFullscreen() })
       : null;
     this.root = el('header', { class: 'hud' }, [
       iconButton(gridIcon('menu'), 'Menú', { onClick: () => actions.openMenu() }),

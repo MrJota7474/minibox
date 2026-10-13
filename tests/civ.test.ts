@@ -15,7 +15,6 @@ import { SPECIES, Species } from '../src/entities/species';
 import { SpatialHash } from '../src/entities/spatial';
 import { NO_VILLAGE, UnitState, UnitStore } from '../src/entities/units';
 import { Simulation } from '../src/sim/simulation';
-import { BUILDING_TEMPLATES } from '../src/render/civ-sprites';
 import { Biome, Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
 import { World } from '../src/world/world';
 
@@ -201,12 +200,6 @@ describe('modelo y nombres', () => {
     expect(personName(Species.HUMAN, 42)).toBe(personName(Species.HUMAN, 42));
     expect(villageName(Species.PETRINO, 7)).not.toBe(villageName(Species.SILVAN, 7));
     expect(personName(Species.TUSKER, 1).length).toBeGreaterThan(2);
-  });
-
-  it('las plantillas de edificios son rectangulares', () => {
-    for (const rows of Object.values(BUILDING_TEMPLATES)) {
-      for (const row of rows) expect(row.length).toBe(rows[0].length);
-    }
   });
 });
 

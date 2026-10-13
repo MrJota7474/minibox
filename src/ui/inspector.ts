@@ -8,7 +8,7 @@ import { personName } from '../civ/names';
 import { tickToDate, ticksToYears } from '../core/time';
 import { SPECIES } from '../entities/species';
 import { STATE_LABELS, Sex } from '../entities/units';
-import type { SpriteAtlas } from '../render/sprites';
+import type { CreatureAtlas } from '../render/creature-art';
 import type { Simulation } from '../sim/simulation';
 import { BIOME_INFO, FLORA_NAMES, TERRAIN_INFO, isFertileTerrain, isWaterTerrain } from '../world/terrain';
 import { el, iconButton, setPressed } from './dom';
@@ -38,7 +38,7 @@ export class Inspector {
   private target: Target = null;
 
   constructor(
-    private readonly atlas: SpriteAtlas,
+    private readonly atlas: CreatureAtlas,
     private readonly actions: InspectorActions,
   ) {
     this.diplo = el('div', { class: 'insp-diplo', attrs: { hidden: '' } });

@@ -148,6 +148,8 @@ img {
   align-items: baseline;
   gap: 8px;
   min-width: 0;
+  /* Si falta sitio, la era se recorta antes que los botones de velocidad. */
+  overflow: hidden;
 }
 .hud-date {
   font-weight: 600;
@@ -294,6 +296,11 @@ img {
   flex: 0 0 auto;
   width: var(--dock-tool);
   height: calc(var(--dock-tool) + 6px);
+}
+/* Iconos de 16×16 al doble: nítidos. */
+.btn-tool img {
+  width: 32px;
+  height: 32px;
 }
 
 /* ---------- Inspector ---------- */
@@ -727,7 +734,11 @@ img {
     font-size: 14px;
   }
   .hud-era {
-    font-size: 11px;
+    display: none;
+  }
+  /* En vertical no cabe: la pantalla completa sigue en el menú. */
+  .hud .btn-fullscreen {
+    display: none;
   }
   .hud-pop {
     font-size: 12px;

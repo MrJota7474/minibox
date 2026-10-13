@@ -1,7 +1,7 @@
 import type { CivSystem } from '../civ/civ-system';
-import { Job, RESOURCE_COLORS, VILLAGE_COLORS } from '../civ/model';
+import { Job, VILLAGE_COLORS } from '../civ/model';
 import { SPECIES } from '../entities/species';
-import type { UnitStore } from '../entities/units';
+import { UnitState, type UnitStore } from '../entities/units';
 import type { World } from '../world/world';
 import type { Camera } from './camera';
 import { BACKGROUND } from './palette';
@@ -11,8 +11,11 @@ import { Status } from '../powers/status';
 import { BoatLayer } from './boat-layer';
 import { CivLayer } from './civ-layer';
 import { FxLayer } from './fx';
-import { buildSpriteAtlas, type SpriteAtlas } from './sprites';
+import { CELL_H, CELL_W, CLOTH_COUNT, Pose, buildCreatureAtlas, buildToolAtlas, type CreatureAtlas, type ToolAtlas } from './creature-art';
 import { TerrainLayer } from './terrain-layer';
+import { buildFloraAtlas } from './flora-art';
+import { FloraLayer } from './flora-layer';
+import { hash2 } from './pixel';
 
 export interface Overlay {
   /** Pincel bajo el cursor (en casillas). */
@@ -29,18 +32,57 @@ export interface Overlay {
 
 /** Por debajo de este zoom las criaturas se dibujan como puntos. */
 const SPRITE_MIN_ZOOM = 5;
-const SPRITE_ZOOM_DIVISOR = 6;
+/** Desde este zoom el terreno lleva una textura sutil. */
+const GRAIN_MIN_ZOOM = 6;
+const GRAIN_PX = 8;
+
+/** Píxeles de sprite por casilla: una criatura mide algo más de 1,5 casillas. */
+const SPRITE_PX_PER_TILE = 11;
+/** Herramienta de cada oficio (índice = Job). */
+const JOB_TOOLS: readonly (string | null)[] = [null, 'basket', 'axe', 'pick', 'hoe', 'hammer', 'bow', 'bundle', 'spear', 'rod'];
+const CARGO_SPRITES: readonly string[] = ['food', 'log', 'stone', 'ore', 'gold'];
+
+/** Patrón de grano: píxeles algo más claros u oscuros, siempre los mismos. */
+function buildGrain(): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = GRAIN_PX * 4;
+  c.height = GRAIN_PX * 4;
+  const ctx = c.getContext('2d');
+  if (!ctx) return c;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      const r = hash2(x, y, 3);
+      if (r < 0.12) ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      else if (r > 0.9) ctx.fillStyle = 'rgba(255,255,255,0.07)';
+      else continue;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  return c;
+}
+
+function toolFor(job: number, gear: boolean, diet: string): string | null {
+  if (diet !== 'civilized') return null;
+  if (job === Job.WARRIOR && gear) return 'steelSpear';
+  return JOB_TOOLS[job] ?? null;
+}
 /**
  * Chunks del terreno que se repintan por frame tras el primero: un cambio de estación
- * repinta todo el mapa (~100 ms en 512×512) y así se reparte en varios frames sin tirones.
+ * repinta todo el mapa (~0,75 ms por chunk) y así se reparte en varios frames sin tirones.
  */
-const TERRAIN_CHUNKS_PER_FRAME = 24;
+const TERRAIN_CHUNKS_PER_FRAME = 8;
 
 /** Render en Canvas 2D (aislado tras esta clase para poder cambiarlo a WebGL). */
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly terrain: TerrainLayer;
-  readonly atlas: SpriteAtlas;
+  readonly atlas: CreatureAtlas;
+  private readonly tools: ToolAtlas = buildToolAtlas();
+  private readonly flora: FloraLayer;
+  private readonly grain: HTMLCanvasElement = buildGrain();
+  private grainPattern: CanvasPattern | null = null;
+  private readonly visibleUnits: number[] = [];
+  private readonly speciesDiet: string[];
   private dpr = 1;
   private dprCap: number;
   private readonly speciesColors: string[];
@@ -64,13 +106,16 @@ export class Renderer {
     powers: PowerSystem,
     hazards: HazardSystem,
     dprCap: number,
-    atlas?: SpriteAtlas,
+    atlas?: CreatureAtlas,
   ) {
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('Canvas 2D no disponible');
     this.ctx = ctx;
     this.terrain = new TerrainLayer(world);
-    this.atlas = atlas ?? buildSpriteAtlas();
+    this.flora = new FloraLayer(world, buildFloraAtlas());
+    this.terrain.onChunk = (c) => this.flora.touch(c);
+    this.atlas = atlas ?? buildCreatureAtlas();
+    this.speciesDiet = SPECIES.map((sp) => sp.diet);
     this.dprCap = dprCap;
     this.speciesColors = SPECIES.map((s) => s.color);
     this.adultTicks = SPECIES.map((s) => s.adultTicks);
@@ -116,12 +161,15 @@ export class Renderer {
     ctx.fillRect(0, 0, cam.viewW, cam.viewH);
     ctx.translate(shake.x, shake.y);
     this.drawTerrain();
+    this.drawGrain();
     if (this.showTerritory) this.civLayer.drawTerritory(ctx);
+    this.flora.draw(ctx, cam, overlay.season);
     this.civLayer.drawBuildings(ctx);
     if (overlay.selectedTile >= 0) this.drawTileMarker(overlay.selectedTile);
-    this.fx.drawFire(ctx);
+    this.fx.drawFire(ctx, now);
     this.boats.draw(ctx, alpha);
     this.drawUnits(alpha, tick);
+    this.fx.ambient(this.units, this.civ);
     if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
     this.fx.drawOver(ctx, now);
     if (this.showLabels) this.civLayer.drawLabels(ctx);
@@ -140,6 +188,21 @@ export class Renderer {
     this.ctx.drawImage(this.terrain.canvas, x0, y0, x1 - x0, y1 - y0, s.x, s.y, (x1 - x0) * cam.zoom, (y1 - y0) * cam.zoom);
   }
 
+  /** Textura sutil del terreno (un patrón de 8×8 píxeles por casilla). */
+  private drawGrain(): void {
+    const cam = this.camera;
+    const z = cam.zoom;
+    if (z < GRAIN_MIN_ZOOM) return;
+    const ctx = this.ctx;
+    this.grainPattern ??= ctx.createPattern(this.grain, 'repeat');
+    if (!this.grainPattern) return;
+    this.grainPattern.setTransform(new DOMMatrix().translateSelf(-cam.left * z, -cam.top * z).scaleSelf(z / GRAIN_PX, z / GRAIN_PX));
+    const p0 = cam.worldToScreen(0, 0);
+    const p1 = cam.worldToScreen(this.world.width, this.world.height);
+    ctx.fillStyle = this.grainPattern;
+    ctx.fillRect(Math.max(0, p0.x), Math.max(0, p0.y), Math.min(cam.viewW, p1.x) - Math.max(0, p0.x), Math.min(cam.viewH, p1.y) - Math.max(0, p0.y));
+  }
+
   private drawUnits(alpha: number, tick: number): void {
     const u = this.units;
     const cam = this.camera;
@@ -152,45 +215,97 @@ export class Renderer {
       this.drawDots(alpha, left, top, right, bottom);
       return;
     }
-    const scale = Math.max(1, Math.round(z / SPRITE_ZOOM_DIVISOR));
+    // Píxeles de pantalla por píxel de sprite (enteros al acercarse, para un pixel art nítido).
+    const scale = z >= 15 ? Math.round(z / SPRITE_PX_PER_TILE) : z / SPRITE_PX_PER_TILE;
     const ctx = this.ctx;
-    const atlas = this.atlas;
-
+    const visible = this.visibleUnits;
+    visible.length = 0;
     for (let i = 0; i < u.highWater; i++) {
       if (u.alive[i] === 0 || (u.status[i] & (Status.HELD | Status.ABOARD)) !== 0) continue;
       const wx = u.px[i] + (u.x[i] - u.px[i]) * alpha;
       const wy = u.py[i] + (u.y[i] - u.py[i]) * alpha;
-      if (wx < left - 2 || wy < top - 2 || wx > right + 2 || wy > bottom + 2) continue;
-      const sx = (wx - left) * z;
-      const sy = (wy - top) * z;
-      const sp = u.species[i];
-      const size = atlas.sizes[sp];
-      const moving = u.x[i] !== u.px[i] || u.y[i] !== u.py[i];
-      const frame = moving ? ((tick >> 1) + i) & 1 : 0;
-      const flip = u.x[i] < u.px[i] || (!moving && u.tx[i] < u.x[i]) ? 1 : 0;
-      // Las crías se dibujan un escalón más pequeñas.
-      const s = u.age[i] < this.adultTicks[sp] && scale > 1 ? scale - 1 : scale;
-      const w = size.w * s;
-      const h = size.h * s;
-      const spriteTop = Math.round(sy - h + s * 2);
-      ctx.drawImage(atlas.canvas, (frame * 2 + flip) * atlas.cellW, sp * atlas.cellH, size.w, size.h, Math.round(sx - w / 2), spriteTop, w, h);
-      // Carga que lleva un aldeano (madera, piedra, comida...) sobre la cabeza.
-      if (u.carry[i] !== 0) {
-        ctx.fillStyle = RESOURCE_COLORS[u.carry[i] - 1];
-        ctx.fillRect(Math.round(sx - s * 1.5), spriteTop - s * 2, s * 3, s * 2);
-      }
-      // Guerreros: lanza (de hierro si van armados) y banderín con el color de su reino.
-      if (u.job[i] === Job.WARRIOR) {
-        const lx = Math.round(sx + (flip ? -w / 2 - s : w / 2));
-        ctx.fillStyle = u.gear[i] ? '#c9d1d9' : '#8a5a2a';
-        ctx.fillRect(lx, spriteTop - s * 2, s, h + s);
-        const k = this.civ.kingdoms.kingdomOfUnit(i);
-        if (k >= 0) {
-          ctx.fillStyle = VILLAGE_COLORS[this.civ.kingdoms.kingdoms[k].colorIndex];
-          ctx.fillRect(lx + (flip ? -s * 2 : s), spriteTop - s * 2, s * 2, s * 2);
-        }
-      }
+      if (wx < left - 2 || wy < top - 2 || wx > right + 2 || wy > bottom + 3) continue;
+      visible.push(i);
     }
+    // Sombras primero (un solo color), luego los cuerpos de arriba abajo para que se solapen bien.
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    for (const i of visible) {
+      const sx = (u.px[i] + (u.x[i] - u.px[i]) * alpha - left) * z;
+      const sy = (u.py[i] + (u.y[i] - u.py[i]) * alpha - top) * z;
+      const s = this.unitScale(i, scale);
+      ctx.fillRect(Math.round(sx - 4 * s), Math.round(sy - s), Math.round(8 * s), Math.max(1, Math.round(2 * s)));
+    }
+    visible.sort((a, b) => u.y[a] - u.y[b] || a - b);
+    for (const i of visible) this.drawCreature(i, alpha, tick, scale);
+  }
+
+  /** Las crías se dibujan más pequeñas. */
+  private unitScale(i: number, scale: number): number {
+    return this.units.age[i] < this.adultTicks[this.units.species[i]] ? scale * 0.7 : scale;
+  }
+
+  /** Postura según lo que hace: caminar, trabajar, luchar o comer. */
+  private poseOf(i: number, tick: number): number {
+    const u = this.units;
+    const st = u.state[i];
+    if (st === UnitState.WORK) return ((tick >> 2) + i) & 1 ? Pose.RAISE : Pose.STRIKE;
+    if (st === UnitState.FIGHT || (st === UnitState.HUNT && u.attackCd[i] > 0)) return u.attackCd[i] > 4 ? Pose.STRIKE : Pose.RAISE;
+    if (st === UnitState.EAT) return ((tick >> 3) + i) & 1 ? Pose.RAISE : Pose.STRIKE;
+    const moving = u.x[i] !== u.px[i] || u.y[i] !== u.py[i];
+    return moving ? ((tick >> 1) + i) & 3 : Pose.WALK0;
+  }
+
+  private drawCreature(i: number, alpha: number, tick: number, baseScale: number): void {
+    const u = this.units;
+    const cam = this.camera;
+    const ctx = this.ctx;
+    const sx = (u.px[i] + (u.x[i] - u.px[i]) * alpha - cam.left) * cam.zoom;
+    const sy = (u.py[i] + (u.y[i] - u.py[i]) * alpha - cam.top) * cam.zoom;
+    const sp = u.species[i];
+    const s = this.unitScale(i, baseScale);
+    const moving = u.x[i] !== u.px[i] || u.y[i] !== u.py[i];
+    const flip = u.x[i] < u.px[i] || (!moving && u.tx[i] < u.x[i]);
+    const pose = this.poseOf(i, tick);
+    const k = this.civ.kingdoms.kingdomOfUnit(i);
+    const cloth = k >= 0 ? this.civ.kingdoms.kingdoms[k].colorIndex : CLOTH_COUNT - 1;
+    const cell = this.atlas.cell(sp, cloth, pose, flip);
+    const w = CELL_W * s;
+    const h = CELL_H * s;
+    // Los pies (fila CELL_H - 2) quedan sobre la posición de la criatura.
+    const x0 = Math.round(sx - (CELL_W / 2) * s);
+    const y0 = Math.round(sy - (CELL_H - 1.5) * s);
+    ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, CELL_W, CELL_H, x0, y0, Math.round(w), Math.round(h));
+    if (u.age[i] < this.adultTicks[sp]) return;
+    const hand = this.atlas.hand(sp, pose);
+    const hx = x0 + (flip ? CELL_W - 1 - hand.x : hand.x) * s;
+    const hy = y0 + hand.y * s;
+    const tool = toolFor(u.job[i], u.gear[i] !== 0, this.speciesDiet[sp]);
+    if (tool) this.drawTool(tool, pose === Pose.STRIKE, flip, hx, hy, s, u.job[i] === Job.WARRIOR ? k : -1);
+    if (u.carry[i] !== 0) this.drawCargo(u.carry[i] - 1, x0 + w / 2, y0 + 2 * s, s);
+  }
+
+  /** Herramienta del oficio en la mano (en vertical o, al golpear, hacia delante). */
+  private drawTool(tool: string, forward: boolean, flip: boolean, hx: number, hy: number, s: number, kingdom: number): void {
+    const r = this.tools.rect(tool, forward, flip);
+    if (!r) return;
+    // Punto de agarre: abajo en el centro (vertical) o atrás en el centro (hacia delante).
+    const gx = forward ? (flip ? r.w - 2 : 1) : r.w / 2;
+    const gy = forward ? r.h / 2 : r.h - 2;
+    const x = Math.round(hx - gx * s + s / 2);
+    const y = Math.round(hy - gy * s + s / 2);
+    this.ctx.drawImage(this.tools.canvas, r.sx, r.sy, r.w, r.h, x, y, Math.round(r.w * s), Math.round(r.h * s));
+    if (kingdom >= 0 && !forward) {
+      // Banderín del reino en la punta de la lanza.
+      this.ctx.fillStyle = VILLAGE_COLORS[this.civ.kingdoms.kingdoms[kingdom].colorIndex];
+      this.ctx.fillRect(Math.round(x + (flip ? -1 : r.w / 2 + 0.5) * s), Math.round(y + 3 * s), Math.round(2 * s), Math.round(1.5 * s));
+    }
+  }
+
+  /** Lo que lleva a cuestas (troncos, piedra, mineral, oro o comida), sobre la cabeza. */
+  private drawCargo(resource: number, cx: number, top: number, s: number): void {
+    const r = this.tools.rect(CARGO_SPRITES[resource], false, false);
+    if (!r) return;
+    this.ctx.drawImage(this.tools.canvas, r.sx, r.sy, r.w, r.h, Math.round(cx - (r.w / 2) * s), Math.round(top - r.h * s), Math.round(r.w * s), Math.round(r.h * s));
   }
 
   /** Zoom alejado: puntos agrupados por especie (un solo cambio de color por especie). */
@@ -231,8 +346,9 @@ export class Renderer {
       if (i < 0) return;
       const ox = (((k * 7) % 5) - 2) * Math.max(3, z * 0.5);
       const oy = (((k * 3) % 5) - 2) * Math.max(3, z * 0.5) - z;
-      this.ctx.fillStyle = this.speciesColors[u.species[i]];
-      this.ctx.fillRect(p.x + ox - 3, p.y + oy - 3, Math.max(6, z * 0.8), Math.max(6, z * 0.8));
+      const s = Math.max(1, z / SPRITE_PX_PER_TILE);
+      const cell = this.atlas.cell(u.species[i], CLOTH_COUNT - 1, Pose.RAISE, false);
+      this.ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, CELL_W, CELL_H, Math.round(p.x + ox - (CELL_W / 2) * s), Math.round(p.y + oy - CELL_H * s), Math.round(CELL_W * s), Math.round(CELL_H * s));
     });
   }
 

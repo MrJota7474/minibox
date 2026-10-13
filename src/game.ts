@@ -9,7 +9,7 @@ import type { ToolDef } from './powers/tools';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { BoatLayer } from './render/boat-layer';
-import { buildSpriteAtlas, type SpriteAtlas } from './render/sprites';
+import { buildCreatureAtlas, type CreatureAtlas } from './render/creature-art';
 import type { Command } from './sim/commands';
 import { Simulation } from './sim/simulation';
 import { isFertileTerrain } from './world/terrain';
@@ -63,7 +63,7 @@ export class Game {
   private readonly recognizer = new GestureRecognizer();
   private readonly stroke: StrokeController;
   private readonly canvas: HTMLCanvasElement;
-  private readonly atlas: SpriteAtlas;
+  private readonly atlas: CreatureAtlas;
   private readonly hud: Hud;
   private readonly toolbar: Toolbar;
   private readonly inspector: Inspector;
@@ -99,7 +99,7 @@ export class Game {
     root: HTMLElement,
     private readonly device: DeviceProfile,
   ) {
-    this.atlas = buildSpriteAtlas();
+    this.atlas = buildCreatureAtlas();
     this.canvas = el('canvas', { class: 'view', attrs: { 'aria-label': 'Mapa del mundo' } });
     this.stroke = new StrokeController((c) => this.applyCommand(c));
     this.hud = new Hud(this.atlas, {

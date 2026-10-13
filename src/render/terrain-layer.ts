@@ -12,6 +12,8 @@ export class TerrainLayer {
   private readonly pixels: Uint32Array;
   /** Estación con la que se tiñe el mapa (al cambiar, se repinta entero). */
   season = 1;
+  /** Aviso al repintar un chunk (la capa de vegetación revisa su caché). */
+  onChunk: ((chunk: number) => void) | null = null;
 
   constructor(private readonly world: World) {
     this.canvas = document.createElement('canvas');
@@ -30,6 +32,7 @@ export class TerrainLayer {
     let count = 0;
     this.world.consumeDirtyChunks((cx, cy) => {
       this.paintChunk(cx, cy);
+      this.onChunk?.(cy * this.world.chunksX + cx);
       count++;
     }, budget);
     return count;

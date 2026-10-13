@@ -265,7 +265,12 @@ export class CivSystem {
     this.buildings.push(b);
     v.buildingIds.push(b.id);
     clearFootprint(this.world, x, y, def.w, def.h);
-    for (let ty = y; ty < y + def.h; ty++) for (let tx = x; tx < x + def.w; tx++) this.world.buildingAt[this.world.idx(tx, ty)] = b.id + 1;
+    for (let ty = y; ty < y + def.h; ty++) {
+      for (let tx = x; tx < x + def.w; tx++) {
+        this.world.buildingAt[this.world.idx(tx, ty)] = b.id + 1;
+        this.world.markDirtyIdx(this.world.idx(tx, ty));
+      }
+    }
     return b;
   }
 
@@ -335,7 +340,12 @@ export class CivSystem {
     const v = this.villages[b.village];
     const k = v.buildingIds.indexOf(b.id);
     if (k >= 0) v.buildingIds.splice(k, 1);
-    for (let ty = b.y; ty < b.y + b.h; ty++) for (let tx = b.x; tx < b.x + b.w; tx++) this.world.buildingAt[this.world.idx(tx, ty)] = 0;
+    for (let ty = b.y; ty < b.y + b.h; ty++) {
+      for (let tx = b.x; tx < b.x + b.w; tx++) {
+        this.world.buildingAt[this.world.idx(tx, ty)] = 0;
+        this.world.markDirtyIdx(this.world.idx(tx, ty));
+      }
+    }
   }
 
   /** Edificios sobre casillas que dejaron de ser pisables (agua, cumbres) se derrumban. */

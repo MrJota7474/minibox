@@ -369,9 +369,15 @@ Unos 20 rasgos heredables y por eventos, stats completas, inspector de unidad, a
 - **Eras** (`world/climate.ts`): cada 40 años, secuencia determinista por semilla (la primera es templada y nunca se repiten seguidas). Abundancia, glacial (el otoño ya es invierno), de hierro (umbral de guerra más fácil), de la concordia (guerras raras, paz antes) y arcana (biomas mágicos ×4). El jugador puede imponer una (comando `era`), que dura hasta la siguiente.
 - **Guardado**: formato MBX versión 3 (era en la cabecera); las partidas anteriores se migran con las leyes nuevas activadas y la era que les toca por fecha.
 
+### Renovación visual (entre G y los monstruos)
+- **Criaturas** (`render/creature-art.ts`): se componen por partes (cabeza, pelo, orejas, barba, colmillos, torso, brazos, piernas) con 4 cuadros de caminar y 2 de acción; la ropa lleva el color del reino (atlas de 13 colores). Las herramientas de cada oficio y la carga son sprites aparte, colocados en la mano según la postura. Sombra bajo cada criatura y orden de dibujo por profundidad.
+- **Edificios** (`render/building-art.ts`): 8 px por casilla, piezas reutilizables (paredes de entramado, troncos, sillería o piel; tejados a dos aguas, de hojas, de pizarra o tiendas) y bandera del reino en ayuntamientos y fortalezas.
+- **Vegetación** (`render/flora-art.ts`, `render/flora-layer.ts`): un árbol por bioma con variantes de estación, arbustos, rocas, vetas y adornos del suelo. Cada chunk se pinta una vez en una caché (LRU de 48) y sólo se repinta si cambian sus plantas o la estación: dibujar el bosque cuesta ~1-4 ms en vez de ~20-30.
+- **Efectos** (`render/fx.ts`): llamas animadas, rayos con resplandor, ondas expansivas, tornados, nubes y partículas con forma; además, vida en el mapa según lo que hacen las criaturas (astillas, chispas, golpes, corazones, humo de chimeneas, estados).
+- **Iconos** (`ui/tool-icons.ts`): 16×16 a doble tamaño.
+
 ### Después de G
 Monstruos; cultura, religión y clanes; sonido y caminos (en ese orden).
-Cultura, idioma y religión; clanes; eras; caminos; sonido; editor de estandartes; mods.
 
 ---
 

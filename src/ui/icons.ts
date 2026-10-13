@@ -1,8 +1,9 @@
 import { Biome, Terrain } from '../world/terrain';
 import { biomeSwatch, terrainSwatch, type Rgb } from '../render/palette';
-import { spriteToDataUrl, type SpriteAtlas } from '../render/sprites';
+import type { CreatureAtlas } from '../render/creature-art';
 import type { BrushToolId } from '../sim/commands';
 import type { ToolDef } from '../powers/tools';
+import { biomeIcon, brushIcon, powerIcon, terrainIcon } from './tool-icons';
 
 /** Iconos pixelados originales (cuadrículas de 10×10) generados por código. */
 const ICON_COLORS: Readonly<Record<string, string>> = {
@@ -146,32 +147,34 @@ const GRID_FOR_BRUSH: Partial<Record<BrushToolId, string>> = {
   'clear-flora': 'axe',
 };
 
-export function toolIcon(tool: ToolDef, atlas: SpriteAtlas): string {
-  if (tool.kind === 'power') return gridIcon(tool.power);
+export function toolIcon(tool: ToolDef, atlas: CreatureAtlas): string {
+  if (tool.kind === 'power') return powerIcon(tool.power) ?? gridIcon(tool.power);
   if (tool.kind === 'magnet') return gridIcon('magnet');
   if (tool.kind === 'spawn') {
     const key = `species-${tool.species}`;
     const cached = cache.get(key);
     if (cached) return cached;
-    const url = spriteToDataUrl(atlas, tool.species, 4);
+    const url = atlas.toDataUrl(tool.species, 3);
     cache.set(key, url);
     return url;
   }
   const terrain = TERRAIN_FOR_BRUSH[tool.brush];
   if (terrain !== undefined) {
+    const icon = terrainIcon(terrain);
+    if (icon) return icon;
     const base = terrainSwatch(terrain);
     return swatchIcon(`terrain-${terrain}`, terrain === Terrain.SOIL_LOW ? biomeSwatch(Biome.GRASS) : base);
   }
   const biome = BIOME_FOR_BRUSH[tool.brush];
-  if (biome !== undefined) return swatchIcon(`biome-${biome}`, biomeSwatch(biome));
-  return gridIcon(GRID_FOR_BRUSH[tool.brush] ?? 'close');
+  if (biome !== undefined) return biomeIcon(biome) ?? swatchIcon(`biome-${biome}`, biomeSwatch(biome));
+  return brushIcon(tool.brush) ?? gridIcon(GRID_FOR_BRUSH[tool.brush] ?? 'close');
 }
 
-export function speciesIcon(species: number, atlas: SpriteAtlas): string {
+export function speciesIcon(species: number, atlas: CreatureAtlas): string {
   const key = `species-${species}`;
   const cached = cache.get(key);
   if (cached) return cached;
-  const url = spriteToDataUrl(atlas, species, 4);
+  const url = atlas.toDataUrl(species, 3);
   cache.set(key, url);
   return url;
 }
