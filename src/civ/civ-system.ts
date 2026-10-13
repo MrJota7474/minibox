@@ -25,7 +25,7 @@ import { villageName } from './names';
 import { canPlace, clearFootprint, findBuildSpot } from './placement';
 import { planVillage } from './planner';
 
-export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era';
+export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era' | 'monster';
 
 export interface ChronicleEntry {
   readonly tick: number;
@@ -72,6 +72,8 @@ export class CivSystem {
   readonly kingdoms: KingdomSystem;
   /** Barcos (los hundidos o desarmados quedan con alive = false). */
   readonly boats: Boat[] = [];
+  /** Aldeas con monstruos cerca este tick (índice = id; derivado, ver markMonsterAlerts). */
+  readonly monsterAlert: boolean[] = [];
   tick = 0;
 
   constructor(
@@ -357,7 +359,10 @@ export class CivSystem {
   }
 
   private checkBuilding(b: Building): void {
-    if (!b.alive || this.footprintOk(b)) return;
+    if (!b.alive) return;
+    // Los daños del fuego y de los monstruos se van reparando solos.
+    if (b.burn > 0) b.burn--;
+    if (this.footprintOk(b)) return;
     this.destroyBuilding(b);
     const v = this.villages[b.village];
     if (v.alive && b.id === v.hallId) this.abandonVillage(v);
@@ -576,6 +581,7 @@ export class CivSystem {
       h = hashMix(h, b.alive ? b.level + 1 : 0);
       h = hashMix(h, b.progress);
       h = hashMix(h, b.growth);
+      h = hashMix(h, b.burn);
     }
     h = hashMix(h, boatsHash(this.boats));
     return hashMix(h, this.kingdoms.stateHash());

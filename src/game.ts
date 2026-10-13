@@ -34,16 +34,18 @@ function hudCounts(sim: Simulation): HudCounts {
   let herbivores = 0;
   let predators = 0;
   let people = 0;
+  let monsters = 0;
   SPECIES.forEach((s, k) => {
     if (s.diet === 'herbivore') herbivores += c[k];
     else if (s.diet === 'carnivore') predators += c[k];
+    else if (s.diet === 'monster') monsters += c[k];
     else people += c[k];
   });
   const villages = sim.civ.villages.reduce((n, v) => n + (v.alive ? 1 : 0), 0);
   const wars = sim.civ.kingdoms.wars.reduce((n, w) => n + (w.active ? 1 : 0), 0);
   const era = ERA_INFO[sim.climate.era];
   const season = SEASON_INFO[sim.climate.seasonAt(sim.tick, sim.laws.seasons)].name;
-  return { wars, herbivores, predators, people, villages, total: sim.units.count, limit: sim.unitLimit, season, era: era.name, eraDescription: era.description };
+  return { wars, herbivores, predators, people, monsters, villages, total: sim.units.count, limit: sim.unitLimit, season, era: era.name, eraDescription: era.description };
 }
 const PERF_WINDOW_MS = 5000;
 const LOW_FPS = 24;

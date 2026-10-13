@@ -10,6 +10,7 @@ import { Rng } from '../src/core/rng';
 import { SPECIES, Species, type SpeciesId } from '../src/entities/species';
 import { SpatialHash } from '../src/entities/spatial';
 import { Sex, UnitState, UnitStore } from '../src/entities/units';
+import { HazardSystem } from '../src/powers/hazards';
 import { Biome, TERRAIN_INFO, Terrain } from '../src/world/terrain';
 import { World } from '../src/world/world';
 
@@ -35,6 +36,7 @@ function makeCtx(world: World, capacity = 100, limit = capacity): AiContext {
     civ: new CivSystem(world, units),
     laws: defaultLaws(),
     climate: neutralClimate(),
+    hazards: new HazardSystem(world),
     spatial: new SpatialHash(world.width, world.height, capacity),
     rng: new Rng(1),
     tick: 0,

@@ -1,5 +1,6 @@
 import type { CivSystem } from '../civ/civ-system';
 import { BuildingType } from '../civ/model';
+import { Species, isMonster } from '../entities/species';
 import { UnitState, type UnitStore } from '../entities/units';
 import type { FxEvent, PowerSystem } from '../powers/disasters';
 import type { HazardSystem } from '../powers/hazards';
@@ -62,6 +63,8 @@ interface Style {
   speed: number;
   rise: number;
   gravity: number;
+  /** Tamaño fijo (en casillas) de las partículas cuadradas; si falta, varía al azar. */
+  size?: number;
 }
 
 const STYLES: Readonly<Record<string, Style>> = {
@@ -80,7 +83,18 @@ const STYLES: Readonly<Record<string, Style>> = {
   hit: { colors: ['#ffffff', '#ff5a5a', '#ffd04a'], shape: 'star', speed: 2.5, rise: -1, gravity: 2 },
   hearts: { colors: ['#ff6a8a', '#ff9ab0'], shape: 'heart', speed: 0.4, rise: -1.2, gravity: 0 },
   blessing: { colors: ['#fff2a0', '#ffd04a'], shape: 'square', speed: 0.3, rise: -0.9, gravity: 0 },
+  wisp: { colors: ['#b9a6e0', '#8c7cb4', '#9cf0c0'], shape: 'square', speed: 0.3, rise: -0.7, gravity: 0, size: 0.14 },
+  mud: { colors: ['#6a6338', '#454226', '#5f8a34'], shape: 'square', speed: 0.8, rise: -1, gravity: 7, size: 0.16 },
+  blightMote: { colors: ['#7a4f86', '#4a2f55', '#a878b8'], shape: 'square', speed: 0.15, rise: -0.5, gravity: 0, size: 0.1 },
+  groveMote: { colors: ['#c8fff0', '#7fe8c8', '#ffffff'], shape: 'square', speed: 0.2, rise: -0.6, gravity: 0, size: 0.1 },
 };
+/** Partículas con las que aparece cada monstruo recién nacido. */
+const BIRTH_FX: Readonly<Record<number, string>> = { [Species.PENANTE]: 'curse', [Species.ESCORIO]: 'explosion', [Species.CENAGOSO]: 'mud' };
+/** Casillas a la vista que se miran por frame en busca de biomas mágicos. */
+const MOTE_TRIES = 6;
+const MOTE_MIN_ZOOM = 6;
+/** Daño a partir del cual un edificio humea. */
+const SMOKING_BURN = 8;
 
 /** Tiempo de cada estación: copos, hojas, pétalos o lluvia (en los biomas cálidos). */
 interface Weather {
@@ -234,7 +248,7 @@ export class FxLayer {
         life: max,
         max,
         color: st.colors[k % st.colors.length],
-        size: st.shape === 'square' ? 0.18 + Math.random() * 0.25 : 1,
+        size: st.shape === 'square' ? (st.size ?? 0.18 + Math.random() * 0.25) : 1,
         shape: st.shape,
       });
     }
@@ -270,7 +284,11 @@ export class FxLayer {
       } else if (st === UnitState.MATE && r < 0.05) {
         this.burst(x, y - 1.6, 1, 'hearts');
         budget--;
+      } else if (st === UnitState.RAZE && u.attackCd[i] === 7) {
+        this.burst(u.tx[i], u.ty[i] - 0.4, 4, 'debris', 0.5);
+        budget--;
       }
+      if (isMonster(u.species[i])) budget -= this.monsterFx(u, i, x, y, r);
       const status = u.status[i];
       if (u.plague[i] > 0 && r < 0.03) this.burst(x, y - 1.2, 1, 'plague', 0.3);
       else if (u.mad[i] > 0 && r < 0.03) this.burst(x, y - 1.6, 1, 'madness', 0.3);
@@ -286,6 +304,48 @@ export class FxLayer {
         this.burst(b.x + b.w * 0.7, b.y - (b.type === BuildingType.HALL ? 1.2 : 0.8), 1, 'smoke', 0.3);
         budget--;
       }
+      // Los edificios dañados (por el fuego o por los monstruos) humean hasta que se reparan.
+      if (b.burn > SMOKING_BURN && Math.random() < 0.08) {
+        this.burst(b.x + Math.random() * b.w, b.y + Math.random() * b.h * 0.5, 1, 'smoke', 0.4);
+        budget--;
+      }
+    }
+  }
+
+  /** Ascuas del escorio, jirones del penante, goterones del cenagoso y la nube con la que aparecen. Devuelve las partículas gastadas. */
+  private monsterFx(u: UnitStore, i: number, x: number, y: number, r: number): number {
+    const species = u.species[i];
+    if (u.age[i] < 6) {
+      this.burst(x, y - 0.6, 3, BIRTH_FX[species] ?? 'smoke', 0.6);
+      return 1;
+    }
+    if (species === Species.ESCORIO && r < 0.1) this.burst(x + (Math.random() - 0.5) * 0.9, y - 0.9, 1, 'ember');
+    else if (species === Species.PENANTE && r < 0.04) this.burst(x - 0.3, y - 0.7, 1, 'wisp');
+    else if (species === Species.CENAGOSO && r < 0.04) this.burst(x + (Math.random() - 0.5), y - 0.3, 1, 'mud');
+    else return 0;
+    return 1;
+  }
+
+  /** Motas que flotan sobre los biomas mágicos a la vista: ceniza violeta en el yermo, chispas en la arboleda. */
+  motes(): void {
+    const c = this.camera;
+    if (c.zoom < MOTE_MIN_ZOOM) return;
+    const vw = c.viewW / c.zoom;
+    const vh = c.viewH / c.zoom;
+    const w = this.world;
+    let tries = MOTE_TRIES * this.dt * 60;
+    while (tries > 0 && this.particles.length < MAX_PARTICLES) {
+      if (tries < 1 && Math.random() > tries) break;
+      tries--;
+      const x = c.left + Math.random() * vw;
+      const y = c.top + Math.random() * vh;
+      const tx = Math.floor(x);
+      const ty = Math.floor(y);
+      if (!w.inBounds(tx, ty)) continue;
+      const biome = w.biome[ty * w.width + tx];
+      if (biome !== Biome.BLIGHT && biome !== Biome.GROVE) continue;
+      if (w.isWaterIdx(ty * w.width + tx)) continue;
+      this.burst(x, y, 1, biome === Biome.BLIGHT ? 'blightMote' : 'groveMote');
     }
   }
 

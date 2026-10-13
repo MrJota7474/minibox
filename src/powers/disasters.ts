@@ -6,7 +6,7 @@ import { NO_UNIT, type UnitStore } from '../entities/units';
 import { Flora, TERRAIN_INFO, Terrain, isPlant } from '../world/terrain';
 import type { World } from '../world/world';
 import type { BuildingHazards, HazardSystem } from './hazards';
-import { Status, bless, curse, heal, infect, madden } from './status';
+import { Status, bless, curse, heal, infect, madden, smite } from './status';
 
 export type PowerId =
   | 'lightning'
@@ -128,7 +128,11 @@ export class PowerSystem {
       if (power === 'bless') bless(u, i);
       else if (power === 'curse') curse(u, i);
       else if (power === 'madness') madden(u, i);
-      else if (power === 'heal') heal(u, i, SPECIES[u.species[i]]);
+      else if (power === 'heal') {
+        const def = SPECIES[u.species[i]];
+        if (def.monster?.undead) smite(ctx, i, def);
+        else heal(u, i, def);
+      }
       else if (power === 'plague') infect(u, i);
     });
     const fx: Readonly<Record<string, FxKind>> = { bless: 'sparkle', curse: 'curse', madness: 'madness', heal: 'heal', plague: 'plague' };

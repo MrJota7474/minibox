@@ -158,6 +158,60 @@ describe('migración de partidas antiguas', () => {
     expect(loaded.world.seaSizes).toEqual(sim.world.seaSizes);
     for (let t = 0; t < 200; t++) loaded.step();
   });
+
+  it('carga una partida de la versión 3 (sin la ley ni el azar de los monstruos)', () => {
+    const sim = busyWorld();
+    const v3 = patchHeader(serialize(sim, meta(sim)), (h) => {
+      const laws = { ...(h.laws as Record<string, boolean>) };
+      delete laws.monsters;
+      return { ...h, version: 3, laws, rng: (h.rng as number[][]).slice(0, 4) };
+    });
+    const loaded = deserialize(v3);
+    expect(loaded.laws.monsters).toBe(true);
+    expect(loaded.laws.rebellions).toBe(false);
+    expect(loaded.units.count).toBe(sim.units.count);
+    expect(loaded.getRngStates()).toHaveLength(5);
+    expect(loaded.getRngStates().slice(0, 4)).toEqual(sim.getRngStates().slice(0, 4));
+    for (let t = 0; t < 200; t++) loaded.step();
+    // Una partida actual sí debe traer sus cinco flujos de azar.
+    const short = patchHeader(serialize(sim, meta(sim)), (h) => ({ ...h, rng: (h.rng as number[][]).slice(0, 4) }));
+    expect(() => deserialize(short)).toThrow(/aleatorio/);
+  });
+});
+
+describe('partidas con monstruos', () => {
+  function haunted(): Simulation {
+    const sim = busyWorld();
+    sim.apply({ type: 'brush', tool: 'blight', x: 40, y: 80, size: 15 });
+    sim.apply({ type: 'spawn', species: Species.PENANTE, x: 52, y: 66, size: 5 });
+    sim.apply({ type: 'spawn', species: Species.ESCORIO, x: 78, y: 62, size: 1 });
+    sim.apply({ type: 'spawn', species: Species.CENAGOSO, x: 60, y: 70, size: 1 });
+    sim.apply({ type: 'power', power: 'curse', x: 50, y: 64, size: 9 });
+    for (let t = 0; t < 120; t++) sim.step();
+    return sim;
+  }
+
+  it('se guardan y continúan exactamente igual', () => {
+    const sim = haunted();
+    expect(sim.units.speciesCount[Species.PENANTE] + sim.units.speciesCount[Species.ESCORIO] + sim.units.speciesCount[Species.CENAGOSO]).toBeGreaterThan(0);
+    const loaded = deserialize(serialize(sim, meta(sim)));
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+    for (let t = 0; t < 1200; t++) {
+      sim.step();
+      loaded.step();
+    }
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+    expect(loaded.civ.chronicle).toEqual(sim.civ.chronicle);
+  });
+
+  it('rechaza un monstruo empadronado en una aldea (archivo manipulado)', () => {
+    const sim = haunted();
+    const u = sim.units;
+    let monster = -1;
+    for (let i = 0; i < u.highWater && monster < 0; i++) if (u.alive[i] === 1 && u.species[i] >= Species.PENANTE) monster = i;
+    u.village[monster] = 0;
+    expect(() => deserialize(serialize(sim, meta(sim)))).toThrow(/criaturas/);
+  });
 });
 
 /** Convierte una partida actual al formato de la versión 1 (Fase E). */

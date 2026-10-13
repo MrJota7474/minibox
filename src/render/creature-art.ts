@@ -1,5 +1,6 @@
-import { Species } from '../entities/species';
+import { SPECIES, Species, isMonster } from '../entities/species';
 import { VILLAGE_COLORS } from '../civ/model';
+import { MonsterAction, drawMonster } from './monster-art';
 import { Pix, shade } from './pixel';
 
 /**
@@ -16,7 +17,7 @@ export const Pose = { WALK0: 0, RAISE: 4, STRIKE: 5 } as const;
 /** Colores de ropa: uno por color de reino y el último, neutro (sin reino). */
 export const CLOTH_COUNT = VILLAGE_COLORS.length + 1;
 const NEUTRAL_CLOTH = '#8a7a64';
-const SPECIES_TOTAL = 7;
+const SPECIES_TOTAL = SPECIES.length;
 
 // ---------- Razas ----------
 
@@ -259,6 +260,10 @@ function drawCreature(p: Pix, species: number, cloth: string, pose: number): Han
   if (species === Species.SHEEP) return drawSheep(p, pose);
   if (species === Species.RABBIT) return drawRabbit(p, pose);
   if (species === Species.WOLF) return drawWolf(p, pose);
+  if (isMonster(species)) {
+    const action = pose === Pose.RAISE ? MonsterAction.RAISE : pose === Pose.STRIKE ? MonsterAction.STRIKE : MonsterAction.WALK;
+    return drawMonster(p, species, pose < 4 ? pose : 0, action, CELL_H - 2);
+  }
   return drawHumanoid(p, RACES[species], cloth, pose);
 }
 

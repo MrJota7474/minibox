@@ -1,11 +1,11 @@
 import { DeathCause, giveUp, killUnit, type AiContext } from '../ai/context';
 import { Move, moveToward, pickWanderTarget } from '../ai/movement';
-import type { SpeciesDef } from '../entities/species';
+import { isMonster, type SpeciesDef } from '../entities/species';
 import { Trait, addTrait, traitMods } from '../entities/traits';
-import { ABOARD_FLAG, HELD_FLAG, NO_UNIT, UnitState, type UnitStore } from '../entities/units';
+import { ABOARD_FLAG, CURSED_FLAG, HELD_FLAG, NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 
 /** Estados permanentes (bits de `units.status`). */
-export const Status = { BLESSED: 1, CURSED: 2, IMMUNE: 4, HELD: HELD_FLAG, ABOARD: ABOARD_FLAG } as const;
+export const Status = { BLESSED: 1, CURSED: CURSED_FLAG, IMMUNE: 4, HELD: HELD_FLAG, ABOARD: ABOARD_FLAG } as const;
 
 export const PLAGUE_DURATION = 900;
 const PLAGUE_DAMAGE_INTERVAL = 20;
@@ -22,14 +22,16 @@ const BLESSED_DAMAGE = 1.5;
 const CURSED_DAMAGE = 0.6;
 const BLESSED_TAKEN = 0.6;
 const CURSED_TAKEN = 1.5;
+/** Parte de su vida que la luz divina le quita a un no-muerto. */
+const SMITE_FRACTION = 0.6;
 
 export function has(u: UnitStore, i: number, flag: number): boolean {
   return (u.status[i] & flag) !== 0;
 }
 
-/** Contagia la plaga (salvo a los inmunes o ya enfermos). */
+/** Contagia la plaga (salvo a los inmunes, a los ya enfermos y a los monstruos). */
 export function infect(u: UnitStore, i: number): boolean {
-  if (has(u, i, Status.IMMUNE) || u.plague[i] > 0 || traitMods(u.traits[i]).plagueImmune) return false;
+  if (has(u, i, Status.IMMUNE) || u.plague[i] > 0 || isMonster(u.species[i]) || traitMods(u.traits[i]).plagueImmune) return false;
   u.plague[i] = PLAGUE_DURATION;
   return true;
 }
@@ -52,6 +54,13 @@ export function heal(u: UnitStore, i: number, def: SpeciesDef): void {
   u.plague[i] = 0;
   u.mad[i] = 0;
   u.status[i] &= ~Status.CURSED;
+}
+
+/** Luz divina sobre un no-muerto: en vez de curarlo, lo deshace. */
+export function smite(ctx: AiContext, i: number, def: SpeciesDef): void {
+  const u = ctx.units;
+  u.hp[i] -= Math.ceil(def.maxHp * SMITE_FRACTION);
+  if (u.hp[i] <= 0) killUnit(ctx, i, DeathCause.DIVINE);
 }
 
 /** Multiplicador del daño que hace la criatura. */

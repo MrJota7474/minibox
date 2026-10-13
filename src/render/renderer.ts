@@ -15,6 +15,7 @@ import { CELL_H, CELL_W, CLOTH_COUNT, Pose, buildCreatureAtlas, buildToolAtlas, 
 import { TerrainLayer } from './terrain-layer';
 import { buildFloraAtlas } from './flora-art';
 import { FloraLayer } from './flora-layer';
+import { MONSTER_SCALE } from './monster-art';
 import { hash2 } from './pixel';
 
 export interface Overlay {
@@ -90,6 +91,9 @@ export class Renderer {
   private dprCap: number;
   private readonly speciesColors: string[];
   private readonly adultTicks: number[];
+  /** Tamaño de cada especie respecto a un aldeano y cuáles despiden resplandor de lava. */
+  private readonly speciesScale: number[] = SPECIES.map((s) => MONSTER_SCALE[s.id] ?? 1);
+  private readonly speciesGlow: boolean[] = SPECIES.map((s) => s.monster?.fiery === true);
   private readonly civLayer: CivLayer;
   private readonly boats: BoatLayer;
   private readonly civ: CivSystem;
@@ -174,6 +178,7 @@ export class Renderer {
     this.boats.draw(ctx, alpha);
     this.drawUnits(alpha, tick);
     this.fx.ambient(this.units, this.civ);
+    this.fx.motes();
     this.fx.weather(overlay.season);
     if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
     this.fx.drawOver(ctx, now);
@@ -267,13 +272,37 @@ export class Renderer {
       const s = this.unitScale(i, scale);
       ctx.fillRect(Math.round(sx - 4 * s), Math.round(sy - s), Math.round(8 * s), Math.max(1, Math.round(2 * s)));
     }
+    this.drawGlows(visible, alpha, tick, scale);
     visible.sort((a, b) => u.y[a] - u.y[b] || a - b);
     for (const i of visible) this.drawCreature(i, alpha, tick, scale);
   }
 
-  /** Las crías se dibujan más pequeñas. */
+  /** Resplandor que late en el suelo bajo los monstruos de lava. */
+  private drawGlows(visible: readonly number[], alpha: number, tick: number, scale: number): void {
+    const u = this.units;
+    const cam = this.camera;
+    const ctx = this.ctx;
+    for (const i of visible) {
+      if (!this.speciesGlow[u.species[i]]) continue;
+      const sx = (u.px[i] + (u.x[i] - u.px[i]) * alpha - cam.left) * cam.zoom;
+      const sy = (u.py[i] + (u.y[i] - u.py[i]) * alpha - cam.top) * cam.zoom;
+      const s = this.unitScale(i, scale);
+      const pulse = (((tick >> 1) + i) & 3) * 0.035;
+      ctx.fillStyle = `rgba(255,130,40,${0.2 + pulse})`;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - s, 9 * s, 4 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,210,110,${0.16 + pulse})`;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy - s, 5 * s, 2.2 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  /** Las crías se dibujan más pequeñas; los monstruos grandes, más grandes. */
   private unitScale(i: number, scale: number): number {
-    return this.units.age[i] < this.adultTicks[this.units.species[i]] ? scale * 0.7 : scale;
+    const species = this.units.species[i];
+    return this.units.age[i] < this.adultTicks[species] ? scale * 0.7 : scale * this.speciesScale[species];
   }
 
   /** Postura según lo que hace: caminar, trabajar, luchar o comer. */
@@ -281,7 +310,7 @@ export class Renderer {
     const u = this.units;
     const st = u.state[i];
     if (st === UnitState.WORK) return ((tick >> 2) + i) & 1 ? Pose.RAISE : Pose.STRIKE;
-    if (st === UnitState.FIGHT || (st === UnitState.HUNT && u.attackCd[i] > 0)) return u.attackCd[i] > 4 ? Pose.STRIKE : Pose.RAISE;
+    if (st === UnitState.FIGHT || ((st === UnitState.HUNT || st === UnitState.RAZE) && u.attackCd[i] > 0)) return u.attackCd[i] > 4 ? Pose.STRIKE : Pose.RAISE;
     if (st === UnitState.EAT) return ((tick >> 3) + i) & 1 ? Pose.RAISE : Pose.STRIKE;
     const moving = u.x[i] !== u.px[i] || u.y[i] !== u.py[i];
     return moving ? ((tick >> 1) + i) & 3 : Pose.WALK0;

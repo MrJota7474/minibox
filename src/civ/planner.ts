@@ -6,6 +6,7 @@ import { isFertileTerrain } from '../world/terrain';
 import type { CivSystem } from './civ-system';
 import { BUILDING_DEFS, BuildingType, JOB_COUNT, Job, Resource, canAfford, pay, type Building, type JobId, type Village } from './model';
 import { enlistSettler, findDockSpot, isCoastal, launchSettlers, launchWarFleet } from './boats';
+import { villageThreatened } from './combat';
 
 const BUILD_RADIUS = 14;
 const POP_PER_ZONE = 2.5;
@@ -143,7 +144,8 @@ function desiredJobs(v: Village, hall: Building, atWar: boolean, docks: number):
 
 function assignJobs(civ: CivSystem, v: Village, ctx: AiContext, hall: Building): void {
   const u = ctx.units;
-  const want = desiredJobs(v, hall, civ.kingdoms.isAtWar(v.kingdom), finishedDocks(civ, v));
+  // Con monstruos rondando la aldea se recluta igual que en guerra.
+  const want = desiredJobs(v, hall, civ.kingdoms.isAtWar(v.kingdom) || villageThreatened(ctx, v), finishedDocks(civ, v));
   const have = new Array<number>(JOB_COUNT).fill(0);
   const free: number[] = [];
   for (let i = 0; i < u.highWater; i++) {

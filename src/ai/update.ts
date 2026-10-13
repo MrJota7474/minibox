@@ -1,14 +1,17 @@
+import { markMonsterAlerts } from '../civ/combat';
 import { updateVillager } from '../civ/villager';
 import { SPECIES } from '../entities/species';
 import { updateAnimal } from './animal-ai';
 import type { AiContext } from './context';
 import { updateLife } from './life';
+import { updateMonster } from './monster-ai';
 import { OFFMAP_FLAGS } from '../entities/units';
 import { updateMadness, updatePlague } from '../powers/status';
 
 /** Actualiza todas las criaturas un tick, en orden de índice (determinista). */
 export function updateUnits(ctx: AiContext): void {
   const u = ctx.units;
+  markMonsterAlerts(ctx);
   for (let i = 0; i < u.highWater; i++) {
     if (u.alive[i] === 0) continue;
     u.px[i] = u.x[i];
@@ -27,6 +30,7 @@ export function updateUnits(ctx: AiContext): void {
       continue;
     }
     if (def.diet === 'civilized') updateVillager(ctx, i, def);
+    else if (def.diet === 'monster') updateMonster(ctx, i, def);
     else updateAnimal(ctx, i, def);
     if (!u.isAlive(i)) continue;
     u.stateTicks[i] = u.state[i] === before ? Math.min(0xffff, u.stateTicks[i] + 1) : 0;

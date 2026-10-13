@@ -71,6 +71,8 @@ export class Toolbar {
       setPressed(b, id === tab);
       b.setAttribute('aria-selected', String(id === tab));
     }
+    // En pantallas estrechas las pestañas se desplazan: la elegida debe quedar a la vista.
+    this.tabButtons.get(tab)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     this.toolButtons.clear();
     this.toolRow.replaceChildren(
       ...TOOLS.filter((t) => t.tab === tab).map((t) => {

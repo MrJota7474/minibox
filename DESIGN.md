@@ -2,9 +2,9 @@
 
 Simulador de dios 2D por píxeles para navegador (PC y móvil), inspirado en la *sensación* de WorldBox – God Simulator, con nombre, arte, sonido y contenido propios.
 
-> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos) y G (biomas, estaciones y eras) implementadas.**
+> Estado: diseño aprobado. **Fases A (MVP), B (razas y aldeas), C (reinos y guerras), D (desastres y poderes), E (rasgos y partidas guardadas), F (mar: muelles, pesca y barcos), G (biomas, estaciones y eras) y H (monstruos) implementadas.**
 >
-> Siguientes fases acordadas: monstruos; cultura, religión y clanes; sonido y caminos. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G.
+> Siguientes fases acordadas: cultura, religión y clanes; sonido y caminos. Los muelles, la pesca y los barcos llegaron en la Fase F; los biomas nuevos, las estaciones y las eras, en la G; los monstruos, en la H.
 
 ---
 
@@ -140,7 +140,7 @@ Leyenda: **N** = Núcleo (sin esto no hay juego) · **I** = Importante (da profu
 | Envejecimiento y muerte por vejez o inanición | N | A |
 | Combate básico (depredador contra presa) | N | A |
 | Huida de los depredadores | I | A |
-| Monstruos propios (no-muertos, bestia de lava…) | E | D |
+| Monstruos propios (penantes, escorios, cenagosos) | E | H |
 
 ### 3.4 Civilizaciones
 
@@ -376,8 +376,25 @@ Unos 20 rasgos heredables y por eventos, stats completas, inspector de unidad, a
 - **Efectos** (`render/fx.ts`): llamas animadas, rayos con resplandor, ondas expansivas, tornados, nubes y partículas con forma; además, vida en el mapa según lo que hacen las criaturas (astillas, chispas, golpes, corazones, humo de chimeneas, estados).
 - **Iconos** (`ui/tool-icons.ts`): 16×16 a doble tamaño.
 
-### Después de G
-Monstruos; cultura, religión y clanes; sonido y caminos (en ese orden).
+### Fase H — Monstruos
+Criaturas propias y peligrosas (nada de monstruos icónicos de otros juegos). Son una cuarta «dieta» (`monster`): no comen, no crían y no envejecen como los demás; cada una tiene su origen, su punto débil y su final.
+
+| Monstruo | Aspecto | Nace de | Particularidades |
+|---|---|---|---|
+| **Penante** | Alma en pena con sudario y cara de hueso | El yermo maldito (cuanto más grande, más salen); los aldeanos **malditos** al morir; a veces los muertos de la plaga (15 %) o en combate (5 %); sus propias víctimas (40 %) | No-muerto: el yermo lo cura y la arboleda mágica lo hiere; la **luz divina** lo fulmina; inmune a la plaga. Se deshace a los ~7 años |
+| **Escorio** | Mole de basalto con grietas de lava | La lava al enfriarse (volcanes y pincel de lava, 0,8 % por casilla; tope del 1 % del límite de criaturas) | El más duro (320 de vida). Inmune al fuego y a la lava; prende la casilla de lo que golpea e incendia edificios. A los ~4 años se enfría y deja una **roca** |
+| **Cenagoso** | Montón de fango, musgo y raíces | Los pantanos sin dueño, él solo, a partir del año 8 (uno cada cuatro o cinco años en un mapa mediano; tope de 1 por cada 20 000 casillas) | Vive ~30 años y asalta en oleadas: tras matar se calma año y medio |
+
+- **IA** (`ai/monster-ai.ts`): persigue a la criatura civilizada más cercana de su isla (y a los herbívoros que se crucen a 3 casillas; a los depredadores los deja en paz); si no ve a nadie, marcha con A* hacia la aldea más cercana dentro de su radio de asalto y **arrasa** sus edificios (estado `RAZE`): primero casas, granjas, almacenes y muelles, y el ayuntamiento al final. El daño usa el mismo contador que el fuego (`burn`), que ahora baja solo con el tiempo (reparaciones).
+- **Defensa de las aldeas**: los guerreros atacan a los monstruos aunque su reino esté en paz; una aldea con monstruos cerca recluta como en guerra (35 % de adultos); los civiles huyen de ellos y los herbívoros también.
+- **Apariciones** (`ai/monster-spawn.ts`): una vez al mes se muestrean casillas al azar (flujo de azar propio, `fork 6`); las de yermo o pantano pueden dar un monstruo. Los monstruos «naturales» no pasan del 12 % del límite de criaturas. Ley del mundo **«Aparecen monstruos»** (los que crea el jugador con el pincel no dependen de ella).
+- **Poderes**: la maldición ya tiene consecuencia (el maldito se levanta como penante) y la luz divina es un arma contra los no-muertos.
+- **Interfaz**: pestaña «Monstruos», contador en la barra superior (sólo si hay alguno), ficha en el inspector y avisos en la crónica.
+- **Visual**: sprites por código (más grandes que un aldeano en el escorio y el cenagoso), resplandor bajo el escorio, ascuas, jirones y goterones; motas sobre el yermo maldito y la arboleda mágica; humo en los edificios dañados.
+- **Guardado**: formato MBX versión 4 (ley nueva y un quinto flujo de azar); las partidas de la versión 3 se migran al cargar.
+
+### Después de H
+Cultura, religión y clanes; sonido y caminos (en ese orden).
 
 ---
 

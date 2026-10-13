@@ -1,5 +1,6 @@
 import { DEATH_CAUSE_COUNT, type AiContext, type SimStats } from '../ai/context';
 import { Pathfinder } from '../ai/pathfinder';
+import { stepMonsterSpawns } from '../ai/monster-spawn';
 import { updateUnits } from '../ai/update';
 import { CivSystem } from '../civ/civ-system';
 import { PowerSystem } from '../powers/disasters';
@@ -70,6 +71,7 @@ export class Simulation {
   private readonly rngVeg: Rng;
   private readonly rngCmd: Rng;
   private readonly rngPower: Rng;
+  private readonly rngMonster: Rng;
   private readonly ctx: AiContext;
 
   constructor(options: SimulationOptions) {
@@ -90,6 +92,7 @@ export class Simulation {
     this.rngVeg = root.fork(2);
     this.rngCmd = root.fork(3);
     this.rngPower = root.fork(5);
+    this.rngMonster = root.fork(6);
     this.ctx = {
       world: this.world,
       units: this.units,
@@ -102,6 +105,7 @@ export class Simulation {
       civ: this.civ,
       laws: this.laws,
       climate: neutralClimate(),
+      hazards: this.hazards,
     };
     if (options.populate && !options.blank) this.populate(root.fork(4));
   }
@@ -110,6 +114,9 @@ export class Simulation {
   apply(command: Command): CommandResult {
     if (this.commandLog.length < MAX_LOGGED_COMMANDS) this.commandLog.push({ tick: this.tick, command });
     else this.logTruncated = true;
+    // Los comandos también matan y hacen aparecer criaturas: el contexto debe estar al día.
+    this.ctx.tick = this.tick;
+    this.ctx.unitLimit = Math.min(this.unitLimit, this.units.capacity);
     if (command.type === 'brush') {
       applyBrush(this.world, this.rngCmd, command.tool, command.x, command.y, command.size);
       return { spawned: 0, limited: false };
@@ -148,6 +155,7 @@ export class Simulation {
     }
     if (command.type === 'limit') {
       this.unitLimit = Math.max(1, Math.min(this.units.capacity, Math.floor(command.value)));
+      this.ctx.unitLimit = this.unitLimit;
       return { spawned: 0, limited: false };
     }
     return spawnInBrush(this.world, this.units, this.rngCmd, command.species, command.x, command.y, command.size, this.unitLimit);
@@ -164,6 +172,7 @@ export class Simulation {
     this.spatial.rebuild(this.units);
     this.hazards.step(this.ctx, this.rngPower, this.laws.fireSpread, this.civ);
     this.powers.step(this.ctx, this.rngPower, this.civ);
+    stepMonsterSpawns(this.ctx, this.rngMonster);
     this.civ.update(this.ctx);
     updateUnits(this.ctx);
     this.tick++;
@@ -178,19 +187,24 @@ export class Simulation {
     h = hashMix(h, this.tick);
     h = hashMix(h, this.vegetation.getCursor());
     h = hashMix(h, this.unitLimit);
-    for (const rng of [this.rngAi, this.rngVeg, this.rngCmd, this.rngPower]) {
+    for (const rng of this.rngs()) {
       for (const v of rng.getState()) h = hashMix(h, v);
     }
     return h;
   }
 
+  /** Flujos de azar en su orden de guardado (los nuevos se añaden siempre al final). */
+  private rngs(): Rng[] {
+    return [this.rngAi, this.rngVeg, this.rngCmd, this.rngPower, this.rngMonster];
+  }
+
   /** Estado de los generadores aleatorios (para guardar partidas). */
   getRngStates(): number[][] {
-    return [this.rngAi, this.rngVeg, this.rngCmd, this.rngPower].map((r) => [...r.getState()]);
+    return this.rngs().map((r) => [...r.getState()]);
   }
 
   setRngStates(states: readonly (readonly number[])[]): void {
-    const rngs = [this.rngAi, this.rngVeg, this.rngCmd, this.rngPower];
+    const rngs = this.rngs();
     if (states.length !== rngs.length || states.some((s) => s.length !== 4 || s.some((v) => !Number.isInteger(v)))) throw new Error('Estado aleatorio no válido');
     rngs.forEach((r, k) => r.setState([states[k][0], states[k][1], states[k][2], states[k][3]]));
   }

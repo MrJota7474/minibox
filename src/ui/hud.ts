@@ -17,6 +17,7 @@ export interface HudCounts {
   herbivores: number;
   predators: number;
   people: number;
+  monsters: number;
   villages: number;
   total: number;
   limit: number;
@@ -33,7 +34,9 @@ export class Hud {
   private readonly date: HTMLElement;
   private readonly era: HTMLElement;
   private readonly total: HTMLElement;
-  private readonly counts: Record<'herbivores' | 'predators' | 'people' | 'villages' | 'wars', HTMLElement>;
+  private readonly counts: Record<'herbivores' | 'predators' | 'people' | 'monsters' | 'villages' | 'wars', HTMLElement>;
+  /** El contador de monstruos sólo se muestra cuando hay alguno. */
+  private readonly monstersEl: HTMLElement;
   private readonly speedButtons = new Map<Speed, HTMLButtonElement>();
 
   constructor(atlas: CreatureAtlas, actions: HudActions) {
@@ -47,10 +50,14 @@ export class Hud {
     const [herbEl, herb] = count(speciesIcon(Species.SHEEP, atlas), 'Herbívoros');
     const [predEl, pred] = count(speciesIcon(Species.WOLF, atlas), 'Depredadores');
     const [peopleEl, people] = count(speciesIcon(Species.HUMAN, atlas), 'Habitantes');
+    const [monEl, mon] = count(speciesIcon(Species.PENANTE, atlas), 'Monstruos');
+    monEl.classList.add('hud-monsters');
+    monEl.hidden = true;
+    this.monstersEl = monEl;
     const [villEl, vill] = count(gridIcon('house'), 'Aldeas');
     const [warEl, war] = count(gridIcon('sword'), 'Guerras activas');
-    this.counts = { herbivores: herb, predators: pred, people, villages: vill, wars: war };
-    const pop = el('div', { class: 'hud-pop' }, [herbEl, predEl, peopleEl, villEl, warEl, this.total]);
+    this.counts = { herbivores: herb, predators: pred, people, monsters: mon, villages: vill, wars: war };
+    const pop = el('div', { class: 'hud-pop' }, [herbEl, predEl, peopleEl, monEl, villEl, warEl, this.total]);
     const speeds = el(
       'div',
       { class: 'hud-speeds', attrs: { role: 'group', 'aria-label': 'Velocidad del tiempo' } },
@@ -87,6 +94,8 @@ export class Hud {
     this.counts.herbivores.textContent = String(c.herbivores);
     this.counts.predators.textContent = String(c.predators);
     this.counts.people.textContent = String(c.people);
+    this.counts.monsters.textContent = String(c.monsters);
+    this.monstersEl.hidden = c.monsters === 0;
     this.counts.villages.textContent = String(c.villages);
     this.counts.wars.textContent = String(c.wars);
     this.total.textContent = `${c.total}/${c.limit}`;

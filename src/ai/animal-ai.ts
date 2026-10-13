@@ -1,4 +1,4 @@
-import { SPECIES, type SpeciesDef } from '../entities/species';
+import { SPECIES, isMonster, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
 import { DeathCause, STATE_TIMEOUT_TICKS, THINK_INTERVAL, giveUp, killUnit, type AiContext } from './context';
@@ -45,7 +45,7 @@ export function isHungry(u: UnitStore, i: number, def: SpeciesDef): boolean {
 
 function thinkHerbivore(ctx: AiContext, i: number, def: SpeciesDef): void {
   const u = ctx.units;
-  const threat = ctx.spatial.nearest(u, u.x[i], u.y[i], def.sight, (j) => SPECIES[u.species[j]].diet === 'carnivore');
+  const threat = ctx.spatial.nearest(u, u.x[i], u.y[i], def.sight, (j) => SPECIES[u.species[j]].diet === 'carnivore' || isMonster(u.species[j]));
   if (threat !== NO_UNIT) {
     flee(ctx, i, threat);
     return;

@@ -38,6 +38,7 @@ function rig(forest = false): Rig {
   }
   w.computeRegions();
   const units = new UnitStore(200);
+  const hazards = new HazardSystem(w);
   const ctx: AiContext = {
     world: w,
     units,
@@ -50,8 +51,8 @@ function rig(forest = false): Rig {
     civ: new CivSystem(w, units),
     laws: defaultLaws(),
     climate: neutralClimate(),
+    hazards,
   };
-  const hazards = new HazardSystem(w);
   return { ctx, hazards, powers: new PowerSystem(w, units, hazards), rng: new Rng(9) };
 }
 

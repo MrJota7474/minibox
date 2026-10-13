@@ -132,16 +132,16 @@ export class Inspector {
     this.setPortrait(def.id);
     const sex = u.sex[i] === Sex.FEMALE ? '♀' : '♂';
     const civilized = def.diet === 'civilized';
-    this.title.textContent = civilized ? `${personName(def.id, u.nameSeed[i])} ${sex}` : `${def.name} ${sex}`;
+    const monster = def.monster;
+    // Los monstruos no tienen sexo, ni pasan hambre, ni heredan rasgos.
+    this.title.textContent = civilized ? `${personName(def.id, u.nameSeed[i])} ${sex}` : monster ? def.name : `${def.name} ${sex}`;
     const adult = u.age[i] >= def.adultTicks;
     const rows: Row[] = [];
     if (civilized) rows.push(['Raza', def.name]);
-    rows.push(
-      ['Edad', `${ticksToYears(u.age[i])} años${adult ? '' : ' (cría)'}`],
-      ['Vida', this.bar(u.hp[i], def.maxHp, 'bar-hp')],
-      ['Saciedad', this.bar(u.hunger[i], def.maxHunger, 'bar-food')],
-      ['Estado', STATE_LABELS[u.state[i]]],
-    );
+    rows.push(['Edad', `${ticksToYears(u.age[i])} años${adult ? '' : ' (cría)'}`], ['Vida', this.bar(u.hp[i], def.maxHp, 'bar-hp')]);
+    if (!monster) rows.push(['Saciedad', this.bar(u.hunger[i], def.maxHunger, 'bar-food')]);
+    rows.push(['Estado', monster && u.cooldown[i] > 0 ? `${STATE_LABELS[u.state[i]]} (en calma)` : STATE_LABELS[u.state[i]]]);
+    if (monster) rows.push(['Naturaleza', monster.trait]);
     if (civilized) {
       const v = sim.civ.villageOf(i);
       const k = sim.civ.kingdoms.kingdomOfUnit(i);
@@ -159,7 +159,7 @@ export class Inspector {
       u.status[i] & Status.ABOARD ? 'A bordo de un barco' : '',
     ].filter(Boolean);
     if (states.length > 0) rows.push(['Condición', states.join(' · ')]);
-    rows.push(['Rasgos', this.traitChips(u.traits[i])]);
+    if (!monster || u.traits[i] !== 0) rows.push(['Rasgos', this.traitChips(u.traits[i])]);
     rows.push(...this.statRows(sim, i));
     this.rows(rows);
   }
@@ -184,8 +184,9 @@ export class Inspector {
     if (def.damage > 0) rows.push(['Fuerza', `${def.damage} · ${pct(damageMultiplier(u, i))}`]);
     rows.push(['Daño recibido', pct(damageTakenMultiplier(u, i))]);
     rows.push(['Esperanza de vida', `${Math.round(ticksToYears(def.lifespanTicks) * mods.lifespan)} años`]);
-    rows.push(['Generación', String(u.generation[i])], ['Hijos', String(u.children[i])]);
-    if (u.kills[i] > 0) rows.push([def.diet === 'civilized' ? 'Bajas' : 'Presas', String(u.kills[i])]);
+    const animal = def.diet === 'herbivore' || def.diet === 'carnivore';
+    if (!def.monster) rows.push(['Generación', String(u.generation[i])], ['Hijos', String(u.children[i])]);
+    if (u.kills[i] > 0) rows.push([animal ? 'Presas' : 'Bajas', String(u.kills[i])]);
     return rows;
   }
 

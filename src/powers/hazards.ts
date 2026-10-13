@@ -2,6 +2,8 @@ import { DeathCause, killUnit, type AiContext } from '../ai/context';
 import type { Rng } from '../core/rng';
 import { Flora, SEA_LEVEL, TERRAIN_INFO, Terrain, isPlant, isWaterTerrain } from '../world/terrain';
 import type { World } from '../world/world';
+import { bornFromLava } from '../ai/monster-spawn';
+import { SPECIES } from '../entities/species';
 import { damageTakenMultiplier } from './status';
 
 /** Ticks entre pasos del fuego y de la lava. */
@@ -133,7 +135,10 @@ export class HazardSystem {
       }
       w.lava[i] = Math.max(0, w.lava[i] - 3);
       if (w.lava[i] > 0) this.molten.push(i);
-      else this.solidify(i);
+      else {
+        this.solidify(i);
+        bornFromLava(ctx, rng, i);
+      }
     }
   }
 
@@ -175,7 +180,8 @@ export function damageUnitsOn(ctx: AiContext, tile: number, damage: number, caus
   const cx = (tile % w.width) + 0.5;
   const cy = Math.floor(tile / w.width) + 0.5;
   ctx.spatial.forEachInRadius(u, cx, cy, 0.8, (j) => {
-    if (u.alive[j] === 0) return;
+    // A los monstruos ardientes no les hacen nada ni el fuego ni la lava.
+    if (u.alive[j] === 0 || SPECIES[u.species[j]].monster?.fiery) return;
     u.hp[j] -= Math.max(1, Math.round(damage * damageTakenMultiplier(u, j)));
     if (u.hp[j] <= 0) killUnit(ctx, j, cause);
   });

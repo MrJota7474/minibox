@@ -12,9 +12,11 @@ import { checkSave, validateLoaded } from './validate';
  * `world.dataViews()` + `units.dataViews()`. El conjunto se comprime con gzip.
  */
 const MAGIC = [0x4d, 0x42, 0x58, 0x31];
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 /** Versiones que se pueden cargar (las anteriores se migran al cargar). */
-const SUPPORTED_VERSIONS: readonly number[] = [1, 2, 3];
+const SUPPORTED_VERSIONS: readonly number[] = [1, 2, 3, 4];
+/** Flujos de azar que guardaban las partidas anteriores a la versión 4 (sin el de los monstruos). */
+const LEGACY_RNG_COUNT = 4;
 const ALIGN = 8;
 const MIN_SIZE = 32;
 const MAX_SIZE = 1024;
@@ -159,8 +161,8 @@ function validateHeader(h: Header): void {
   if (!Number.isInteger(capacity) || capacity < 1 || capacity > MAX_CAPACITY) fail('capacidad de criaturas');
   if (typeof h.options.seedText !== 'string') fail('semilla');
   if (!Number.isInteger(h.tick) || h.tick < 0) fail('fecha');
-  // Las leyes nuevas (estaciones, biomas mágicos) no existían antes de la versión 3: activadas.
-  if (h.version < 3 && h.laws && typeof h.laws === 'object') h.laws = { ...defaultLaws(), ...h.laws };
+  // Las leyes nuevas (estaciones y biomas mágicos en la versión 3, monstruos en la 4) se activan.
+  if (h.version < SAVE_VERSION && h.laws && typeof h.laws === 'object') h.laws = { ...defaultLaws(), ...h.laws };
   for (const id of LAW_IDS) if (typeof h.laws?.[id] !== 'boolean') fail('leyes del mundo');
   if (h.version >= 3 && (!h.climate || !isCount(h.climate.eraIndex) || !isCount(h.climate.era) || h.climate.era >= ERA_INFO.length)) fail('era del mundo');
   if (h.climate?.seasonTicks !== undefined && !isSeasonLength(h.climate.seasonTicks)) fail('duración de las estaciones');
@@ -232,7 +234,9 @@ export function deserialize(bytes: Uint8Array): Simulation {
   }
   sim.stats.births = h.births;
   sim.stats.deaths.set(h.deaths.slice(0, sim.stats.deaths.length));
-  sim.setRngStates(h.rng);
+  // Antes de la versión 4 no había flujo de azar para los monstruos: empieza el de la semilla.
+  const legacyRng = h.version < 4 && Array.isArray(h.rng) && h.rng.length === LEGACY_RNG_COUNT;
+  sim.setRngStates(legacyRng ? [...h.rng, ...sim.getRngStates().slice(LEGACY_RNG_COUNT)] : h.rng);
   sim.vegetation.setCursor(h.vegCursor);
   sim.powers.effects.push(...h.powers.effects);
   sim.powers.held.push(...h.powers.held);

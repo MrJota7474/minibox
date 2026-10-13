@@ -1,10 +1,26 @@
 import { TICKS_PER_YEAR } from '../core/time';
 
-export const Species = { SHEEP: 0, RABBIT: 1, WOLF: 2, HUMAN: 3, SILVAN: 4, PETRINO: 5, TUSKER: 6 } as const;
+export const Species = { SHEEP: 0, RABBIT: 1, WOLF: 2, HUMAN: 3, SILVAN: 4, PETRINO: 5, TUSKER: 6, PENANTE: 7, ESCORIO: 8, CENAGOSO: 9 } as const;
 export type SpeciesId = (typeof Species)[keyof typeof Species];
 
-/** 'civilized' = razas que forman aldeas. */
-export type Diet = 'herbivore' | 'carnivore' | 'civilized';
+/** 'civilized' = razas que forman aldeas; 'monster' = no come ni cría y ataca a los vivos. */
+export type Diet = 'herbivore' | 'carnivore' | 'civilized' | 'monster';
+
+/** Naturaleza de cada monstruo (ver ai/monster-ai.ts y ai/monster-spawn.ts). */
+export interface MonsterTraits {
+  /** No-muerto: el yermo maldito lo cura, la arboleda mágica y la luz divina lo hieren. */
+  undead: boolean;
+  /** Ardiente: inmune al fuego y a la lava, prende lo que golpea y al morir deja una roca. */
+  fiery: boolean;
+  /** Daño a un edificio por golpe (aguantan lo mismo que con el fuego). */
+  raze: number;
+  /** Distancia (casillas) a la que busca una aldea que asaltar. */
+  raidRadius: number;
+  /** Ticks de calma tras matar (0 = no se sacia nunca). */
+  restTicks: number;
+  /** Descripción corta para el inspector. */
+  trait: string;
+}
 
 /** Multiplicadores de trabajo de cada raza (1 = normal). */
 export interface RaceTraits {
@@ -43,6 +59,8 @@ export interface SpeciesDef {
   color: string;
   /** Sólo en razas civilizadas. */
   race?: RaceTraits;
+  /** Sólo en monstruos. */
+  monster?: MonsterTraits;
 }
 
 const year = TICKS_PER_YEAR;
@@ -109,7 +127,44 @@ export const SPECIES: readonly SpeciesDef[] = [
   civilized(Species.SILVAN, 'Silvano', 'Silvanos', { maxHp: 34, damage: 4, speed: 0.1, lifeYears: 140, adultYears: 24, breedYears: 4, color: '#9ccf6a' }, { chop: 1.3, mine: 0.7, gather: 1.4, build: 0.9, farm: 1, trait: 'Longevos y hábiles en el bosque' }),
   civilized(Species.PETRINO, 'Petrino', 'Petrinos', { maxHp: 56, damage: 5, speed: 0.072, lifeYears: 110, adultYears: 20, breedYears: 3, color: '#b9a48a' }, { chop: 0.9, mine: 1.6, gather: 0.8, build: 1.3, farm: 0.9, trait: 'Mineros y constructores' }),
   civilized(Species.TUSKER, 'Colmilludo', 'Colmilludos', { maxHp: 52, damage: 7, speed: 0.088, lifeYears: 55, adultYears: 14, breedYears: 2, color: '#7fa25a' }, { chop: 1.1, mine: 1.1, gather: 0.9, build: 0.9, farm: 0.8, trait: 'Fuertes y prolíficos' }),
+  monster(Species.PENANTE, 'Penante', 'Penantes', { maxHp: 34, damage: 6, speed: 0.06, sprint: 1.35, sight: 9, lifeYears: 7, color: '#b9a6e0' }, { undead: true, fiery: false, raze: 1, raidRadius: 48, restTicks: 0, trait: 'Alma en pena: el yermo la cura; la arboleda y la luz divina la deshacen' }),
+  monster(Species.ESCORIO, 'Escorio', 'Escorios', { maxHp: 320, damage: 14, speed: 0.055, sprint: 1.25, sight: 10, lifeYears: 4, color: '#ff7a2a' }, { undead: false, fiery: true, raze: 4, raidRadius: 40, restTicks: 0, trait: 'Nacido de la lava: prende lo que golpea y al enfriarse queda en roca' }),
+  monster(Species.CENAGOSO, 'Cenagoso', 'Cenagosos', { maxHp: 180, damage: 12, speed: 0.075, sprint: 1.5, sight: 11, lifeYears: 30, color: '#5a7a3a' }, { undead: false, fiery: false, raze: 3, raidRadius: 36, restTicks: Math.round(1.5 * year), trait: 'Bestia de los pantanos: asalta las aldeas y después se calma un tiempo' }),
 ];
+
+interface MonsterBase {
+  maxHp: number;
+  damage: number;
+  speed: number;
+  sprint: number;
+  sight: number;
+  lifeYears: number;
+  color: string;
+}
+
+/** Los monstruos aparecen ya crecidos, no pasan hambre y no crían. */
+function monster(id: SpeciesId, name: string, plural: string, b: MonsterBase, traits: MonsterTraits): SpeciesDef {
+  return {
+    id,
+    name,
+    plural,
+    diet: 'monster',
+    maxHp: b.maxHp,
+    damage: b.damage,
+    speed: b.speed,
+    sprint: b.sprint,
+    sight: b.sight,
+    lifespanTicks: b.lifeYears * year,
+    adultTicks: 0,
+    maxHunger: 1000,
+    hungerRate: 0,
+    litterMax: 0,
+    breedCooldownTicks: 0,
+    meatValue: 0,
+    color: b.color,
+    monster: traits,
+  };
+}
 
 interface CivBase {
   maxHp: number;
@@ -146,8 +201,16 @@ function civilized(id: SpeciesId, name: string, plural: string, b: CivBase, race
 
 export const RACE_IDS: readonly SpeciesId[] = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER];
 
+export const MONSTER_IDS: readonly SpeciesId[] = [Species.PENANTE, Species.ESCORIO, Species.CENAGOSO];
+
 export function isCivilized(id: number): boolean {
   return SPECIES[id].diet === 'civilized';
+}
+
+const IS_MONSTER: readonly boolean[] = SPECIES.map((s) => s.diet === 'monster');
+
+export function isMonster(id: number): boolean {
+  return IS_MONSTER[id] === true;
 }
 
 export function speciesDef(id: number): SpeciesDef {

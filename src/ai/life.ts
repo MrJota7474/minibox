@@ -1,6 +1,6 @@
 import type { SpeciesDef } from '../entities/species';
 import { traitMods } from '../entities/traits';
-import { BIOME_INFO } from '../world/terrain';
+import { BIOME_INFO, isWalkableTerrain } from '../world/terrain';
 import type { UnitStore } from '../entities/units';
 import { DeathCause, killUnit, type AiContext } from './context';
 import { escapeBlockedTile } from './movement';
@@ -31,13 +31,25 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
   }
   const biome = BIOME_INFO[ctx.world.biome[ctx.world.idx(Math.floor(u.x[i]), Math.floor(u.y[i]))]] ?? BIOME_INFO[0];
   if (!updateHunger(ctx, i, def, mods.hunger * biome.hunger * ctx.climate.hunger)) return false;
-  if (biome.vitality !== 0 && (ctx.tick + i) % HEAL_INTERVAL === 0 && !applyVitality(ctx, i, def, biome.vitality)) return false;
+  // A los no-muertos les pasa al revés: el yermo maldito los cura y la arboleda mágica los hiere.
+  const vitality = def.monster?.undead ? -biome.vitality : biome.vitality;
+  if (vitality !== 0 && (ctx.tick + i) % HEAL_INTERVAL === 0 && !applyVitality(ctx, i, def, vitality)) return false;
   // En un yermo maldito nadie se recupera por sí solo.
-  if (biome.vitality >= 0 && u.hp[i] < def.maxHp && (ctx.tick + i) % HEAL_INTERVAL === 0 && u.hunger[i] > def.maxHunger * HEAL_MIN_HUNGER) {
+  if (vitality >= 0 && u.hp[i] < def.maxHp && (ctx.tick + i) % HEAL_INTERVAL === 0 && u.hunger[i] > def.maxHunger * HEAL_MIN_HUNGER) {
     u.hp[i] = Math.min(def.maxHp, u.hp[i] + Math.max(1, Math.round(def.maxHp * HEAL_FRACTION * mods.heal)));
   }
-  if (!ctx.world.isWalkableAt(u.x[i], u.y[i]) && !handleBlockedTile(ctx, i)) return false;
+  if (!ctx.world.isWalkableAt(u.x[i], u.y[i]) && !(def.monster?.fiery && standsOnLava(ctx, i)) && !handleBlockedTile(ctx, i)) return false;
   return true;
+}
+
+/** ¿Está sobre lava en terreno que, sin ella, sería pisable? (a los monstruos ardientes no los atrapa) */
+function standsOnLava(ctx: AiContext, i: number): boolean {
+  const w = ctx.world;
+  const x = Math.floor(ctx.units.x[i]);
+  const y = Math.floor(ctx.units.y[i]);
+  if (!w.inBounds(x, y)) return false;
+  const t = w.idx(x, y);
+  return w.lava[t] > 0 && isWalkableTerrain(w.terrain[t]);
 }
 
 function updateHunger(ctx: AiContext, i: number, def: SpeciesDef, rate: number): boolean {

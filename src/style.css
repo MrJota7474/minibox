@@ -443,6 +443,9 @@ img {
 .chronicle-voyage span:last-child {
   color: #8ac4f0;
 }
+.chronicle-monster span:last-child {
+  color: #f0a45a;
+}
 .chronicle-shipwreck span:last-child,
 .chronicle-war span:last-child,
 .chronicle-conquest span:last-child {

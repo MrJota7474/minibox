@@ -156,7 +156,8 @@ export function spawnInBrush(
         generation: 0,
         thinkOffset: rng.int(5),
         nameSeed: rng.nextU32(),
-        traits: randomTraits(rng),
+        // Los monstruos no tienen rasgos heredables.
+        traits: def.diet === 'monster' ? 0 : randomTraits(rng),
       });
       if (i !== NO_UNIT) spawned++;
       break;

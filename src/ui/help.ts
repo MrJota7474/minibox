@@ -37,7 +37,8 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Rasgos', 'Cada criatura puede tener rasgos (Fuerte, Longevo, Fértil…) que hereda de sus padres; Veterano y Superviviente se ganan'],
   ['Biomas', 'Pinta nieve, pantano, selva, sabana, arboleda mágica (cura y se extiende) o yermo maldito (hiere y marchita) desde Naturaleza'],
   ['Estaciones y eras', 'En invierno no crecen las cosechas y la hierba apenas vuelve; cada unos 40 años empieza una era nueva. En Leyes puedes imponer una'],
-  ['Mar', 'Las aldeas de la costa construyen un muelle: allí pescan y botan barcos que llevan colonos a otras islas o ejércitos a costas enemigas'],
+  ['Monstruos', 'Los penantes salen del yermo maldito y de los muertos malditos (la luz divina los deshace), los escorios nacen de la lava y los cenagosos, de los pantanos. Asaltan las aldeas y los guerreros las defienden; se desactivan en Leyes'],
+  ['Mar','Las aldeas de la costa construyen un muelle: allí pescan y botan barcos que llevan colonos a otras islas o ejércitos a costas enemigas'],
   ['Partidas', 'Menú › Guardar / cargar: 5 ranuras, autoguardado y exportar o importar un archivo .minibox'],
 ];
 

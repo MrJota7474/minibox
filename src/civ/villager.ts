@@ -6,7 +6,7 @@ import { inheritTraits, traitMods } from '../entities/traits';
 import { SPECIES, type RaceTraits, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
-import { actFight, actFlee, actMarch, fleeIfThreatened, thinkWarrior } from './combat';
+import { actFight, actFlee, actMarch, defendFromMonsters, fleeIfThreatened, thinkWarrior } from './combat';
 import { BuildingType, FARM_HARVEST_FOOD, FARM_RIPE, FISH_CATCH, FISH_FOOD, Job, Resource, type Building, type Village } from './model';
 
 const CIV_TIMEOUT_TICKS = 600;
@@ -80,7 +80,7 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
     startTrip(ctx, i, home, UnitState.EAT_GO);
     return;
   }
-  if (home && u.job[i] === Job.WARRIOR && u.state[i] !== UnitState.EAT_GO && thinkWarrior(ctx, i, home)) return;
+  if (home && u.job[i] === Job.WARRIOR && u.state[i] !== UnitState.EAT_GO && (defendFromMonsters(ctx, i, home) || thinkWarrior(ctx, i, home))) return;
   if (home && u.job[i] !== Job.WARRIOR && fleeIfThreatened(ctx, i, home)) return;
   const s = u.state[i];
   if (s === UnitState.WORK || s === UnitState.DELIVER || s === UnitState.EAT_GO || s === UnitState.SETTLE || s === UnitState.MATE || s === UnitState.HUNT || s === UnitState.BOARD) return;

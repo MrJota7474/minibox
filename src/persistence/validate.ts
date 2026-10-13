@@ -1,6 +1,6 @@
 import { BUILDING_DEFS, JOB_COUNT, RESOURCE_COUNT, VILLAGE_COLORS } from '../civ/model';
 import { PERSONALITY_NAMES } from '../civ/kingdoms';
-import { SPECIES } from '../entities/species';
+import { SPECIES, isMonster } from '../entities/species';
 import { UnitState } from '../entities/units';
 import type { Simulation } from '../sim/simulation';
 import { BIOME_INFO, FLORA_NAMES, TERRAIN_INFO } from '../world/terrain';
@@ -94,6 +94,8 @@ function validateUnits(sim: Simulation): void {
     const ok =
       u.state[i] < STATE_COUNT &&
       u.village[i] >= -1 && u.village[i] < nV &&
+      // Un monstruo no vive en ninguna aldea.
+      (u.village[i] === -1 || !isMonster(u.species[i])) &&
       u.homeKingdom[i] >= -1 && u.homeKingdom[i] < nK &&
       u.job[i] < JOB_COUNT &&
       u.carry[i] < MAX_CARRY &&

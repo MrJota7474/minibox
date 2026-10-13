@@ -17,6 +17,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase G (biomas y estaciones)** — seis biomas nuevos: tundra nevada, pantano, selva y sabana (generados por calor, humedad y altitud) y dos mágicos que pinta el jugador: la arboleda mágica (cura y se extiende) y el yermo maldito (hiere, marchita las plantas y se extiende). Cada bioma cambia la velocidad al caminar, el hambre y las cosechas. Cuatro estaciones con su color en el mapa (nieve en invierno, ocres en otoño): en invierno no crecen las cosechas y la hierba apenas vuelve. Eras de unos 40 años (abundancia, glacial, de hierro, de la concordia, arcana…) que cambian la naturaleza o la diplomacia; el jugador puede imponer una desde Leyes del mundo.
 - **Renovación visual** — todo el pixel art rehecho y generado por código: criaturas con silueta propia por raza (humanos, silvanos de orejas puntiagudas, petrinos barbudos con casco, colmilludos con colmillos), ropa del color de su reino, la herramienta de su oficio en la mano y animaciones de caminar, trabajar, luchar y comer; animales nuevos; edificios con arquitectura de cada raza y bandera del reino; granjas con surcos y cultivos; árboles propios de cada bioma que cambian con la estación, arbustos, rocas, vetas y matas de hierba; llamas animadas, rayos, ondas expansivas, tornados y partículas al talar, picar, luchar o tener crías; iconos nuevos de 16×16 en el menú.
 - **Estaciones largas y más detalle** — cada estación dura 5 años por defecto (se puede elegir 3 meses, 1 año, 5 o 10 años en Leyes del mundo), con inviernos más suaves para que las aldeas aguanten. Relieve con luz y sombra en montañas y colinas, espuma en la orilla, arena mojada, destellos en el agua, nieve que cae en invierno (lluvia en los biomas cálidos), hojas en otoño, pétalos en primavera y placas con el nombre de cada aldea.
+- **Fase H (monstruos)** — tres criaturas propias que asaltan las aldeas: los **penantes** (almas en pena que salen del yermo maldito y de los aldeanos malditos al morir; la luz divina los deshace), los **escorios** (bestias de roca y lava que nacen de la lava al enfriarse, prenden lo que golpean y acaban convertidos en roca) y los **cenagosos** (moles de fango que salen solas de los pantanos y atacan en oleadas). Arrasan edificios, los guerreros defienden la aldea aunque haya paz, la aldea amenazada recluta milicia y los civiles huyen. Pestaña «Monstruos» para crearlos, ley del mundo «Aparecen monstruos», contador en la barra superior y avisos en la crónica. Las partidas anteriores se migran solas.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las próximas fases.
 
@@ -55,7 +56,7 @@ src/
   core/      RNG con semilla, reloj de paso fijo, calendario, perfil de dispositivo
   world/     mapa en arrays tipados, generador por ruido, vegetación por chunks
   entities/  especies, almacén de criaturas (SoA), spatial hash
-  ai/        ciclo de vida, comportamiento de animales, movimiento y A*
+  ai/        ciclo de vida, comportamiento de animales y monstruos, movimiento y A*
   civ/       aldeas, edificios, oficios, planificador y aldeanos
   sim/       Simulation (núcleo determinista), comandos del jugador y leyes del mundo
   persistence/ formato de partida (MBX1 + gzip) e IndexedDB

@@ -12,6 +12,7 @@ import { Rng } from '../src/core/rng';
 import { SPECIES, Species } from '../src/entities/species';
 import { SpatialHash } from '../src/entities/spatial';
 import { UnitState, UnitStore } from '../src/entities/units';
+import { HazardSystem } from '../src/powers/hazards';
 import { Simulation } from '../src/sim/simulation';
 import { Biome, TERRAIN_INFO, Terrain } from '../src/world/terrain';
 import { World } from '../src/world/world';
@@ -38,6 +39,7 @@ function makeCtx(): AiContext {
     civ: new CivSystem(w, units),
     laws: defaultLaws(),
     climate: neutralClimate(),
+    hazards: new HazardSystem(w),
   };
 }
 

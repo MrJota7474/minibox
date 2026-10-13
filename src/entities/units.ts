@@ -22,6 +22,8 @@ export const UnitState = {
   FIGHT: 13,
   /** Va al muelle a subir a un barco. */
   BOARD: 14,
+  /** Monstruos: echar abajo un edificio. */
+  RAZE: 15,
 } as const;
 export type UnitStateId = (typeof UnitState)[keyof typeof UnitState];
 
@@ -41,6 +43,7 @@ export const STATE_LABELS: readonly string[] = [
   'En marcha',
   'Combatiendo',
   'Embarcando',
+  'Arrasando',
 ];
 
 export const Sex = { FEMALE: 0, MALE: 1 } as const;
@@ -49,6 +52,8 @@ export const NO_UNIT = -1;
 export const MAX_CAPACITY = 0x10000;
 /** Sin aldea. */
 export const NO_VILLAGE = -1;
+/** Bit de `status`: maldita (al morir puede levantarse como penante). */
+export const CURSED_FLAG = 2;
 /** Bit de `status`: criatura sujeta por el imán divino (fuera del mundo). */
 export const HELD_FLAG = 8;
 /** Bit de `status`: viaja a bordo de un barco (fuera del mundo). */
