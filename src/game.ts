@@ -1,6 +1,7 @@
 import { SoundEngine } from './audio/sound';
 import { soundForCommand, soundForEvent, soundForFx, spatialMix, type ViewRect } from './audio/sound-map';
 import { ambienceMix, sampleView } from './audio/ambience-mix';
+import { moodFor } from './audio/music-theory';
 import { FixedClock, type Speed } from './core/clock';
 import type { DeviceProfile } from './core/device';
 import { SPECIES, Species } from './entities/species';
@@ -234,6 +235,21 @@ export class Game {
     this.sound.play(soundForFx(kind), mix.gain, mix.pan);
   }
 
+  /** Música según cómo va el mundo: tensa en guerra o con monstruos, lenta en invierno; calma en el menú de inicio. */
+  private updateMusic(sim: Simulation | null): void {
+    if (!this.settings.sound || !this.settings.music) {
+      this.sound.setMusic(null);
+      return;
+    }
+    if (!sim || this.startMenu.isOpen) {
+      this.sound.setMusic('calm');
+      return;
+    }
+    const counts = hudCounts(sim);
+    const season = sim.climate.seasonAt(sim.tick, sim.laws.seasons);
+    this.sound.setMusic(moodFor({ wars: counts.wars, monsters: counts.monsters, season }));
+  }
+
   /** Ambiente según lo que se ve (o silencio si está desactivado o no hay mundo). */
   private updateAmbience(sim: Simulation): void {
     const cam = this.camera;
@@ -331,7 +347,14 @@ export class Game {
     this.stroke.update(now);
     const sim = this.sim;
     const renderer = this.renderer;
-    if (!sim || !renderer || !this.camera) return;
+    if (!sim || !renderer || !this.camera) {
+      // Sin mundo (menú de inicio) también suena la música.
+      if (now - this.lastUi >= UI_INTERVAL_MS) {
+        this.lastUi = now;
+        this.updateMusic(null);
+      }
+      return;
+    }
 
     const ticks = this.clock.advance(dt);
     if (ticks > 0) {
@@ -384,6 +407,7 @@ export class Game {
     this.hud.update(sim.tick, hudCounts(sim));
     this.showCivEvents(sim);
     this.updateAmbience(sim);
+    this.updateMusic(sim);
     this.inspector.update(sim);
     if (this.perf.isOpen) {
       this.perf.update({

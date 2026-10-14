@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Species, isCivilized } from '../src/entities/species';
+import { Species, isCivilized, isMonster } from '../src/entities/species';
 import { SAVE_VERSION, decodeSave, describe as describeSave, deserialize, encodeSave, readMeta, serialize, unpackSave } from '../src/persistence/snapshot';
 import { Simulation } from '../src/sim/simulation';
 
@@ -14,6 +14,8 @@ function busyWorld(): Simulation {
   for (let t = 0; t < 600; t++) sim.step();
   sim.apply({ type: 'power', power: 'fire', x: 56, y: 60, size: 5 });
   sim.apply({ type: 'power', power: 'lava', x: 84, y: 68, size: 3 });
+  // Unas ovejas en el sitio aseguran que la plaga tenga a quién contagiar.
+  sim.apply({ type: 'spawn', species: Species.SHEEP, x: 50, y: 64, size: 5 });
   sim.apply({ type: 'power', power: 'plague', x: 50, y: 64, size: 7 });
   sim.apply({ type: 'power', power: 'tornado', x: 64, y: 40, size: 5 });
   for (let t = 0; t < 7; t++) sim.step();
@@ -330,7 +332,7 @@ describe('partidas con monstruos', () => {
     const sim = haunted();
     const u = sim.units;
     let monster = -1;
-    for (let i = 0; i < u.highWater && monster < 0; i++) if (u.alive[i] === 1 && u.species[i] >= Species.PENANTE) monster = i;
+    for (let i = 0; i < u.highWater && monster < 0; i++) if (u.alive[i] === 1 && isMonster(u.species[i])) monster = i;
     u.village[monster] = 0;
     expect(() => deserialize(serialize(sim, meta(sim)))).toThrow(/criaturas/);
   });

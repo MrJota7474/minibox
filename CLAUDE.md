@@ -19,7 +19,7 @@ Este archivo es el traspaso de contexto para cualquier sesión de Claude que tra
 | Copia local del usuario | `C:\Users\sscri\Documents\minibox` (Windows 11) |
 | Zips para itch.io | `release/minibox-<versión>-itch.zip` (no se suben al repo) |
 
-Versión actual: **0.14.0** (hoja de ruta original completa; después, puentes y comercio, y una fase de pulido).
+Versión actual: **0.15.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
 
 ## 3. Cómo se ejecuta
 
@@ -28,7 +28,7 @@ npm install
 npm run dev          # servidor de desarrollo (vite --host)
 npm run build        # tsc --noEmit && vite build → dist/
 npm run build:itch   # build + zip con index.html en la raíz → release/
-npm test             # vitest run (301 pruebas, 22 archivos)
+npm test             # vitest run (320 pruebas, 24 archivos)
 npm run lint         # eslint (incluye reglas de determinismo)
 npm run coverage
 ```
@@ -56,15 +56,24 @@ TypeScript (~6.0; typescript-eslint exige <6.1) + HTML5 Canvas 2D + Vite 8. Sin 
 | I (0.11.0) | Cultura (rasgo + saber → agricultura, albañilería, forja, medicina; asimilación), religión (santuario, preceptos, conversión; pesa en lealtad y opinión) y clanes (herencia paterna, sucesión dinástica, cambio de dinastía). Guardado MBX v5 |
 | K (0.13.0) | Puentes (calzada sobre el agua: los tienden los reinos en ríos y estrechos de hasta 8 casillas y el jugador con el pincel «Puente») y comercio (mercaderes que llevan excedentes entre aldeas no enemigas; oro para ambas y menos agravios entre reinos) |
 | J (0.12.0) | Caminos (senderos por desgaste, calzadas de los reinos y pincel «Calzada»; más velocidad al caminar) y sonido sintetizado con WebAudio (desastres, trabajo, combate, avisos, interfaz; volumen en ajustes). Guardado MBX v6 |
+| M (0.15.0) | Fauna: ciervo, cabra montés, dromedario, zorro y oso, cada animal con su hábitat y su cupo (menos animales y repartidos: dispersión, querencia, refugio y migración); edificios con sombra, variantes, jardineras, bandera que ondea, hoguera animada y andamios; música compuesta por código (calma, invierno, tensión) |
 | L (0.14.0) | Pulido: meteorito con zona chamuscada redonda y fuego que se apaga solo (fuerza de contagio), meteorito que cae con estela, nubecillas al morir, sprites con rebote y brillos, pincel y selección animados, menú de inicio con vista previa del mapa, paneles con marco y animaciones, sonido con panorámica y eco, ambiente (mar, viento, pájaros) |
 
 ## 6. Qué falta
 
-La hoja de ruta que eligió el usuario está **completa**. Ideas para seguir (sin orden acordado; preguntar al usuario): música, idiomas, editor de estandartes, optimizaciones.
+La hoja de ruta que eligió el usuario está **completa**. Ideas para seguir (sin orden acordado; preguntar al usuario): idiomas, editor de estandartes, optimizaciones, más variedad musical (instrumentos por era o raza).
 
 Además, **en cada fase seguir mejorando el aspecto visual** (petición explícita del usuario: «cada vez que se vaya viendo mejor»).
 
 Ideas abiertas: optimizar `tileColor` en `render/palette.ts` (~0,75 ms por chunk al repintar); en algún mundo los lobos se extinguen por azar (aceptado); los monstruos sólo tienen sprite de lado (como el resto de criaturas).
+
+### Notas de la Fase M (fauna, edificios y música)
+
+- **Especies**: los números de `Species` se guardan en las partidas; las nuevas van **siempre al final** (DEER 10 … BEAR 14). Un animal salvaje se reconoce por `def.animal` (`ANIMAL_IDS`), con `bodySize`, `preyMax`, `omnivore` y `habitat`.
+- **Hábitat** (`ai/habitat.ts`): el recuento por especie se cachea por mundo y se rehace cuando cambia `world.landVersion`, que suben `setHeight` (si cambia el terreno) y `setBiome`. **No escribas `world.biome`/`world.terrain` a mano** fuera del generador: el cupo de los animales dejaría de coincidir tras cargar una partida.
+- Cupos, refugio, dispersión, olfato y migración: ver DESIGN.md (Fase M). `stepMigrations` usa el azar de la IA y corre a mitad de cada año.
+- **Edificios**: el atlas tiene 2 variantes de color por raza y copias espejadas (sólo casas y almacenes); `CivLayer` elige variante y espejo con un hash del id del edificio. `drawBuildings(ctx, now)` anima bandera y hoguera.
+- **Música** (`audio/music-theory.ts` puro y probado; `audio/music.ts` la hace sonar): un temporizador cada 250 ms programa compases con 1,2 s de antelación; el ambiente (`moodFor`) sólo cambia al empezar una frase de 8 compases. `game.ts` la actualiza con la interfaz (y también en el menú de inicio).
 
 ### Notas de la Fase L (pulido)
 

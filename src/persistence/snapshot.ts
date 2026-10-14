@@ -225,6 +225,8 @@ export function deserialize(bytes: Uint8Array): Simulation {
     off += align(v.byteLength);
   }
   sim.units.setCounters(h.units);
+  // El mapa se acaba de escribir a mano: lo que se calcula a partir de él (el hábitat) se rehace.
+  sim.world.landVersion++;
   sim.world.regionsDirty = h.regionsDirty === true;
   // Los mares se guardan desde la versión 2; antes se calculan al cargar.
   if (h.version < 2) sim.world.computeSeas();

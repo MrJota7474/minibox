@@ -261,6 +261,172 @@ function drawWolf(p: Pix, pose: number): Hand {
   return { x: 17, y: hy + 3 };
 }
 
+/** Cuatro patas que se alternan al andar (`phase` 0/1 = pareja delantera o trasera de cada lado). */
+function legs(p: Pix, xs: readonly (readonly [number, number])[], walk: number, top: number, len: number, color: string, hoof?: string): void {
+  for (const [x, phase] of xs) {
+    const fwd = walk === 1 ? (phase ? 1 : -1) : walk === 3 ? (phase ? -1 : 1) : 0;
+    p.rect(x + fwd, top, 1, len, color);
+    if (hoof) p.set(x + fwd, top + len - 1, hoof);
+  }
+}
+
+function drawDeer(p: Pix, pose: number): Hand {
+  const g = CELL_H - 2;
+  const walk = pose < 4 ? pose : 0;
+  const fur = '#a0663a';
+  const dark = '#784a28';
+  const belly = '#e8d2b0';
+  legs(p, [[4, 0], [6, 1], [11, 0], [13, 1]], walk, g - 4, 4, dark, '#2a1d14');
+  p.rect(3, g - 8, 11, 4, fur);
+  p.rect(4, g - 9, 9, 1, fur);
+  p.rect(4, g - 5, 9, 1, belly);
+  p.rect(5, g - 8, 6, 1, shade(fur, 1.15));
+  // Cola blanca levantada.
+  p.set(2, g - 9, '#f4f0e4');
+  p.set(2, g - 8, belly);
+  // Cuello largo y cabeza; al comer, la cabeza baja al suelo.
+  const down = pose === Pose.RAISE || pose === Pose.STRIKE;
+  const hx = 14;
+  const hy = down ? g - 5 : g - 13;
+  if (!down) p.rect(13, g - 11, 2, 3, fur);
+  else p.rect(14, g - 8, 2, 2, fur);
+  p.rect(hx, hy, 3, 3, fur);
+  p.set(hx + 3, hy + 1, dark);
+  p.set(hx + 1, hy, '#2a1d14');
+  p.set(hx, hy - 1, fur);
+  // Cornamenta.
+  const ant = '#d8c49a';
+  p.rect(hx, hy - 3, 1, 2, ant);
+  p.set(hx - 1, hy - 4, ant);
+  p.set(hx + 1, hy - 4, ant);
+  p.set(hx + 2, hy - 3, ant);
+  return { x: hx + 3, y: hy + 2 };
+}
+
+function drawGoat(p: Pix, pose: number): Hand {
+  const g = CELL_H - 2;
+  const walk = pose < 4 ? pose : 0;
+  const coat = '#d8cfc0';
+  const shadeC = '#aaa090';
+  legs(p, [[4, 0], [6, 1], [10, 0], [12, 1]], walk, g - 3, 3, '#5a5048', '#2a1d14');
+  p.rect(3, g - 7, 11, 4, coat);
+  p.rect(4, g - 8, 8, 1, coat);
+  p.rect(3, g - 4, 11, 1, shadeC);
+  p.rect(5, g - 8, 4, 1, '#f4f0e4');
+  p.set(2, g - 8, coat);
+  const lunge = pose === Pose.STRIKE ? 1 : 0;
+  const hy = g - 10 + (pose === Pose.RAISE ? 3 : 0);
+  const hx = 13 + lunge;
+  p.rect(hx, hy, 3, 3, coat);
+  p.set(hx + 3, hy + 1, shadeC);
+  p.set(hx + 1, hy + 1, '#2a1d14');
+  // Barba y cuernos curvos hacia atrás.
+  p.rect(hx + 2, hy + 3, 1, 2, '#f4f0e4');
+  const horn = '#6a5a48';
+  p.set(hx, hy - 1, horn);
+  p.set(hx - 1, hy - 2, horn);
+  p.set(hx - 2, hy - 2, horn);
+  p.set(hx - 2, hy - 1, horn);
+  return { x: hx + 3, y: hy + 2 };
+}
+
+function drawCamel(p: Pix, pose: number): Hand {
+  const g = CELL_H - 2;
+  const walk = pose < 4 ? pose : 0;
+  const hide = '#c99a5a';
+  const dark = '#9a7040';
+  legs(p, [[3, 0], [5, 1], [11, 0], [13, 1]], walk, g - 6, 6, dark, '#5a4028');
+  p.rect(2, g - 10, 13, 4, hide);
+  p.rect(2, g - 7, 13, 1, dark);
+  // Joroba.
+  p.rect(5, g - 13, 5, 3, hide);
+  p.rect(6, g - 14, 3, 1, hide);
+  p.rect(6, g - 13, 2, 1, shade(hide, 1.15));
+  p.set(1, g - 9, dark);
+  const down = pose === Pose.RAISE || pose === Pose.STRIKE;
+  // Cuello en curva hacia arriba y cabeza alargada.
+  if (down) {
+    p.rect(14, g - 9, 2, 3, hide);
+    p.rect(15, g - 6, 3, 2, hide);
+    p.set(16, g - 6, '#2a1d14');
+    return { x: 17, y: g - 5 };
+  }
+  p.rect(14, g - 13, 2, 4, hide);
+  p.rect(15, g - 16, 2, 3, hide);
+  p.rect(15, g - 17, 3, 2, hide);
+  p.set(16, g - 17, '#2a1d14');
+  p.set(17, g - 16, dark);
+  return { x: 17, y: g - 15 };
+}
+
+function drawFox(p: Pix, pose: number): Hand {
+  const g = CELL_H - 2;
+  const walk = pose < 4 ? pose : 0;
+  const fur = '#d8743a';
+  const dark = '#2a1d14';
+  const white = '#f4f0e4';
+  const lunge = pose === Pose.STRIKE ? 1 : 0;
+  legs(p, [[6, 0], [7, 1], [11, 0], [12, 1]], walk, g - 2, 2, dark);
+  p.rect(5 + lunge, g - 5, 8, 3, fur);
+  p.rect(7 + lunge, g - 2, 5, 1, white);
+  p.rect(6 + lunge, g - 5, 5, 1, shade(fur, 1.15));
+  // Cola larga y espesa con la punta blanca.
+  const wag = walk === 1 ? -1 : walk === 3 ? 1 : 0;
+  p.rect(1 + lunge, g - 5 + wag, 4, 2, fur);
+  p.set(0 + lunge, g - 5 + wag, white);
+  p.set(1 + lunge, g - 4 + wag, white);
+  // Cabeza con hocico fino y orejas en punta.
+  const hy = g - 7 + (pose === Pose.RAISE ? 2 : 0);
+  const hx = 12 + lunge;
+  p.rect(hx, hy, 3, 3, fur);
+  p.rect(hx + 3, hy + 1, 2, 1, fur);
+  p.set(hx + 4, hy + 1, dark);
+  p.set(hx + 1, hy + 2, white);
+  p.set(hx + 2, hy + 2, white);
+  p.set(hx + 2, hy + 1, dark);
+  p.set(hx, hy - 1, fur);
+  p.set(hx + 2, hy - 1, fur);
+  p.set(hx, hy - 2, dark);
+  p.set(hx + 2, hy - 2, dark);
+  return { x: hx + 4, y: hy + 2 };
+}
+
+function drawBear(p: Pix, pose: number): Hand {
+  const g = CELL_H - 2;
+  const walk = pose < 4 ? pose : 0;
+  const fur = '#6a4a32';
+  const dark = '#4a3222';
+  const lunge = pose === Pose.STRIKE ? 1 : 0;
+  legs(p, [[3, 0], [5, 1], [11, 0], [13, 1]], walk, g - 3, 3, dark);
+  for (const x of [3, 5, 11, 13]) p.set(x, g - 3, fur);
+  p.rect(2 + lunge, g - 9, 13, 6, fur);
+  p.rect(3 + lunge, g - 10, 9, 1, fur);
+  p.rect(4 + lunge, g - 10, 6, 1, shade(fur, 1.2));
+  p.rect(2 + lunge, g - 4, 13, 1, dark);
+  // Cabeza redonda con orejas y hocico claro; al atacar se alza.
+  const hy = g - 10 + (pose === Pose.RAISE ? 3 : 0) - lunge;
+  const hx = 13 + lunge;
+  p.rect(hx, hy, 4, 4, fur);
+  p.rect(hx + 3, hy + 2, 2, 2, '#a8805a');
+  p.set(hx + 4, hy + 2, '#1a1410');
+  p.set(hx + 2, hy + 1, '#1a1410');
+  p.set(hx, hy - 1, dark);
+  p.set(hx + 2, hy - 1, dark);
+  if (pose === Pose.STRIKE) p.set(hx + 4, hy + 4, '#f4f0e4');
+  return { x: hx + 5, y: hy + 3 };
+}
+
+/** Tamaño de dibujo de los animales grandes respecto a un aldeano. */
+export const ANIMAL_SCALE: Readonly<Record<number, number>> = { [Species.BEAR]: 1.35, [Species.CAMEL]: 1.2, [Species.DEER]: 1.1 };
+
+const ANIMAL_ART: Readonly<Record<number, (p: Pix, pose: number) => Hand>> = {
+  [Species.DEER]: drawDeer,
+  [Species.GOAT]: drawGoat,
+  [Species.CAMEL]: drawCamel,
+  [Species.FOX]: drawFox,
+  [Species.BEAR]: drawBear,
+};
+
 // ---------- Atlas ----------
 
 export interface CreatureAtlas {
@@ -277,6 +443,8 @@ function drawCreature(p: Pix, species: number, cloth: string, pose: number): Han
   if (species === Species.SHEEP) return drawSheep(p, pose);
   if (species === Species.RABBIT) return drawRabbit(p, pose);
   if (species === Species.WOLF) return drawWolf(p, pose);
+  const animal = ANIMAL_ART[species];
+  if (animal) return animal(p, pose);
   if (isMonster(species)) {
     const action = pose === Pose.RAISE ? MonsterAction.RAISE : pose === Pose.STRIKE ? MonsterAction.STRIKE : MonsterAction.WALK;
     return drawMonster(p, species, pose < 4 ? pose : 0, action, CELL_H - 2);

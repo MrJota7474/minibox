@@ -12,7 +12,7 @@ import { Status } from '../powers/status';
 import { BoatLayer } from './boat-layer';
 import { CivLayer } from './civ-layer';
 import { FxLayer } from './fx';
-import { CELL_H, CELL_W, CLOTH_COUNT, Pose, buildCreatureAtlas, buildToolAtlas, type CreatureAtlas, type ToolAtlas } from './creature-art';
+import { ANIMAL_SCALE, CELL_H, CELL_W, CLOTH_COUNT, Pose, buildCreatureAtlas, buildToolAtlas, type CreatureAtlas, type ToolAtlas } from './creature-art';
 import { TerrainLayer } from './terrain-layer';
 import { buildFloraAtlas } from './flora-art';
 import { FloraLayer } from './flora-layer';
@@ -104,7 +104,7 @@ export class Renderer {
   private readonly speciesColors: string[];
   private readonly adultTicks: number[];
   /** Tamaño de cada especie respecto a un aldeano y cuáles despiden resplandor de lava. */
-  private readonly speciesScale: number[] = SPECIES.map((s) => MONSTER_SCALE[s.id] ?? 1);
+  private readonly speciesScale: number[] = SPECIES.map((s) => MONSTER_SCALE[s.id] ?? ANIMAL_SCALE[s.id] ?? 1);
   private readonly speciesGlow: boolean[] = SPECIES.map((s) => s.monster?.fiery === true);
   private readonly civLayer: CivLayer;
   private readonly boats: BoatLayer;
@@ -192,7 +192,8 @@ export class Renderer {
     this.drawWaterGlints(now);
     if (this.showTerritory) this.civLayer.drawTerritory(ctx);
     this.flora.draw(ctx, cam, overlay.season);
-    this.civLayer.drawBuildings(ctx);
+    // Con «reducir movimiento», banderas y hogueras quietas.
+    this.civLayer.drawBuildings(ctx, this.fx.reducedMotion ? 0 : now);
     if (overlay.selectedTile >= 0) this.drawTileMarker(overlay.selectedTile);
     this.fx.drawFire(ctx, now);
     this.boats.draw(ctx, alpha);

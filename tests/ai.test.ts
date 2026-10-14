@@ -110,11 +110,11 @@ describe('herbívoros', () => {
   });
 
   it('los depredadores no ocupan las plazas de cría de los herbívoros', () => {
-    // Límite 10: 2 ovejas + 7 lobeznos lejos. Contando a todos (9) ya no podrían criar.
-    const ctx = makeCtx(makeWorld(), 20, 10);
+    // Límite 100: 2 ovejas + 90 lobeznos lejos. Si el cupo de las ovejas contara a todos, ya no podrían criar.
+    const ctx = makeCtx(makeWorld(), 120, 100);
     const a = spawn(ctx, Species.SHEEP, 8.5, 8.5, Sex.FEMALE);
     const b = spawn(ctx, Species.SHEEP, 9.5, 8.5, Sex.MALE);
-    for (let k = 0; k < 7; k++) spawn(ctx, Species.WOLF, 38.5 + k, 40.5, Sex.FEMALE, false);
+    for (let k = 0; k < 90; k++) spawn(ctx, Species.WOLF, 30.5 + (k % 15), 34.5 + Math.floor(k / 15), Sex.FEMALE, false);
     ctx.units.hunger[a] = ctx.units.hunger[b] = SPECIES[Species.SHEEP].maxHunger;
     run(ctx, 200);
     expect(ctx.units.speciesCount[Species.SHEEP]).toBeGreaterThan(2);
@@ -134,16 +134,19 @@ describe('depredadores', () => {
     const ctx = makeCtx(makeWorld());
     const wolf = spawn(ctx, Species.WOLF, 20.5, 20.5);
     spawn(ctx, Species.SHEEP, 22.5, 20.5);
+    // Más ovejas lejos: de una especie casi extinguida nadie caza (refugio).
+    for (let k = 0; k < 10; k++) spawn(ctx, Species.SHEEP, 38.5 + (k % 5), 44.5 + Math.floor(k / 5));
     ctx.units.hunger[wolf] = 100;
     run(ctx, 600);
-    expect(ctx.stats.deaths[DeathCause.KILLED]).toBe(1);
-    expect(ctx.units.kills[wolf]).toBe(1);
+    expect(ctx.stats.deaths[DeathCause.KILLED]).toBeGreaterThanOrEqual(1);
+    expect(ctx.units.kills[wolf]).toBeGreaterThanOrEqual(1);
     expect(ctx.units.hunger[wolf]).toBeGreaterThan(100);
   });
 
   it('los lobos sólo crían si hay suficientes presas por lobo', () => {
     const breedWolves = (prey: number): number => {
-      const ctx = makeCtx(makeWorld());
+      // Con un límite realista: con uno pequeño, el cupo de cada depredador no daría ni para criar.
+      const ctx = makeCtx(makeWorld(), 400);
       const a = spawn(ctx, Species.WOLF, 20.5, 20.5, Sex.FEMALE);
       const b = spawn(ctx, Species.WOLF, 21.5, 20.5, Sex.MALE);
       ctx.units.hunger[a] = ctx.units.hunger[b] = SPECIES[Species.WOLF].maxHunger;
@@ -192,6 +195,8 @@ describe('persecuciones imposibles', () => {
     const ctx = makeCtx(makeWorld());
     const wolf = spawn(ctx, Species.WOLF, 20.5, 20.5);
     const sheep = spawn(ctx, Species.SHEEP, 30.5, 20.5);
+    // Más ovejas lejos: de una especie casi extinguida nadie caza (refugio).
+    for (let k = 0; k < 10; k++) spawn(ctx, Species.SHEEP, 38.5 + (k % 5), 44.5 + Math.floor(k / 5));
     ctx.units.hunger[wolf] = 100;
     run(ctx, 6);
     expect(ctx.units.resolve(ctx.units.target[wolf])).toBe(sheep);

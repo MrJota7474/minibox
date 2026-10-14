@@ -1,5 +1,7 @@
 import type { AmbienceLevels } from './ambience-mix';
 import { Ambience } from './ambience';
+import { Music, SCHEDULE_MS } from './music';
+import type { Mood } from './music-theory';
 import { REVERB_SEND, RateLimiter, masterGain, type SoundId } from './sound-map';
 
 /**
@@ -143,6 +145,8 @@ export class SoundEngine {
   private reverb: GainNode | null = null;
   private noiseBuffer: AudioBuffer | null = null;
   private ambience: Ambience | null = null;
+  private music: Music | null = null;
+  private musicTimer = 0;
   /** Destino de los tonos y ruidos de la receta que suena ahora (su bus). */
   private out: AudioNode | null = null;
   /** Cuándo termina (en tiempo de audio) lo último que ha programado la receta actual. */
@@ -199,6 +203,21 @@ export class SoundEngine {
           console.warn('MiniBox: no se pudo crear el ambiente', err);
           this.ambience = null;
         }
+        try {
+          const music = new Music(ctx, this.master, this.reverb);
+          this.music = music;
+          // Un solo temporizador para toda la partida: programa los compases por adelantado.
+          this.musicTimer = window.setInterval(() => {
+            try {
+              if (ctx.state === 'running') music.schedule();
+            } catch {
+              // Un fallo de la música no debe afectar al juego.
+            }
+          }, SCHEDULE_MS);
+        } catch (err) {
+          console.warn('MiniBox: no se pudo crear la música', err);
+          this.music = null;
+        }
       }
       // Suspendido o interrumpido (móvil en segundo plano, una llamada...): se reanuda con cada gesto,
       // salvo que el sonido esté apagado (entonces se deja dormido).
@@ -211,6 +230,8 @@ export class SoundEngine {
       this.master = null;
       this.reverb = null;
       this.ambience = null;
+      this.music = null;
+      window.clearInterval(this.musicTimer);
     }
   }
 
@@ -244,6 +265,16 @@ export class SoundEngine {
       this.ambience?.update(levels);
     } catch {
       // El ambiente es un adorno: si falla, se sigue sin él.
+    }
+  }
+
+  /** Ambiente musical (null = silencio, con fundido). */
+  setMusic(mood: Mood | null): void {
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    try {
+      this.music?.setMood(mood);
+    } catch {
+      // La música es un adorno: si falla, se sigue sin ella.
     }
   }
 

@@ -4,6 +4,7 @@ import { ZONE_SIZE, type World } from '../world/world';
 import { dockWaterTile } from '../civ/boats';
 import type { Camera } from './camera';
 import { BUILDING_PX, buildBuildingAtlas, type BuildingAtlas } from './building-art';
+import { shade } from './pixel';
 
 const TERRITORY_ALPHA = 0.12;
 const LABEL_MIN_ZOOM = 2.5;
@@ -11,6 +12,25 @@ const SPRITE_MIN_ZOOM = 2;
 const PX_PER_TILE = BUILDING_PX;
 /** Desde este zoom las granjas se dibujan surco a surco, con sus plantas. */
 const CROP_MIN_ZOOM = 6;
+/** Sombra de los edificios: desplazamiento (en casillas) hacia abajo a la derecha. */
+const SHADOW_OFFSET = 0.22;
+const SHADOW_COLOR = 'rgba(0,0,0,0.2)';
+/** Llamas de la hoguera (5×8 px, tres cuadros): y = amarillo, o = naranja, r = rojo. */
+const BONFIRE_FRAMES: readonly (readonly string[])[] = [
+  ['..y..', '..y..', '.yoy.', '.yoo.', 'oyoor', 'rooor', 'rorrr', '.rrr.'],
+  ['.y...', '..y..', '..yo.', '.oyo.', 'roooy', 'roorr', 'rrorr', '.rrr.'],
+  ['...y.', '..y..', '.oy..', '.ooy.', 'ooyor', 'roooo', 'rrror', '.rrr.'],
+];
+const BONFIRE_COLORS: Readonly<Record<string, string>> = { y: '#ffe27a', o: '#ff9a2a', r: '#e84a1a' };
+/** Centro de las llamas dentro del sprite de la hoguera (en píxeles del atlas, con contorno). */
+const BONFIRE_X = 15;
+const BONFIRE_Y = 16;
+
+/** Variante de tono y espejo de cada edificio, siempre la misma para el mismo edificio. */
+function variantOf(id: number): { variant: number; flip: boolean } {
+  const h = Math.imul(id + 1, 2654435761) >>> 0;
+  return { variant: (h >>> 7) & 1, flip: ((h >>> 9) & 1) === 1 };
+}
 
 function rgba(hex: string, alpha: number): string {
   const v = parseInt(hex.slice(1), 16);
@@ -18,6 +38,8 @@ function rgba(hex: string, alpha: number): string {
 }
 
 const FILLS = VILLAGE_COLORS.map((c) => rgba(c, TERRITORY_ALPHA));
+/** Pliegues de las banderas (el color del reino, algo más oscuro), calculados una vez. */
+const FOLDS = new Map<string, string>(VILLAGE_COLORS.map((c) => [c, shade(c, 0.78)]));
 const BORDERS = VILLAGE_COLORS.map((c) => rgba(c, 0.9));
 const INNER_BORDERS = VILLAGE_COLORS.map((c) => rgba(c, 0.3));
 
@@ -86,25 +108,35 @@ export class CivLayer {
     ctx.lineTo(x1, y1);
   }
 
-  drawBuildings(ctx: CanvasRenderingContext2D): void {
+  drawBuildings(ctx: CanvasRenderingContext2D, now = 0): void {
     const cam = this.camera;
     const right = cam.left + cam.viewW / cam.zoom;
     const bottom = cam.top + cam.viewH / cam.zoom;
     // Los edificios más altos sobresalen hacia arriba: se dibujan de arriba abajo para que se solapen bien.
     const visible = this.civ.buildings.filter((b) => b.alive && b.x + b.w >= cam.left && b.y + b.h >= cam.top - 3 && b.x <= right && b.y <= bottom);
     visible.sort((a, b) => a.y + a.h - (b.y + b.h) || a.id - b.id);
+    // Primero todas las sombras (un solo color), para que ninguna tape a otro edificio.
+    if (cam.zoom >= SPRITE_MIN_ZOOM) {
+      ctx.fillStyle = SHADOW_COLOR;
+      const off = SHADOW_OFFSET * cam.zoom;
+      for (const b of visible) {
+        if (b.type === BuildingType.FARM || b.level < 1) continue;
+        const p = cam.worldToScreen(b.x, b.y);
+        ctx.fillRect(Math.round(p.x + off), Math.round(p.y + off), Math.round(b.w * cam.zoom), Math.round(b.h * cam.zoom));
+      }
+    }
     for (const b of visible) {
       const p = cam.worldToScreen(b.x, b.y);
       const w = b.w * cam.zoom;
       const h = b.h * cam.zoom;
       if (b.type === BuildingType.FARM && b.level >= 1) this.drawFarm(ctx, b, p.x, p.y, w, h);
-      else if (b.level >= 1) this.drawSprite(ctx, b, p.x, p.y);
+      else if (b.level >= 1) this.drawSprite(ctx, b, p.x, p.y, now);
       if (b.type === BuildingType.DOCK && b.level >= 1) this.drawPier(ctx, b);
       if (b.underConstruction) this.drawSite(ctx, b, p.x, p.y, w, h);
     }
   }
 
-  private drawSprite(ctx: CanvasRenderingContext2D, b: Building, x: number, y: number): void {
+  private drawSprite(ctx: CanvasRenderingContext2D, b: Building, x: number, y: number, now: number): void {
     const race = this.civ.villages[b.village].race;
     const z = this.camera.zoom;
     if (z < SPRITE_MIN_ZOOM) {
@@ -112,14 +144,32 @@ export class CivLayer {
       ctx.fillRect(x, y, b.w * z, b.h * z);
       return;
     }
-    const r = this.atlas.rect(race, b.type, b.level);
+    const look = variantOf(b.id);
+    const r = this.atlas.rect(race, b.type, b.level, look.variant, look.flip);
     if (!r) return;
     const scale = z / PX_PER_TILE;
     // El contorno sobresale 1 px de la huella, y el tejado, `top` píxeles por encima.
     const top = Math.round(y - (r.top + 1) * scale);
-    ctx.drawImage(this.atlas.canvas, r.sx, r.sy, r.w, r.h, Math.round(x - scale), top, Math.round(r.w * scale), Math.round(r.h * scale));
+    const left = Math.round(x - scale);
+    ctx.drawImage(this.atlas.canvas, r.sx, r.sy, r.w, r.h, left, top, Math.round(r.w * scale), Math.round(r.h * scale));
+    if (z < CROP_MIN_ZOOM) return;
+    if (b.type === BuildingType.HALL && b.level === 1) this.drawBonfire(ctx, left + BONFIRE_X * scale, top + BONFIRE_Y * scale, scale, now + b.id * 97);
     const v = this.civ.villages[b.village];
-    if (b.type === BuildingType.HALL && b.level >= 2 && z >= CROP_MIN_ZOOM) this.drawBanner(ctx, x + (b.w * z) * 0.86, top + scale * 2, scale, VILLAGE_COLORS[this.colorOfKingdom(v.kingdom)]);
+    if (b.type === BuildingType.HALL && b.level >= 2) this.drawBanner(ctx, x + (b.w * z) * 0.86, top + scale * 2, scale, VILLAGE_COLORS[this.colorOfKingdom(v.kingdom)], now + b.id * 131);
+  }
+
+  /** Llamas de la hoguera que cambian de cuadro (cada hoguera a su ritmo). */
+  private drawBonfire(ctx: CanvasRenderingContext2D, cx: number, top: number, s: number, now: number): void {
+    const rows = BONFIRE_FRAMES[Math.floor(now / 120) % BONFIRE_FRAMES.length];
+    const x0 = cx - 2 * s;
+    for (let y = 0; y < rows.length; y++) {
+      for (let x = 0; x < rows[y].length; x++) {
+        const ch = rows[y][x];
+        if (ch === '.') continue;
+        ctx.fillStyle = BONFIRE_COLORS[ch];
+        ctx.fillRect(Math.round(x0 + x * s), Math.round(top + y * s), Math.ceil(s), Math.ceil(s));
+      }
+    }
   }
 
   /** Pasarela de tablones del muelle sobre su casilla de agua. */
@@ -134,16 +184,22 @@ export class CivLayer {
     for (let k = 0; k < 3; k++) ctx.fillRect(p.x + z * (0.15 + k * 0.27), p.y + z * 0.25, Math.max(1, z * 0.06), z * 0.5);
   }
 
-/** Bandera del reino en un mástil (ayuntamientos y fortalezas). */
-  private drawBanner(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string): void {
+  /** Bandera del reino en un mástil (ayuntamientos y fortalezas): ondea columna a columna. */
+  private drawBanner(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, color: string, now: number): void {
     ctx.fillStyle = '#1a1410';
     ctx.fillRect(Math.round(x - s), Math.round(y - s), Math.round(3 * s), Math.round(12 * s));
     ctx.fillStyle = '#8a6a4a';
     ctx.fillRect(Math.round(x), Math.round(y), Math.round(s), Math.round(10 * s));
-    ctx.fillStyle = '#1a1410';
-    ctx.fillRect(Math.round(x + s), Math.round(y - s), Math.round(7 * s), Math.round(6 * s));
-    ctx.fillStyle = color;
-    ctx.fillRect(Math.round(x + s), Math.round(y), Math.round(6 * s), Math.round(4 * s));
+    const fold = FOLDS.get(color) ?? color;
+    for (let c = 0; c < 6; c++) {
+      // La onda crece hacia la punta (junto al mástil apenas se mueve).
+      const wave = Math.round(Math.sin(now / 260 - c * 0.9) * Math.min(1, c / 3)) * s;
+      const cx = Math.round(x + (c + 1) * s);
+      ctx.fillStyle = '#1a1410';
+      ctx.fillRect(cx, Math.round(y - s + wave), Math.ceil(s) + (c === 5 ? Math.ceil(s) : 0), Math.round(6 * s));
+      ctx.fillStyle = c % 2 === 0 ? fold : color;
+      ctx.fillRect(cx, Math.round(y + wave), Math.ceil(s), Math.round(4 * s));
+    }
   }
 
   private drawFarm(ctx: CanvasRenderingContext2D, b: Building, x: number, y: number, w: number, h: number): void {
@@ -194,24 +250,38 @@ export class CivLayer {
     }
   }
 
-  /** Andamio de obra con barra de progreso. */
+  /** Obra: solar de tierra, andamio de postes y tablones (que sube con el progreso) y barra de progreso. */
   private drawSite(ctx: CanvasRenderingContext2D, b: Building, x: number, y: number, w: number, h: number): void {
     const needed = BUILDING_DEFS[b.type].work[b.level] || 1;
+    const done = Math.min(1, b.progress / needed);
     const z = this.camera.zoom;
-    ctx.strokeStyle = '#c08a4a';
-    ctx.lineWidth = Math.max(1, z * 0.2);
     if (b.level === 0) {
-      ctx.fillStyle = 'rgba(138,90,42,0.35)';
+      ctx.fillStyle = 'rgba(138,90,42,0.45)';
       ctx.fillRect(x, y, w, h);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + w, y + h);
-      ctx.moveTo(x + w, y);
-      ctx.lineTo(x, y + h);
-      ctx.stroke();
     }
-    ctx.strokeRect(x, y, w, h);
-    if (z < SPRITE_MIN_ZOOM) return;
+    if (z < SPRITE_MIN_ZOOM) {
+      ctx.strokeStyle = '#c08a4a';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
+      return;
+    }
+    // Postes en las esquinas (y uno en medio si es ancho) que crecen con la obra.
+    const pole = Math.max(1, Math.round(z * 0.14));
+    const rise = h * (0.5 + done * 0.7);
+    const posts = b.w >= 3 ? [0, 0.5, 1] : [0, 1];
+    ctx.fillStyle = '#7a5228';
+    for (const f of posts) ctx.fillRect(Math.round(x + f * (w - pole)), Math.round(y + h - rise), pole, Math.round(rise));
+    // Tablones horizontales cada media casilla de altura.
+    ctx.fillStyle = '#c08a4a';
+    const plank = Math.max(1, Math.round(z * 0.12));
+    for (let yy = y + h - z * 0.5; yy > y + h - rise; yy -= z * 0.55) ctx.fillRect(Math.round(x - pole), Math.round(yy), Math.round(w + pole * 2), plank);
+    // Una riostra en diagonal.
+    ctx.strokeStyle = '#8a5a2a';
+    ctx.lineWidth = Math.max(1, z * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x + w, y + h - rise);
+    ctx.stroke();
     const barH = Math.max(2, z * 0.35);
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(x, y + h + 1, w, barH);

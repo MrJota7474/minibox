@@ -54,6 +54,12 @@ export class World {
   /** Casillas de cada mar (índice = etiqueta); se deriva de `sea`. */
   seaSizes: number[] = [0];
   regionsDirty = true;
+  /**
+   * Sube cada vez que cambia el terreno o el bioma de una casilla: lo que se calcula a partir
+   * de ellos (el hábitat de los animales) se rehace sólo cuando cambia. No se guarda: tras
+   * cargar una partida empieza de nuevo y todo se recalcula desde el mapa.
+   */
+  landVersion = 0;
   readonly zonesX: number;
   readonly zonesY: number;
   /** Aldea dueña de cada zona (id + 1; 0 = libre). */
@@ -153,6 +159,7 @@ export class World {
       if (isWalkableTerrain(this.terrain[i]) !== isWalkableTerrain(t) || isWaterTerrain(this.terrain[i]) !== isWaterTerrain(t)) this.regionsDirty = true;
       const wasBridge = this.isBridge(i);
       this.terrain[i] = t;
+      this.landVersion++;
       // Bajo el agua o en una cumbre no queda camino ni calzada (un puente se pierde si cambia su fondo).
       // Un puente aguanta mientras debajo siga habiendo agua que no sea abismo.
       const keepsBridge = wasBridge && isWaterTerrain(t) && t !== Terrain.DEEP;
@@ -176,6 +183,7 @@ export class World {
   setBiome(i: number, b: BiomeId): void {
     if (this.biome[i] === b) return;
     this.biome[i] = b;
+    this.landVersion++;
     this.markDirtyIdx(i);
   }
 

@@ -154,6 +154,8 @@ export function spawnInBrush(
   const want = spawnCountForSize(size);
   const r = Math.max(0, (size - 1) / 2);
   let spawned = 0;
+  // Sexos alternos: un grupo de dos o más siempre tiene macho y hembra (si no, no podría criar).
+  const firstSex = rng.int(2);
   for (let k = 0; k < want; k++) {
     if (units.count >= limit) return { spawned, limited: true };
     for (let a = 0; a < SPAWN_ATTEMPTS; a++) {
@@ -161,7 +163,7 @@ export function spawnInBrush(
       const y = cy + rng.range(-Math.floor(r), Math.floor(r)) + 0.5;
       if (!world.isWalkableAt(x, y)) continue;
       const i = units.spawn(species, x, y, {
-        sex: rng.int(2),
+        sex: (firstSex + spawned) % 2,
         ageTicks: def.adultTicks + rng.int(Math.floor(def.lifespanTicks * 0.3)),
         generation: 0,
         thinkOffset: rng.int(5),

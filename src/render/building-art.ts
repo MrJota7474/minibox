@@ -18,16 +18,22 @@ interface Style {
   door: string;
   stone: string;
   accent: string;
+  /** Tejado (o piel, en las tiendas) de la segunda variante de casa. */
+  roofAlt: string;
+  wallAlt: string;
 }
 
 const STYLES: Readonly<Record<number, Style>> = {
-  [Species.HUMAN]: { wall: '#e3d2a8', pattern: 'timber', trim: '#6a4a2a', roof: '#b5432f', roofShape: 'gable', door: '#5a3a22', stone: '#9a9a9a', accent: '#f2d16b' },
-  [Species.SILVAN]: { wall: '#9a6a3a', pattern: 'log', trim: '#6a4422', roof: '#3f8a3a', roofShape: 'dome', door: '#4a3a22', stone: '#8aa08a', accent: '#e8e0a0' },
-  [Species.PETRINO]: { wall: '#a8a39a', pattern: 'stone', trim: '#76726c', roof: '#5a5a66', roofShape: 'flat', door: '#4a4a52', stone: '#7a7a80', accent: '#f2a03d' },
-  [Species.TUSKER]: { wall: '#a87a4a', pattern: 'hide', trim: '#6a4a2a', roof: '#8a5a32', roofShape: 'tent', door: '#2a1a0a', stone: '#6a5a4a', accent: '#f4f0e4' },
+  [Species.HUMAN]: { wall: '#e3d2a8', pattern: 'timber', trim: '#6a4a2a', roof: '#b5432f', roofShape: 'gable', door: '#5a3a22', stone: '#9a9a9a', accent: '#f2d16b', roofAlt: '#8a5a3a', wallAlt: '#ead8b8' },
+  [Species.SILVAN]: { wall: '#9a6a3a', pattern: 'log', trim: '#6a4422', roof: '#3f8a3a', roofShape: 'dome', door: '#4a3a22', stone: '#8aa08a', accent: '#e8e0a0', roofAlt: '#5e9a36', wallAlt: '#8a5e34' },
+  [Species.PETRINO]: { wall: '#a8a39a', pattern: 'stone', trim: '#76726c', roof: '#5a5a66', roofShape: 'flat', door: '#4a4a52', stone: '#7a7a80', accent: '#f2a03d', roofAlt: '#6a5650', wallAlt: '#b4aea2' },
+  [Species.TUSKER]: { wall: '#a87a4a', pattern: 'hide', trim: '#6a4a2a', roof: '#8a5a32', roofShape: 'tent', door: '#2a1a0a', stone: '#6a5a4a', accent: '#f4f0e4', roofAlt: '#7a5a3a', wallAlt: '#b88a58' },
 };
 const WINDOW = '#f2d16b';
 const RACES = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER];
+/** Variantes de cada edificio (tejado y pared de otro tono). */
+export const BUILDING_VARIANTS = 2;
+const FLOWERS = ['#e8546a', '#f2d16b', '#f4b6c8'];
 
 // ---------- Piezas ----------
 
@@ -71,6 +77,22 @@ function windowAt(p: Pix, s: Style, x: number, y: number): void {
   p.set(x + 2, y + 2, s.trim);
 }
 
+/** Jardinera bajo una ventana, con flores de colores. */
+function flowerBox(p: Pix, s: Style, x: number, y: number, seed: number): void {
+  p.rect(x - 1, y, 4, 1, shade(s.trim, 1.1));
+  p.set(x - 1, y - 1, '#4f9a35');
+  p.set(x, y - 1, FLOWERS[seed % FLOWERS.length]);
+  p.set(x + 1, y - 1, '#4f9a35');
+  p.set(x + 2, y - 1, FLOWERS[(seed + 1) % FLOWERS.length]);
+}
+
+/** Farol junto a la puerta. */
+function lantern(p: Pix, x: number, y: number): void {
+  p.set(x, y - 1, '#3a2a1a');
+  p.set(x, y, '#ffd86a');
+  p.set(x, y + 1, '#c08a2a');
+}
+
 /** Tejado a dos aguas con hileras de tejas y luz por la izquierda. */
 function gable(p: Pix, s: Style, x0: number, x1: number, base: number, color = s.roof): void {
   const h = Math.ceil((x1 - x0 + 1) / 2);
@@ -83,6 +105,11 @@ function gable(p: Pix, s: Style, x0: number, x1: number, base: number, color = s
     p.rect(a, y, mid - a + 1, 1, k % 2 ? shade(color, 1.12) : color);
     p.rect(mid + 1, y, b - mid, 1, k % 2 ? shade(color, 0.85) : shade(color, 0.78));
   }
+  // Caballete: la cumbrera más clara donde le da el sol.
+  const top = base - h + 1;
+  const peak = Math.floor((x0 + x1) / 2);
+  p.set(peak, top, shade(color, 1.35));
+  p.set(peak - 1, top + 1, shade(color, 1.25));
   p.rect(x0 - 1, base + 1, x1 - x0 + 3, 1, shade(color, 0.6));
 }
 
@@ -156,6 +183,12 @@ function house(p: Pix, s: Style, level: number): void {
   door(p, s, 8, g + 1, level >= 3 ? 5 : 4);
   if (level >= 2) windowAt(p, s, x0 + 2, g - wallH + 3);
   if (level >= 2) windowAt(p, s, x1 - 3, g - wallH + 3);
+  // Jardineras en las casas de humanos y silvanos; farol en las grandes.
+  if (level >= 2 && (s.pattern === 'timber' || s.pattern === 'log')) {
+    flowerBox(p, s, x0 + 2, g - wallH + 6, level);
+    flowerBox(p, s, x1 - 3, g - wallH + 6, level + 1);
+  }
+  if (level >= 3) lantern(p, 10, g - 3);
   const base = g - wallH;
   if (s.roofShape === 'gable') {
     // Las chozas humanas llevan techo de paja.
@@ -353,41 +386,63 @@ const CELL_H = 42;
 
 export interface BuildingAtlas {
   readonly canvas: HTMLCanvasElement;
-  /** Rectángulo (con contorno) de un edificio; `top` es lo que sobresale por encima de su huella. */
-  rect(race: number, type: number, level: number): { sx: number; sy: number; w: number; h: number; top: number } | null;
+  /**
+   * Rectángulo (con contorno) de un edificio; `top` es lo que sobresale por encima de su huella.
+   * `variant` elige el tono del tejado y `flip` lo dibuja espejado (sólo casas y almacenes).
+   */
+  rect(race: number, type: number, level: number, variant?: number, flip?: boolean): { sx: number; sy: number; w: number; h: number; top: number } | null;
+}
+
+/** Edificios que pueden salir espejados (los demás tienen la bandera o la entrada en un sitio fijo). */
+function canFlip(type: number): boolean {
+  return type === BuildingType.HOUSE || type === BuildingType.STORAGE;
+}
+
+/** Estilo de la variante: la segunda cambia el tejado y la pared por otros tonos de la misma raza. */
+function variantStyle(s: Style, variant: number): Style {
+  if (variant === 0) return s;
+  return s.roofShape === 'tent' ? { ...s, wall: s.wallAlt } : { ...s, roof: s.roofAlt, wall: s.wallAlt };
 }
 
 export function buildBuildingAtlas(): BuildingAtlas {
   const canvas = document.createElement('canvas');
-  canvas.width = CELL_W * SPRITES.length;
-  canvas.height = CELL_H * RACES.length;
+  // Columnas: edificio × (normal, espejado); filas: raza × variante.
+  canvas.width = CELL_W * SPRITES.length * 2;
+  canvas.height = CELL_H * RACES.length * BUILDING_VARIANTS;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D no disponible');
   RACES.forEach((race, r) => {
-    SPRITES.forEach((sp, c) => {
-      // Se dibuja con 1 px de margen para el contorno.
-      const inner = new Pix(sp.w, sp.h);
-      sp.draw(inner, STYLES[race]);
-      const p = new Pix(sp.w + 2, sp.h + 2);
-      for (let y = 0; y < sp.h; y++) {
-        for (let x = 0; x < sp.w; x++) {
-          const col = inner.get(x, y);
-          if (col) p.set(x + 1, y + 1, col);
+    for (let v = 0; v < BUILDING_VARIANTS; v++) {
+      const style = variantStyle(STYLES[race], v);
+      SPRITES.forEach((sp, c) => {
+        // Se dibuja con 1 px de margen para el contorno.
+        const inner = new Pix(sp.w, sp.h);
+        sp.draw(inner, style);
+        const p = new Pix(sp.w + 2, sp.h + 2);
+        for (let y = 0; y < sp.h; y++) {
+          for (let x = 0; x < sp.w; x++) {
+            const col = inner.get(x, y);
+            if (col) p.set(x + 1, y + 1, col);
+          }
         }
-      }
-      p.paint(ctx, c * CELL_W, r * CELL_H);
-    });
+        const row = (r * BUILDING_VARIANTS + v) * CELL_H;
+        p.paint(ctx, c * 2 * CELL_W, row);
+        if (canFlip(sp.type)) p.paint(ctx, (c * 2 + 1) * CELL_W, row, true);
+      });
+    }
   });
   return {
     canvas,
-    rect(race, type, level) {
+    rect(race, type, level, variant = 0, flip = false) {
       const r = RACES.indexOf(race as (typeof RACES)[number]);
       const maxLevel = type === BuildingType.HALL || type === BuildingType.HOUSE ? 3 : 1;
       const c = SPRITES.findIndex((s) => s.type === type && s.level === Math.min(maxLevel, Math.max(1, level)));
       if (r < 0 || c < 0) return null;
       const sp = SPRITES[c];
       const footprint = type === BuildingType.HALL ? 24 : 16;
-      return { sx: c * CELL_W, sy: r * CELL_H, w: sp.w + 2, h: sp.h + 2, top: sp.h - footprint };
+      const v = Math.abs(variant) % BUILDING_VARIANTS;
+      const col = c * 2 + (flip && canFlip(type) ? 1 : 0);
+      return { sx: col * CELL_W, sy: (r * BUILDING_VARIANTS + v) * CELL_H, w: sp.w + 2, h: sp.h + 2, top: sp.h - footprint };
     },
   };
 }

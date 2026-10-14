@@ -2,6 +2,7 @@ import { DeathCause, THINK_INTERVAL, giveUp, killUnit, type AiContext } from '..
 import { Move, moveToward, pickWanderTarget } from '../ai/movement';
 import { Nav, clearPath, navigateTo } from '../ai/navigation';
 import { recordBirth, setBreedCooldown } from '../ai/life';
+import { isScarce } from '../ai/habitat';
 import { inheritTraits, traitMods } from '../entities/traits';
 import { SPECIES, type RaceTraits, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
@@ -255,7 +256,8 @@ function startBuildingWork(ctx: AiContext, i: number, v: Village, accept: (b: Bu
 
 function startHunt(ctx: AiContext, i: number): boolean {
   const u = ctx.units;
-  const prey = ctx.spatial.nearest(u, u.x[i], u.y[i], HUNT_SIGHT, (j) => SPECIES[u.species[j]].diet === 'herbivore');
+  // Los cazadores tampoco persiguen a una especie casi extinguida.
+  const prey = ctx.spatial.nearest(u, u.x[i], u.y[i], HUNT_SIGHT, (j) => SPECIES[u.species[j]].diet === 'herbivore' && !isScarce(u.speciesCount, u.species[j]));
   if (prey === NO_UNIT) return false;
   u.state[i] = UnitState.HUNT;
   u.target[i] = u.handleOf(prey);

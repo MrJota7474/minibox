@@ -433,6 +433,34 @@ Una pasada de acabado sobre lo que ya existe, sin mecánicas nuevas.
 - **Sonido**: panorámica estéreo según la posición en pantalla y volumen según la distancia al centro, un eco suave en los sonidos grandes, recetas con más capas (explosión, trueno, meteorito con silbido de caída) y sonidos propios para abrir, cerrar y cambiar de pestaña. **Ambiente**: olas cuando se ve el mar, viento en montañas y nieve, y gorjeos de pájaros sobre los bosques, mezclados según lo que hay en pantalla (casilla «Ambiente» en los ajustes).
 - **Guardado**: sin cambio de formato (el calor del fuego ya se guardaba).
 
+### Fase M — Fauna, edificios y música
+- **Fauna nueva** (cinco especies, todas con su hábitat):
+
+| Animal | Dieta | Hábitat | Notas |
+|---|---|---|---|
+| Oveja | herbívoro | pradera, sabana | como hasta ahora |
+| Conejo | herbívoro | pradera, bosque, desierto | presa pequeña |
+| **Ciervo** | herbívoro | bosque, selva, arboleda mágica | rápido, con cornamenta |
+| **Cabra montés** | herbívoro | colinas, montaña y nieve | vive en las alturas |
+| **Dromedario** | herbívoro | desierto y sabana | aguanta mucho sin comer |
+| Lobo | depredador | pradera, bosque, nieve | caza presas medianas |
+| **Zorro** | depredador | pradera, bosque, sabana | caza presas pequeñas (conejos, ovejas, cabras); come bayas |
+| **Oso** | depredador | bosque, nieve | grande y escaso; caza cualquier herbívoro y come bayas |
+
+  Cada animal tiene un **tamaño** (conejo 1; oveja y cabra 2; ciervo 3; dromedario 4) y cada depredador uno máximo de presa (zorro 2, lobo 3, oso 4). Un herbívoro sólo huye de quien puede cazarlo.
+- **Población con medida**: hasta ahora cada herbívoro criaba hasta ocupar el 70 % del límite de criaturas repartido entre especies (unas 700 ovejas y 700 conejos con el límite de 2000), y las crías se quedaban junto a la madre, así que se formaban manadas enormes. Ahora:
+  - **Cupo por hábitat** (`ai/habitat.ts`): cada especie cría sólo mientras haya menos de una por cada N casillas de su hábitat (oveja 1/200, conejo 1/180, ciervo 1/200, cabra 1/300, dromedario 1/250, lobo 1/900, zorro 1/700, oso 1/1500; mínimo 4), y nunca más de su parte del límite (40 % para los herbívoros y 6 % para los depredadores, repartidos entre especies). El hábitat se cuenta sobre el mapa actual (si el jugador pinta un bosque, caben más ciervos); cada cría vuelve a mirar el cupo, así que varias parejas a la vez no lo desbordan.
+  - **Menos apiñamiento**: un animal no cría si ya hay 4 de su especie a 5 casillas, y si hay 5 o más, se aleja 14 casillas en dirección contraria al grupo.
+  - **Querencia**: al pasear prefieren las casillas de su hábitat.
+  - **Encontrarse**: buscan pareja hasta 24 casillas (las especies escasas viven repartidas) y los depredadores con hambre huelen presa hasta 2,5 veces su vista. Un depredador sólo cría si hay 10 presas suyas por cada uno de su especie.
+  - **Refugio**: de una especie con menos de 10 animales en el mundo no caza nadie (ni depredadores ni cazadores de las aldeas).
+  - **Migración** (`ai/migration.ts`): una vez al año, si una especie salvaje tiene menos de 6 animales y su hábitat sigue en el mapa, hay un 50 % de que llegue un grupito (unos 4). Sólo en mundos con al menos 20 animales salvajes: un mundo vacío sigue vacío.
+  - **Población inicial**: grupos de unos 4 (machos y hembras alternos) repartidos por el hábitat de cada especie. Todo grupo creado con el pincel alterna también los sexos.
+  - Resultado (sondeo de 60 años, 4 mundos de 256×256): entre 200 y 350 animales por mundo (antes, unos 1400) y las ocho especies vivas en los cuatro mundos al final, con altibajos por los depredadores y los inviernos.
+- **Edificios**: sombra en el suelo, dos variantes por casa (tejado de otro tono y espejo) para que las aldeas no se vean repetidas, más detalle (jardineras, caballete del tejado, escalón de la puerta, farol), bandera del reino que ondea, hoguera con llamas que se mueven y obras con andamio de madera de verdad.
+- **Música**: compuesta por código mientras se juega (sin archivos): acordes suaves, un bajo y una melodía en escala pentatónica que se improvisa compás a compás. Tres ambientes: **calma** (paz), **invierno** (más lenta y escasa) y **tensión** (guerra o muchos monstruos: modo menor y tambor grave), que cambian al final de cada frase. Casilla «Música» en los ajustes. No es simulación.
+- **Guardado**: sin cambio de formato (las especies nuevas usan los números siguientes; las partidas anteriores cargan igual).
+
 ---
 
 ## 7. Riesgos y mitigaciones

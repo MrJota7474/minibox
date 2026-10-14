@@ -1,4 +1,6 @@
 import { DEATH_CAUSE_COUNT, type AiContext, type SimStats } from '../ai/context';
+import { inHabitat } from '../ai/habitat';
+import { stepMigrations } from '../ai/migration';
 import { Pathfinder } from '../ai/pathfinder';
 import { stepMonsterSpawns } from '../ai/monster-spawn';
 import { updateUnits } from '../ai/update';
@@ -8,12 +10,11 @@ import { HazardSystem } from '../powers/hazards';
 import { defaultLaws, lawsHash, type WorldLaws } from './laws';
 import { hashMix } from '../core/hash';
 import { Rng, hashString } from '../core/rng';
-import { Species, type SpeciesId } from '../entities/species';
+import { SPECIES, Species, type SpeciesId } from '../entities/species';
 import { SpatialHash } from '../entities/spatial';
 import { UnitStore } from '../entities/units';
 import { applyBrush, spawnInBrush } from '../powers/brush';
 import { generateWorld } from '../world/generator';
-import { isFertileTerrain } from '../world/terrain';
 import { VegetationSystem } from '../world/vegetation';
 import { Climate, ERA_INFO, neutralClimate } from '../world/climate';
 import { World } from '../world/world';
@@ -30,11 +31,20 @@ export interface SimulationOptions {
   blank?: boolean;
 }
 
-/** Grupos iniciales por cada 10 000 casillas de mapa. */
+/**
+ * Grupos iniciales por cada 10 000 casillas de mapa, cada uno en el hábitat de su especie.
+ * `size` es el pincel con el que se crean (7 → unos 4 animales; 5 → 2).
+ */
 const INITIAL_GROUPS: readonly { species: SpeciesId; perTenThousand: number; size: number }[] = [
-  { species: Species.SHEEP, perTenThousand: 1.2, size: 9 },
-  { species: Species.RABBIT, perTenThousand: 1.0, size: 9 },
-  { species: Species.WOLF, perTenThousand: 0.4, size: 9 },
+  { species: Species.SHEEP, perTenThousand: 1.0, size: 7 },
+  { species: Species.RABBIT, perTenThousand: 1.0, size: 7 },
+  { species: Species.DEER, perTenThousand: 0.8, size: 7 },
+  { species: Species.GOAT, perTenThousand: 0.6, size: 7 },
+  { species: Species.CAMEL, perTenThousand: 0.5, size: 7 },
+  // Los depredadores, en grupos de unos cuatro para que haya parejas.
+  { species: Species.WOLF, perTenThousand: 0.3, size: 7 },
+  { species: Species.FOX, perTenThousand: 0.3, size: 7 },
+  { species: Species.BEAR, perTenThousand: 0.15, size: 7 },
 ];
 /** Tope del registro de comandos (evita que crezca sin límite en sesiones largas). */
 const MAX_LOGGED_COMMANDS = 200_000;
@@ -173,6 +183,7 @@ export class Simulation {
     this.hazards.step(this.ctx, this.rngPower, this.laws.fireSpread, this.civ);
     this.powers.step(this.ctx, this.rngPower, this.civ);
     stepMonsterSpawns(this.ctx, this.rngMonster);
+    stepMigrations(this.ctx, this.rngAi);
     this.civ.update(this.ctx);
     updateUnits(this.ctx);
     this.tick++;
@@ -216,7 +227,7 @@ export class Simulation {
     for (const group of INITIAL_GROUPS) {
       const groups = Math.max(1, Math.round(area * group.perTenThousand));
       for (let g = 0; g < groups; g++) {
-        const spot = this.findFertileSpot(rng);
+        const spot = this.findHabitatSpot(rng, group.species);
         if (spot < 0) continue;
         const x = spot % this.world.width;
         const y = Math.floor(spot / this.world.width);
@@ -225,10 +236,12 @@ export class Simulation {
     }
   }
 
-  private findFertileSpot(rng: Rng): number {
+  /** Una casilla pisable del hábitat de la especie (o -1 si no la encuentra). */
+  private findHabitatSpot(rng: Rng, species: SpeciesId): number {
+    const def = SPECIES[species];
     for (let a = 0; a < PLACEMENT_ATTEMPTS; a++) {
       const i = rng.int(this.world.size);
-      if (isFertileTerrain(this.world.terrain[i])) return i;
+      if (this.world.canWalk(i) && inHabitat(def, this.world, i)) return i;
     }
     return -1;
   }
