@@ -55,7 +55,9 @@ function drawHumanoid(p: Pix, look: RaceLook, cloth: string, pose: number): Hand
   const ground = CELL_H - 2;
   const cx = Math.floor(CELL_W / 2) - 1;
   const legTop = ground - look.legs;
-  const torsoTop = legTop - look.torso;
+  // Al dar la zancada (cuadros 1 y 3) el cuerpo baja un píxel: así se nota el paso.
+  const bob = pose === 1 || pose === 3 ? 1 : 0;
+  const torsoTop = legTop - look.torso + bob;
   const headTop = torsoTop - look.head;
   const half = Math.floor(look.width / 2);
   const left = cx - half;
@@ -86,8 +88,9 @@ function drawHumanoid(p: Pix, look: RaceLook, cloth: string, pose: number): Hand
   p.set(legFront + stride, ground, look.shoes);
   p.set(legFront + stride + 1, ground, look.shoes);
 
-  // Torso con el color del reino, cinturón y sombra lateral.
+  // Torso con el color del reino, luz en los hombros, cinturón y sombra lateral.
   p.rect(left, torsoTop, look.width, look.torso, cloth);
+  p.rect(left + 1, torsoTop, look.width - 2, 1, shade(cloth, 1.2));
   p.rect(left, torsoTop, 1, look.torso, clothShade);
   p.rect(left, torsoTop + look.torso - 2, look.width, 1, shade(cloth, 0.5));
   p.set(cx, torsoTop + look.torso - 2, '#d8b450');
@@ -140,15 +143,20 @@ function drawHumanoid(p: Pix, look: RaceLook, cloth: string, pose: number): Hand
 
 function drawHair(p: Pix, look: RaceLook, hx: number, top: number, w: number): void {
   const c = look.hair;
+  // Brillo del pelo donde le da la luz (arriba, hacia la cara).
+  const shine = shade(c, 1.35);
   switch (look.hairStyle) {
     case 'short':
       p.rect(hx, top - 1, w, 2, c);
       p.rect(hx, top + 1, 1, 2, c);
+      p.rect(hx + 2, top - 1, w - 3, 1, shine);
       break;
     case 'long':
       p.rect(hx, top - 1, w, 2, c);
       p.rect(hx - 1, top, 2, 5, c);
       p.set(hx + w - 1, top + 1, c);
+      p.rect(hx + 1, top - 1, w - 2, 1, shine);
+      p.set(hx - 1, top + 4, shade(c, 0.8));
       break;
     case 'cap':
       // Casco de piedra de los petrinos.
@@ -176,16 +184,22 @@ function drawSheep(p: Pix, pose: number): Hand {
     const lift = walk % 2 === 1 && k % 2 === (walk === 1 ? 0 : 1) ? 1 : 0;
     p.rect(x, g - 2, 1, 2 - lift, dark);
   });
-  p.rect(2, g - 7, 11, 5, wool);
-  p.rect(3, g - 8, 9, 1, wool);
-  p.rect(3, g - 2, 9, 1, woolShade);
-  for (const [x, y] of [[4, g - 6], [7, g - 5], [10, g - 6], [5, g - 4], [9, g - 4]]) p.set(x, y, woolShade);
-  p.set(1, g - 6, wool);
-  const headDown = pose === Pose.RAISE || pose === Pose.STRIKE ? 2 : 0;
+  // El vellón sube y baja un píxel al andar.
+  const b = walk === 1 || walk === 3 ? 1 : 0;
+  p.rect(2, g - 7 + b, 11, 5, wool);
+  p.rect(3, g - 8 + b, 9, 1, wool);
+  p.rect(4, g - 8 + b, 6, 1, '#ffffff');
+  p.rect(3, g - 2 + b, 9, 1, woolShade);
+  for (const [x, y] of [[4, g - 6], [7, g - 5], [10, g - 6], [5, g - 4], [9, g - 4]]) p.set(x, y + b, woolShade);
+  for (const [x, y] of [[5, g - 7], [8, g - 6], [11, g - 7]]) p.set(x, y + b, '#ffffff');
+  p.set(1, g - 6 + b, wool);
+  const headDown = (pose === Pose.RAISE || pose === Pose.STRIKE ? 2 : 0) + b;
   p.rect(12, g - 8 + headDown, 3, 3, dark);
   p.set(15, g - 7 + headDown, dark);
   p.set(14, g - 7 + headDown, '#f4f0e4');
   p.set(12, g - 9 + headDown, dark);
+  // Oreja caída, algo más clara.
+  p.set(11, g - 7 + headDown, '#5a4a48');
   return { x: 15, y: g - 6 + headDown };
 }
 
@@ -229,10 +243,13 @@ function drawWolf(p: Pix, pose: number): Hand {
   p.rect(2 + lunge, g - 7, 12, 5, fur);
   p.rect(4 + lunge, g - 3, 9, 1, belly);
   p.rect(2 + lunge, g - 7, 12, 1, furDark);
-  // Cola.
+  // Pelo erizado del lomo, más claro.
+  for (const x of [5, 8, 11]) p.set(x + lunge, g - 6, '#aab2ba');
+  // Cola: se balancea al trotar.
+  const wag = walk === 1 ? -1 : walk === 3 ? 1 : 0;
   p.set(1 + lunge, g - 6, fur);
-  p.set(0 + lunge, g - 7, fur);
-  p.set(0 + lunge, g - 8, furDark);
+  p.set(0 + lunge, g - 7 + wag, fur);
+  p.set(0 + lunge, g - 8 + wag, furDark);
   // Cabeza y hocico.
   const hy = g - 9 + (pose === Pose.RAISE ? 2 : 0);
   p.rect(13 + lunge, hy, 4, 4, fur);

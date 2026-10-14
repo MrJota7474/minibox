@@ -75,8 +75,10 @@ export class Toolbar {
     this.tabButtons.get(tab)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     this.toolButtons.clear();
     this.toolRow.replaceChildren(
-      ...TOOLS.filter((t) => t.tab === tab).map((t) => {
+      ...TOOLS.filter((t) => t.tab === tab).map((t, k) => {
         const b = iconButton(toolIcon(t, this.atlas), t.label, { class: 'btn-tool', showLabel: true, onClick: () => this.selectTool(t) });
+        // Orden de entrada: los botones aparecen uno tras otro al cambiar de pestaña.
+        b.style.setProperty('--i', String(k));
         this.toolButtons.set(t.id, b);
         return b;
       }),

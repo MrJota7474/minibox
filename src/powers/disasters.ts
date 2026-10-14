@@ -25,7 +25,7 @@ export type PowerId =
   | 'heal';
 
 /** Avisos visuales para el render (no forman parte del estado de la simulación). */
-export type FxKind = 'lightning' | 'explosion' | 'smoke' | 'sparkle' | 'curse' | 'plague' | 'heal' | 'madness';
+export type FxKind = 'lightning' | 'explosion' | 'meteor' | 'smoke' | 'sparkle' | 'curse' | 'plague' | 'heal' | 'madness';
 export interface FxEvent {
   readonly kind: FxKind;
   readonly x: number;
@@ -58,6 +58,18 @@ const MAX_FX = 200;
 const MAX_HELD = 30;
 const LIGHTNING_DAMAGE = 60;
 const BLAST_DAMAGE = 200;
+/** La onda expansiva hiere (sin matar a casi nadie sano) en toda la zona chamuscada. */
+const SCORCH_DAMAGE = 25;
+/** Radio de la zona chamuscada respecto al cráter. */
+const METEOR_SCORCH = 2.5;
+const BOMB_SCORCH = 1.4;
+/** Probabilidad de que caiga una planta: del 90 % junto al cráter al 30 % en el borde. */
+const SCORCH_NEAR = 0.9;
+const SCORCH_FAR = 0.3;
+/** En el último 15 % de la zona chamuscada prenden llamas pequeñas. */
+const SCORCH_EDGE = 0.85;
+const EDGE_FIRE_CHANCE = 0.35;
+const EDGE_FIRE_STRENGTH = 2;
 const EFFECT_TTL: Readonly<Record<EffectKind, number>> = { earthquake: 150, tornado: 300, 'acid-rain': 240, volcano: 500 };
 
 /**
@@ -100,8 +112,8 @@ export class PowerSystem {
       case 'bomb': {
         const meteor = power === 'meteor';
         const r = meteor ? 3 + brush * 0.5 : 2 + brush * 0.4;
-        this.blast(cx, cy, r, meteor ? 40 : 10, ctx, rng, civ);
-        this.emit('explosion', cx, cy, r);
+        this.blast(cx, cy, r, meteor ? 40 : 10, meteor ? METEOR_SCORCH : BOMB_SCORCH, ctx, rng, civ);
+        this.emit(meteor ? 'meteor' : 'explosion', cx, cy, r);
         break;
       }
       case 'earthquake':
@@ -139,12 +151,18 @@ export class PowerSystem {
     this.emit(fx[power] ?? 'sparkle', cx, cy, r);
   }
 
-  /** Explosión con cráter: mata, destruye edificios y prende fuego al borde. */
-  private blast(cx: number, cy: number, r: number, depth: number, ctx: AiContext, rng: Rng, civ: BuildingDamage): void {
+  /**
+   * Explosión con cráter: mata y destruye edificios en el radio `r`, y alrededor deja una
+   * zona chamuscada redonda (hasta `r × scorch`) donde las plantas caen más cuanto más
+   * cerca del cráter. Sólo el borde de esa zona prende fuego, y con poca fuerza.
+   */
+  private blast(cx: number, cy: number, r: number, depth: number, scorch: number, ctx: AiContext, rng: Rng, civ: BuildingDamage): void {
     const w = this.world;
+    const outer = r * scorch;
     damageInRadius(ctx, cx, cy, r, BLAST_DAMAGE);
+    damageInRadius(ctx, cx, cy, outer, SCORCH_DAMAGE);
     civ.destroyBuildingsIn(cx, cy, r);
-    this.forTiles(Math.floor(cx), Math.floor(cy), r + 1.5, (i) => {
+    this.forTiles(Math.floor(cx), Math.floor(cy), outer, (i) => {
       const x = (i % w.width) + 0.5;
       const y = Math.floor(i / w.width) + 0.5;
       const d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
@@ -152,9 +170,13 @@ export class PowerSystem {
         w.setHeight(i, w.heightMap[i] - Math.round(depth * (1 - d / (r + 0.5))));
         if (isPlant(w.flora[i])) w.setFlora(i, Flora.NONE);
         w.setGrass(i, 0);
-      } else if (rng.chance(0.5)) {
-        this.hazards.ignite(i);
+        return;
       }
+      // 0 junto al cráter y 1 en el borde de la zona chamuscada.
+      const t = Math.min(1, (d - r) / Math.max(0.5, outer - r));
+      if (isPlant(w.flora[i]) && rng.chance(SCORCH_NEAR + (SCORCH_FAR - SCORCH_NEAR) * t)) w.setFlora(i, Flora.NONE);
+      w.setGrass(i, Math.round(w.grass[i] * t));
+      if (t >= SCORCH_EDGE && rng.chance(EDGE_FIRE_CHANCE)) this.hazards.ignite(i, EDGE_FIRE_STRENGTH);
     });
   }
 

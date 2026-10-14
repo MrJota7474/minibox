@@ -9,7 +9,25 @@ import { damageTakenMultiplier } from './status';
 /** Ticks entre pasos del fuego y de la lava. */
 const FIRE_STEP = 3;
 const LAVA_STEP = 6;
-const FIRE_START = 12;
+/**
+ * Cada casilla en llamas guarda en `world.fire` dos cosas: la fuerza con la que contagia
+ * (bits altos, 0-15) y los pasos que le quedan ardiendo (bits bajos, 1-15). Al saltar a una
+ * vecina, la fuerza baja; con fuerza 0 la llama ya no contagia, así que todo incendio se
+ * apaga a unas casillas de donde empezó. Los valores antiguos (≤ 15) son fuerza 0.
+ */
+const FIRE_TIME_BITS = 4;
+const FIRE_TIME_MASK = (1 << FIRE_TIME_BITS) - 1;
+const FIRE_MAX_STRENGTH = 15;
+/** Pasos que arde cada casilla (tiene que caber en los bits bajos). */
+const FIRE_BURN = 12;
+if (FIRE_BURN > FIRE_TIME_MASK) throw new Error('FIRE_BURN no cabe en los bits de tiempo del fuego');
+/** Fuerza del pincel de fuego, del rayo y de los monstruos de lava. */
+export const FIRE_STRENGTH = 5;
+/** Fuerza de lo que prende la lava. */
+export const FIRE_HOT = 4;
+/** Fuerza que pierde el fuego al saltar a un bosque (o un edificio) y a la hierba. */
+const FIRE_LOSS_PLANT = 1;
+const FIRE_LOSS_GRASS = 2;
 const FIRE_SPREAD_CHANCE = 0.22;
 const FIRE_DAMAGE = 4;
 const LAVA_START = 60;
@@ -59,12 +77,20 @@ export class HazardSystem {
     return isPlant(w.flora[i]) || w.grass[i] > 40 || w.buildingAt[i] !== 0;
   }
 
-  ignite(i: number, intensity = FIRE_START): void {
+  /** Prende una casilla; `strength` es cuántos saltos más puede dar el fuego (0-15). */
+  ignite(i: number, strength = FIRE_STRENGTH): void {
     const w = this.world;
     if (w.fire[i] > 0 || w.isWaterIdx(i) || w.lava[i] > 0) return;
-    w.fire[i] = intensity;
+    const s = Math.max(0, Math.min(FIRE_MAX_STRENGTH, Math.floor(strength)));
+    w.fire[i] = (s << FIRE_TIME_BITS) | FIRE_BURN;
     w.markDirtyIdx(i);
     this.burning.push(i);
+  }
+
+  /** Lo que pierde el fuego al saltar a la casilla: menos en el bosque que en la hierba. */
+  private spreadLoss(i: number): number {
+    const w = this.world;
+    return isPlant(w.flora[i]) || w.buildingAt[i] !== 0 ? FIRE_LOSS_PLANT : FIRE_LOSS_GRASS;
   }
 
   pourLava(i: number, heat = LAVA_START): void {
@@ -94,16 +120,20 @@ export class HazardSystem {
     this.burning = next;
     for (const i of current) {
       if (w.fire[i] === 0) continue;
-      w.fire[i]--;
+      const strength = w.fire[i] >> FIRE_TIME_BITS;
+      const time = (w.fire[i] & FIRE_TIME_MASK) - 1;
+      w.fire[i] = time > 0 ? (strength << FIRE_TIME_BITS) | time : 0;
       damageUnitsOn(ctx, i, FIRE_DAMAGE, DeathCause.DISASTER);
       if (w.buildingAt[i] !== 0) buildings.burnBuildingAt(i);
-      if (spread) {
+      if (spread && strength > 0) {
         const x = i % w.width;
         const y = (i - x) / w.width;
         for (const [dx, dy] of NEIGHBORS) {
           if (!w.inBounds(x + dx, y + dy)) continue;
           const j = w.idx(x + dx, y + dy);
-          if (w.fire[j] === 0 && this.isFlammable(j) && rng.chance(FIRE_SPREAD_CHANCE)) this.ignite(j);
+          if (w.fire[j] !== 0 || !this.isFlammable(j)) continue;
+          const loss = this.spreadLoss(j);
+          if (strength >= loss && rng.chance(FIRE_SPREAD_CHANCE)) this.ignite(j, strength - loss);
         }
       }
       if (w.fire[i] > 0) next.push(i);
@@ -129,7 +159,7 @@ export class HazardSystem {
       for (const [dx, dy] of NEIGHBORS) {
         if (!w.inBounds(x + dx, y + dy)) continue;
         const j = w.idx(x + dx, y + dy);
-        if (this.isFlammable(j)) this.ignite(j);
+        if (this.isFlammable(j)) this.ignite(j, FIRE_HOT);
         const downhill = w.heightMap[j] <= w.heightMap[i] + 2;
         if (w.lava[j] === 0 && w.lava[i] > LAVA_FLOW_MIN && downhill && rng.chance(LAVA_FLOW_CHANCE)) this.pourLava(j, w.lava[i] - 12);
       }

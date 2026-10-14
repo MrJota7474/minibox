@@ -327,7 +327,7 @@ describe('escorios', () => {
     const escorio = spawn(r, Species.ESCORIO, 40.5, 40.5);
     const human = spawn(r, Species.HUMAN, 40.5, 40.5);
     r.ctx.units.cooldown[escorio] = 1000;
-    r.ctx.hazards.ignite(r.ctx.world.idx(40, 40), 200);
+    r.ctx.hazards.ignite(r.ctx.world.idx(40, 40));
     r.ctx.laws.monsters = false;
     for (let t = 0; t < 40; t++) {
       r.ctx.tick++;

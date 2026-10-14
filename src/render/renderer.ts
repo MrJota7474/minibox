@@ -1,12 +1,13 @@
 import type { CivSystem } from '../civ/civ-system';
 import { Job, VILLAGE_COLORS } from '../civ/model';
 import { SPECIES } from '../entities/species';
-import { UnitState, type UnitStore } from '../entities/units';
+import { NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 import type { World } from '../world/world';
 import type { Camera } from './camera';
 import { BACKGROUND } from './palette';
 import type { PowerSystem } from '../powers/disasters';
 import type { HazardSystem } from '../powers/hazards';
+import type { ToolTone } from '../powers/tools';
 import { Status } from '../powers/status';
 import { BoatLayer } from './boat-layer';
 import { CivLayer } from './civ-layer';
@@ -19,8 +20,8 @@ import { MONSTER_SCALE } from './monster-art';
 import { hash2 } from './pixel';
 
 export interface Overlay {
-  /** Pincel bajo el cursor (en casillas). */
-  brush: { x: number; y: number; size: number } | null;
+  /** Pincel bajo el cursor (en casillas) y el tono de la herramienta. */
+  brush: { x: number; y: number; size: number; tone: ToolTone } | null;
   /** Índice de la criatura seleccionada o -1. */
   selected: number;
   /** Casilla inspeccionada o -1. */
@@ -45,6 +46,12 @@ const SPRITE_PX_PER_TILE = 11;
 /** Herramienta de cada oficio (índice = Job). */
 const JOB_TOOLS: readonly (string | null)[] = [null, 'basket', 'axe', 'pick', 'hoe', 'hammer', 'bow', 'bundle', 'spear', 'rod', 'bundle'];
 const CARGO_SPRITES: readonly string[] = ['food', 'log', 'stone', 'ore', 'gold'];
+/** Anillo y relleno del pincel según la herramienta. */
+const BRUSH_COLORS: Readonly<Record<ToolTone, readonly [string, string]>> = {
+  normal: ['rgba(255,244,214,0.95)', 'rgba(255,244,214,0.08)'],
+  danger: ['rgba(255,110,90,0.95)', 'rgba(255,80,60,0.12)'],
+  magic: ['rgba(255,214,110,0.95)', 'rgba(255,214,110,0.12)'],
+};
 
 /** Patrón de grano: píxeles algo más claros u oscuros, siempre los mismos. */
 function buildGrain(): HTMLCanvasElement {
@@ -86,6 +93,11 @@ export class Renderer {
   private readonly grain: HTMLCanvasElement = buildGrain();
   private grainPattern: CanvasPattern | null = null;
   private readonly visibleUnits: number[] = [];
+  /** Criaturas vistas en el fotograma anterior, con su handle y posición (para la nubecilla al morir). */
+  private seen: number[] = [];
+  private readonly seenHandle: Float64Array;
+  private readonly seenX: Float32Array;
+  private readonly seenY: Float32Array;
   private readonly speciesDiet: string[];
   private dpr = 1;
   private dprCap: number;
@@ -122,6 +134,9 @@ export class Renderer {
     this.flora = new FloraLayer(world, buildFloraAtlas());
     this.terrain.onChunk = (c) => this.flora.touch(c);
     this.atlas = atlas ?? buildCreatureAtlas();
+    this.seenHandle = new Float64Array(units.capacity);
+    this.seenX = new Float32Array(units.capacity);
+    this.seenY = new Float32Array(units.capacity);
     this.speciesDiet = SPECIES.map((sp) => sp.diet);
     this.dprCap = dprCap;
     this.speciesColors = SPECIES.map((s) => s.color);
@@ -188,8 +203,8 @@ export class Renderer {
     if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
     this.fx.drawOver(ctx, now);
     if (this.showLabels) this.civLayer.drawLabels(ctx);
-    if (overlay.selected >= 0) this.drawSelection(overlay.selected, alpha);
-    if (overlay.brush) this.drawBrush(overlay.brush.x, overlay.brush.y, overlay.brush.size);
+    if (overlay.selected >= 0) this.drawSelection(overlay.selected, alpha, now);
+    if (overlay.brush) this.drawBrush(overlay.brush, now);
   }
 
   private drawTerrain(): void {
@@ -254,6 +269,7 @@ export class Renderer {
     const right = left + cam.viewW / z;
     const bottom = top + cam.viewH / z;
     if (z < SPRITE_MIN_ZOOM) {
+      this.seen.length = 0;
       this.drawDots(alpha, left, top, right, bottom);
       return;
     }
@@ -280,6 +296,20 @@ export class Renderer {
     this.drawGlows(visible, alpha, tick, scale);
     visible.sort((a, b) => u.y[a] - u.y[b] || a - b);
     for (const i of visible) this.drawCreature(i, alpha, tick, scale);
+    this.puffDeaths(visible);
+  }
+
+  /** Las criaturas que estaban a la vista y ya no existen (han muerto) dejan una nubecilla. */
+  private puffDeaths(visible: readonly number[]): void {
+    const u = this.units;
+    for (const i of this.seen) if (u.resolve(this.seenHandle[i]) === NO_UNIT) this.fx.puff(this.seenX[i], this.seenY[i]);
+    this.seen.length = 0;
+    for (const i of visible) {
+      this.seen.push(i);
+      this.seenHandle[i] = u.handleOf(i);
+      this.seenX[i] = u.x[i];
+      this.seenY[i] = u.y[i];
+    }
   }
 
   /** Resplandor que late en el suelo bajo los monstruos de lava. */
@@ -418,18 +448,24 @@ export class Renderer {
     });
   }
 
-  private drawSelection(i: number, alpha: number): void {
+  /** Anillo dorado que late bajo la criatura seleccionada. */
+  private drawSelection(i: number, alpha: number, now: number): void {
     const u = this.units;
     if (!u.isAlive(i)) return;
     const wx = u.px[i] + (u.x[i] - u.px[i]) * alpha;
     const wy = u.py[i] + (u.y[i] - u.py[i]) * alpha;
     const p = this.camera.worldToScreen(wx, wy);
-    const r = Math.max(6, this.camera.zoom * 1.2);
-    this.ctx.strokeStyle = '#f2c14e';
-    this.ctx.lineWidth = 2;
-    this.ctx.beginPath();
-    this.ctx.ellipse(p.x, p.y + 1, r, r * 0.55, 0, 0, Math.PI * 2);
-    this.ctx.stroke();
+    const beat = this.fx.reducedMotion ? 0.5 : (Math.sin(now / 180) + 1) / 2;
+    const r = Math.max(6, this.camera.zoom * 1.2) * (1 + beat * 0.12);
+    const ctx = this.ctx;
+    ctx.strokeStyle = `rgba(242,193,78,${0.25 + beat * 0.25})`;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + 1, r, r * 0.55, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#f2c14e';
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   private drawTileMarker(tile: number): void {
@@ -442,19 +478,33 @@ export class Renderer {
     this.ctx.strokeRect(p.x - 1, p.y - 1, z + 2, z + 2);
   }
 
-  private drawBrush(tx: number, ty: number, size: number): void {
-    const p = this.camera.worldToScreen(tx + 0.5, ty + 0.5);
-    const r = Math.max(3, (size / 2) * this.camera.zoom);
+  /** Pincel: relleno tenue y anillo discontinuo que gira, del color de la herramienta. */
+  private drawBrush(brush: { x: number; y: number; size: number; tone: ToolTone }, now: number): void {
+    const p = this.camera.worldToScreen(brush.x + 0.5, brush.y + 0.5);
+    const r = Math.max(3, (brush.size / 2) * this.camera.zoom);
+    const [ring, fill] = BRUSH_COLORS[brush.tone];
     const ctx = this.ctx;
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     ctx.beginPath();
     ctx.arc(p.x, p.y, r + 1, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,244,214,0.9)';
-    ctx.lineWidth = 1.5;
+    // Trazos de unos 8 px, siempre un número entero para que el anillo cierre.
+    const dashes = Math.max(4, Math.round((Math.PI * r) / 8));
+    const step = (Math.PI * 2) / dashes;
+    const spin = this.fx.reducedMotion ? 0 : (now / 1600) % step;
+    ctx.strokeStyle = ring;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    for (let k = 0; k < dashes; k++) {
+      const a = spin + k * step;
+      ctx.moveTo(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r);
+      ctx.arc(p.x, p.y, r, a, a + step * 0.55);
+    }
     ctx.stroke();
   }
 }

@@ -112,6 +112,70 @@ describe('desastres', () => {
     expect(burnt).toBeGreaterThan(10);
   });
 
+  it('el meteorito deja una zona chamuscada redonda y el bosque de alrededor sobrevive', () => {
+    const r = rig(true);
+    const w = r.ctx.world;
+    apply(r, 'meteor', 32, 32, 3);
+    run(r, 3000);
+    expect(r.hazards.burningCount).toBe(0);
+    // Cráter de radio 4,5 y zona chamuscada hasta 9: dentro casi no quedan árboles.
+    const treesWithin = (r0: number, r1: number): { trees: number; tiles: number } => {
+      let trees = 0;
+      let tiles = 0;
+      for (let y = 0; y < SIZE; y++) {
+        for (let x = 0; x < SIZE; x++) {
+          const d = Math.hypot(x + 0.5 - 32.5, y + 0.5 - 32.5);
+          if (d < r0 || d >= r1) continue;
+          tiles++;
+          if (w.flora[w.idx(x, y)] === Flora.TREE) trees++;
+        }
+      }
+      return { trees, tiles };
+    };
+    expect(treesWithin(0, 4.5).trees).toBe(0);
+    const scorched = treesWithin(4.5, 9);
+    expect(scorched.trees / scorched.tiles).toBeLessThan(0.6);
+    // Las llamas del borde se apagan a pocas casillas: lejos el bosque sigue intacto.
+    const far = treesWithin(18, 99);
+    expect(far.trees).toBe(far.tiles);
+  });
+
+  it('un incendio del pincel quema una mancha y se apaga sin arrasar el bosque', () => {
+    const r = rig(true);
+    apply(r, 'fire', 32, 32, 3);
+    run(r, 3000);
+    expect(r.hazards.burningCount).toBe(0);
+    let burnt = 0;
+    for (let i = 0; i < r.ctx.world.size; i++) if (r.ctx.world.flora[i] === Flora.NONE) burnt++;
+    expect(burnt).toBeGreaterThan(20);
+    expect(burnt).toBeLessThan(SIZE * SIZE * 0.15);
+  });
+
+  it('el fuego se contagia menos por la hierba que por el bosque', () => {
+    const burntWith = (forest: boolean): number => {
+      const r = rig(forest);
+      apply(r, 'fire', 32, 32, 1);
+      run(r, 3000);
+      let n = 0;
+      for (let i = 0; i < r.ctx.world.size; i++) if (r.ctx.world.grass[i] === 0) n++;
+      return n;
+    };
+    expect(burntWith(false)).toBeLessThan(burntWith(true));
+  });
+
+  it('un fuego de una partida antigua (sin fuerza) se apaga sin contagiar', () => {
+    const r = rig(true);
+    const i = r.ctx.world.idx(32, 32);
+    // Formato anterior: sólo el tiempo que le queda (≤ 12).
+    r.ctx.world.fire[i] = 12;
+    r.hazards.rebuildLists();
+    run(r, 60);
+    expect(r.hazards.burningCount).toBe(0);
+    let burnt = 0;
+    for (let k = 0; k < r.ctx.world.size; k++) if (r.ctx.world.flora[k] === Flora.NONE) burnt++;
+    expect(burnt).toBe(1);
+  });
+
   it('con la ley de propagación desactivada el fuego no se extiende', () => {
     const r = rig(true);
     r.ctx.laws.fireSpread = false;

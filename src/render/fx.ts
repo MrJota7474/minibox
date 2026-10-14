@@ -39,9 +39,21 @@ interface Ring {
   y: number;
   r: number;
   max: number;
+  /** Tiempo transcurrido; si empieza en negativo, la onda sale con retraso. */
   t: number;
   color: string;
 }
+
+/** Meteorito que cae hacia su punto de impacto (en casillas). */
+interface Meteor {
+  x: number;
+  y: number;
+  r: number;
+  t: number;
+}
+
+/** Segundos que tarda el meteorito en caer. */
+const METEOR_FALL_S = 0.42;
 
 /** Partículas a la vez como máximo (las del tiempo meteorológico van aparte, hasta MAX_WEATHER). */
 const MAX_PARTICLES = 3000;
@@ -87,6 +99,9 @@ const STYLES: Readonly<Record<string, Style>> = {
   mud: { colors: ['#6a6338', '#454226', '#5f8a34'], shape: 'square', speed: 0.8, rise: -1, gravity: 7, size: 0.16 },
   blightMote: { colors: ['#7a4f86', '#4a2f55', '#a878b8'], shape: 'square', speed: 0.15, rise: -0.5, gravity: 0, size: 0.1 },
   groveMote: { colors: ['#c8fff0', '#7fe8c8', '#ffffff'], shape: 'square', speed: 0.2, rise: -0.6, gravity: 0, size: 0.1 },
+  rocks: { colors: ['#4a3e36', '#6a5a4c', '#2e2622', '#ff8a2a'], shape: 'square', speed: 9, rise: -6, gravity: 14, size: 0.3 },
+  dust: { colors: ['#a8957a', '#8a7a64', '#c4b498'], shape: 'square', speed: 2.2, rise: -0.4, gravity: 0, size: 0.45 },
+  puff: { colors: ['#ece6da', '#cfc7b8', '#aba394'], shape: 'square', speed: 0.9, rise: -0.9, gravity: 0, size: 0.2 },
 };
 /** Partículas con las que aparece cada monstruo recién nacido. */
 const BIRTH_FX: Readonly<Record<number, string>> = { [Species.PENANTE]: 'curse', [Species.ESCORIO]: 'explosion', [Species.CENAGOSO]: 'mud' };
@@ -147,6 +162,7 @@ export class FxLayer {
   private particles: Particle[] = [];
   private weatherCount = 0;
   private rings: Ring[] = [];
+  private meteors: Meteor[] = [];
   private bolts: { x: number; y: number; t: number; seed: number }[] = [];
   private flash = 0;
   private shake = 0;
@@ -156,13 +172,21 @@ export class FxLayer {
   private readonly flames = buildFlames();
   /** Aviso de cada efecto con su posición en casillas (para el sonido); lo conecta el juego. */
   onSound: ((kind: string, x: number, y: number) => void) | null = null;
+  /** El sistema pide menos movimiento: sin temblores y con destellos muy suaves. */
+  reducedMotion = false;
 
   constructor(
     private readonly powers: PowerSystem,
     private readonly hazards: HazardSystem,
     private readonly world: World,
     private readonly camera: Camera,
-  ) {}
+  ) {
+    const query = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    if (query) {
+      this.reducedMotion = query.matches;
+      query.addEventListener?.('change', (e) => (this.reducedMotion = e.matches));
+    }
+  }
 
   /** Lee los avisos de la simulación y avanza partículas, ondas y temblores. */
   update(now: number): void {
@@ -195,6 +219,15 @@ export class FxLayer {
     });
     for (const r of this.rings) r.t += dt;
     this.rings = this.rings.filter((r) => r.t < r.max);
+    for (const m of this.meteors) {
+      m.t += dt;
+      if (m.t >= METEOR_FALL_S) this.impact(m);
+      else if (Math.random() < 0.7) {
+        const head = this.meteorHead(m);
+        this.burst(head.x, head.y, 1, 'ember', 2);
+      }
+    }
+    this.meteors = this.meteors.filter((m) => m.t < METEOR_FALL_S);
     this.bolts = this.bolts.filter((b) => (b.t -= dt) > 0);
     this.flash = Math.max(0, this.flash - dt * 2);
     this.shake *= 0.88;
@@ -228,6 +261,10 @@ export class FxLayer {
         this.burst(e.x, e.y, Math.min(60, 10 + e.r * 4), 'smoke', 2);
         this.shake = Math.max(this.shake, Math.min(14, 3 + e.r));
         break;
+      case 'meteor':
+        // La simulación ya abrió el cráter: aquí sólo se ve caer y estallar.
+        this.meteors.push({ x: e.x, y: e.y, r: e.r, t: 0 });
+        break;
       case 'sparkle':
         this.rings.push({ x: e.x, y: e.y, r: e.r + 0.5, max: 0.6, t: 0, color: '#fff2a0' });
         this.burst(e.x, e.y, Math.min(60, 12 + e.r * 6), 'sparkle', Math.max(1, e.r));
@@ -235,6 +272,33 @@ export class FxLayer {
       default:
         this.burst(e.x, e.y, Math.min(70, 10 + e.r * 6), e.kind, Math.max(1, e.r));
     }
+  }
+
+  /** Impacto del meteorito: destello, doble onda, rocas incandescentes, fuego y polvo. */
+  private impact(m: Meteor): void {
+    this.onSound?.('explosion', m.x, m.y);
+    const r = m.r;
+    this.flash = Math.max(this.flash, this.visible(m.x, m.y, r) ? 0.8 : 0);
+    this.rings.push({ x: m.x, y: m.y, r: r * 1.4, max: 0.4, t: 0, color: '#fff2c0' });
+    this.rings.push({ x: m.x, y: m.y, r: r * 2.6, max: 0.75, t: -0.12, color: '#ffb060' });
+    this.burst(m.x, m.y, Math.min(140, 30 + r * 12), 'explosion', 3 + r);
+    this.burst(m.x, m.y, Math.min(70, 12 + r * 5), 'rocks', 0.6 + r * 0.15);
+    this.burst(m.x, m.y, Math.min(80, 16 + r * 6), 'dust', 1 + r * 0.6);
+    this.burst(m.x, m.y, Math.min(40, 8 + r * 3), 'smoke', 2.5);
+    this.shake = Math.max(this.shake, Math.min(18, 5 + r * 1.2));
+  }
+
+  /** Cabeza del meteorito: baja desde el cielo (arriba a la derecha) cada vez más deprisa. */
+  private meteorHead(m: Meteor): { x: number; y: number } {
+    const sky = (this.camera.viewH / this.camera.zoom) * 0.9;
+    const p = Math.min(1, m.t / METEOR_FALL_S);
+    const left = 1 - p * p;
+    return { x: m.x + sky * 0.45 * left, y: m.y - sky * left };
+  }
+
+  /** Nubecilla donde muere una criatura a la vista. */
+  puff(x: number, y: number): void {
+    this.burst(x, y - 0.6, 5, 'puff', 0.8);
   }
 
   private burst(x: number, y: number, n: number, kind: string, speedScale = 1): void {
@@ -404,7 +468,7 @@ export class FxLayer {
 
   /** Desplazamiento de cámara del temblor (en píxeles). */
   offset(): { x: number; y: number } {
-    if (this.shake === 0) return { x: 0, y: 0 };
+    if (this.shake === 0 || this.reducedMotion) return { x: 0, y: 0 };
     return { x: (Math.random() - 0.5) * this.shake * 2, y: (Math.random() - 0.5) * this.shake * 2 };
   }
 
@@ -450,7 +514,9 @@ export class FxLayer {
       else if (e.kind === 'acid-rain') this.drawAcid(ctx, sx, sy, e.r * z, time);
       else if (e.kind === 'volcano') this.drawVolcano(ctx, sx, sy, z, time);
     }
+    for (const m of this.meteors) this.drawMeteor(ctx, m);
     for (const r of this.rings) {
+      if (r.t < 0) continue;
       const t = r.t / r.max;
       ctx.globalAlpha = Math.max(0, 1 - t);
       ctx.strokeStyle = r.color;
@@ -478,7 +544,7 @@ export class FxLayer {
     ctx.globalAlpha = 1;
     for (const b of this.bolts) this.drawBolt(ctx, (b.x - c.left) * z, (b.y - c.top) * z, b.t, b.seed);
     if (this.flash > 0) {
-      ctx.fillStyle = `rgba(255,255,240,${this.flash * 0.35})`;
+      ctx.fillStyle = `rgba(255,255,240,${this.flash * (this.reducedMotion ? 0.06 : 0.35)})`;
       ctx.fillRect(0, 0, c.viewW, c.viewH);
     }
   }
@@ -538,6 +604,44 @@ export class FxLayer {
     ctx.fillStyle = 'rgba(255,220,120,0.7)';
     ctx.beginPath();
     ctx.ellipse(sx, sy, Math.max(2, z * 0.8), Math.max(1.5, z * 0.5), 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** Meteorito en plena caída: sombra que crece en el suelo, estela de fuego y núcleo blanco. */
+  private drawMeteor(ctx: CanvasRenderingContext2D, m: Meteor): void {
+    const c = this.camera;
+    const z = c.zoom;
+    const p = Math.min(1, m.t / METEOR_FALL_S);
+    const gx = (m.x - c.left) * z;
+    const gy = (m.y - c.top) * z;
+    ctx.fillStyle = `rgba(0,0,0,${0.15 + p * 0.3})`;
+    ctx.beginPath();
+    ctx.ellipse(gx, gy, Math.max(3, m.r * z * p * 0.6), Math.max(2, m.r * z * p * 0.35), 0, 0, Math.PI * 2);
+    ctx.fill();
+    const head = this.meteorHead(m);
+    const hx = (head.x - c.left) * z;
+    const hy = (head.y - c.top) * z;
+    // La estela apunta hacia donde viene (arriba a la derecha).
+    const size = Math.max(4, Math.min(28, m.r * z * 0.3));
+    const tail = size * 7;
+    const tx = hx + tail * 0.41;
+    const ty = hy - tail * 0.91;
+    for (const [w, color] of [[size * 1.8, 'rgba(255,120,40,0.35)'], [size, 'rgba(255,190,80,0.85)'], [size * 0.45, 'rgba(255,250,220,1)']] as const) {
+      const grad = ctx.createLinearGradient(hx, hy, tx, ty);
+      grad.addColorStop(0, color);
+      grad.addColorStop(1, 'rgba(255,120,40,0)');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = w;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = '#fffbe8';
+    ctx.beginPath();
+    ctx.arc(hx, hy, size * 0.55, 0, Math.PI * 2);
     ctx.fill();
   }
 

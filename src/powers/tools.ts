@@ -116,6 +116,15 @@ export const TOOLS: readonly ToolDef[] = [
   { id: 'magnet', label: 'Imán', tab: 'poderes', kind: 'magnet' },
 ];
 
+/** Cómo se pinta el pincel en el mapa: rojo si destruye, dorado si es un poder divino. */
+export type ToolTone = 'danger' | 'magic' | 'normal';
+
+export function toolTone(tool: ToolDef): ToolTone {
+  if (tool.tab === 'desastres' || tool.id === 'curse' || tool.id === 'madness') return 'danger';
+  if (tool.tab === 'poderes') return 'magic';
+  return 'normal';
+}
+
 export function toolById(id: string): ToolDef | undefined {
   return TOOLS.find((t) => t.id === id);
 }

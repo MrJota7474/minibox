@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_INTERVAL_MS, OFFSCREEN_GAIN, RateLimiter, masterGain, soundForCommand, soundForEvent, soundForFx } from '../src/audio/sound-map';
+import { ambienceMix, sampleView } from '../src/audio/ambience-mix';
+import { MIN_INTERVAL_MS, OFFSCREEN_GAIN, REVERB_SEND, RateLimiter, masterGain, soundForCommand, soundForEvent, soundForFx, spatialMix } from '../src/audio/sound-map';
 import { Species } from '../src/entities/species';
 import { DEFAULT_SETTINGS } from '../src/ui/settings';
+import { Season } from '../src/world/climate';
+import { Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
+import { World } from '../src/world/world';
 
 describe('mapa de sonidos', () => {
   it('cada aviso visual de un desastre o poder tiene su sonido', () => {
@@ -75,5 +79,88 @@ describe('volumen', () => {
     expect(DEFAULT_SETTINGS.sound).toBe(true);
     expect(DEFAULT_SETTINGS.volume).toBeGreaterThan(0);
     expect(DEFAULT_SETTINGS.volume).toBeLessThanOrEqual(100);
+    expect(DEFAULT_SETTINGS.ambience).toBe(true);
+  });
+});
+
+describe('posición del sonido', () => {
+  const view = { left: 100, top: 50, width: 40, height: 20 };
+
+  it('en el centro suena entero y sin panorámica', () => {
+    expect(spatialMix(120, 60, view)).toEqual({ pan: 0, gain: 1 });
+  });
+
+  it('a la izquierda suena por la izquierda y algo más bajo', () => {
+    const left = spatialMix(101, 60, view);
+    const right = spatialMix(139, 60, view);
+    expect(left.pan).toBeLessThan(0);
+    expect(right.pan).toBeGreaterThan(0);
+    expect(left.gain).toBeLessThan(1);
+    expect(left.gain).toBeGreaterThan(OFFSCREEN_GAIN);
+  });
+
+  it('fuera de la pantalla suena bajo y por su lado, con la panorámica limitada', () => {
+    const far = spatialMix(400, 60, view);
+    expect(far.gain).toBe(OFFSCREEN_GAIN);
+    expect(far.pan).toBeGreaterThan(0);
+    expect(far.pan).toBeLessThanOrEqual(1);
+    expect(spatialMix(120, -500, view).gain).toBe(OFFSCREEN_GAIN);
+  });
+
+  it('el meteorito tiene su silbido y los sonidos grandes llevan más eco que los de la interfaz', () => {
+    expect(soundForFx('meteor')).toBe('meteor');
+    expect(REVERB_SEND.explosion).toBeGreaterThan(REVERB_SEND.click);
+    expect(REVERB_SEND.tab).toBe(0);
+    for (const id of Object.keys(MIN_INTERVAL_MS) as (keyof typeof REVERB_SEND)[]) {
+      expect(REVERB_SEND[id]).toBeGreaterThanOrEqual(0);
+      expect(REVERB_SEND[id]).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('ambiente', () => {
+  it('el mar suena si se ve agua, los pájaros sobre el bosque y el viento en la montaña', () => {
+    const sea = ambienceMix({ water: 200, forest: 0, cold: 0, total: 256 }, Season.SUMMER, 10);
+    const forest = ambienceMix({ water: 0, forest: 180, cold: 0, total: 256 }, Season.SUMMER, 10);
+    const peaks = ambienceMix({ water: 0, forest: 0, cold: 200, total: 256 }, Season.SUMMER, 10);
+    expect(sea.sea).toBeGreaterThan(0.5);
+    expect(sea.birds).toBe(0);
+    expect(forest.birds).toBeGreaterThan(0.5);
+    expect(forest.sea).toBe(0);
+    expect(peaks.wind).toBeGreaterThan(forest.wind);
+  });
+
+  it('en invierno apenas cantan los pájaros y sopla más viento; de lejos se oyen menos', () => {
+    const sample = { water: 0, forest: 180, cold: 0, total: 256 };
+    const summer = ambienceMix(sample, Season.SUMMER, 10);
+    const winter = ambienceMix(sample, Season.WINTER, 10);
+    expect(winter.birds).toBeLessThan(summer.birds * 0.3);
+    expect(winter.wind).toBeGreaterThan(summer.wind);
+    expect(ambienceMix(sample, Season.SUMMER, 2).birds).toBeLessThan(summer.birds);
+  });
+
+  it('sin casillas a la vista sólo queda el viento de fondo y todo está entre 0 y 1', () => {
+    const empty = ambienceMix({ water: 0, forest: 0, cold: 0, total: 0 }, Season.SUMMER, 10);
+    expect(empty.sea).toBe(0);
+    expect(empty.birds).toBe(0);
+    const full = ambienceMix({ water: 0, forest: 256, cold: 256, total: 256 }, Season.WINTER, 40);
+    for (const v of Object.values(full)) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('la muestra de la vista cuenta agua, bosque y frío', () => {
+    const w = new World(32, 32);
+    for (let i = 0; i < w.size; i++) {
+      w.setHeight(i, TERRAIN_INFO[(i % 32) < 16 ? Terrain.OCEAN : Terrain.SOIL_LOW].paintHeight);
+      if (i % 32 >= 16) w.flora[i] = Flora.TREE;
+    }
+    const s = sampleView(w, { left: 0, top: 0, width: 32, height: 32 });
+    expect(s.total).toBe(256);
+    expect(s.water).toBe(128);
+    expect(s.forest).toBe(128);
+    // Fuera del mapa no cuenta.
+    expect(sampleView(w, { left: -100, top: -100, width: 10, height: 10 }).total).toBe(0);
   });
 });

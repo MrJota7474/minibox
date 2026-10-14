@@ -1,5 +1,6 @@
 import { SoundEngine } from './audio/sound';
-import { OFFSCREEN_GAIN, soundForCommand, soundForEvent, soundForFx } from './audio/sound-map';
+import { soundForCommand, soundForEvent, soundForFx, spatialMix, type ViewRect } from './audio/sound-map';
+import { ambienceMix, sampleView } from './audio/ambience-mix';
 import { FixedClock, type Speed } from './core/clock';
 import type { DeviceProfile } from './core/device';
 import { SPECIES, Species } from './entities/species';
@@ -7,7 +8,7 @@ import { GestureRecognizer, type GestureEvent } from './input/gestures';
 import { Keyboard } from './input/keyboard';
 import { PointerInput } from './input/pointer-input';
 import { StrokeController } from './powers/stroke';
-import type { ToolDef } from './powers/tools';
+import { toolTone, type ToolDef, type ToolTone } from './powers/tools';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { BoatLayer } from './render/boat-layer';
@@ -186,7 +187,10 @@ export class Game {
     new ResizeObserver(() => this.renderer?.resize()).observe(this.canvas);
     // En el móvil la app puede cerrarse en segundo plano: se autoguarda al ocultarla.
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') this.saves.saveNow();
+      const hidden = document.visibilityState === 'hidden';
+      if (hidden) this.saves.saveNow();
+      // En segundo plano el audio se duerme (el ambiente no debe seguir sonando).
+      this.sound.setBackground(hidden);
     });
     this.brushSize = this.toolbar.brushSize;
     this.stroke.size = this.brushSize;
@@ -202,16 +206,44 @@ export class Game {
     for (const type of ['pointerdown', 'pointerup', 'touchend', 'keydown'] as const) window.addEventListener(type, unlock);
     window.addEventListener('click', unlock, true);
     root.addEventListener('click', (e) => {
-      if (e.target instanceof Element && e.target.closest('button')) this.sound.play('click');
+      if (!(e.target instanceof Element)) return;
+      if (e.target.closest('.tab')) this.sound.play('tab');
+      else if (e.target.closest('button')) this.sound.play('click');
     });
+    // Menús e inspector suenan al abrirse y al cerrarse, los abra quien los abra.
+    new MutationObserver((changes) => {
+      for (const c of changes) {
+        if (!(c.target instanceof HTMLElement) || !c.target.matches('.modal, .inspector')) continue;
+        // Volver a ocultar algo que ya estaba oculto también cuenta como cambio: se ignora.
+        const wasHidden = c.oldValue !== null;
+        if (wasHidden !== c.target.hidden) this.sound.play(c.target.hidden ? 'close' : 'open');
+      }
+    }).observe(root, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['hidden'] });
   }
 
-  /** Sonido de un efecto del mapa: más bajo si ocurre fuera de la pantalla. */
+  /** Vista de la cámara en casillas (para el sonido). */
+  private view(cam: Camera): ViewRect {
+    return { left: cam.left, top: cam.top, width: cam.viewW / cam.zoom, height: cam.viewH / cam.zoom };
+  }
+
+  /** Sonido de un efecto del mapa: a la izquierda o a la derecha según dónde ocurre, más bajo lejos del centro. */
   private playAt(kind: string, x: number, y: number): void {
     const cam = this.camera;
     if (!cam) return;
-    const visible = x >= cam.left && y >= cam.top && x <= cam.left + cam.viewW / cam.zoom && y <= cam.top + cam.viewH / cam.zoom;
-    this.sound.play(soundForFx(kind), visible ? 1 : OFFSCREEN_GAIN);
+    const mix = spatialMix(x, y, this.view(cam));
+    this.sound.play(soundForFx(kind), mix.gain, mix.pan);
+  }
+
+  /** Ambiente según lo que se ve (o silencio si está desactivado o no hay mundo). */
+  private updateAmbience(sim: Simulation): void {
+    const cam = this.camera;
+    const on = this.settings.sound && this.settings.ambience && cam !== null && !this.startMenu.isOpen;
+    if (!on || !cam) {
+      this.sound.setAmbience(null);
+      return;
+    }
+    const season = sim.climate.seasonAt(sim.tick, sim.laws.seasons);
+    this.sound.setAmbience(ambienceMix(sampleView(sim.world, this.view(cam)), season, cam.zoom));
   }
 
   /** Llega una versión nueva (service worker): se aplica sin interrumpir una partida en curso. */
@@ -351,6 +383,7 @@ export class Game {
   private updateUi(sim: Simulation): void {
     this.hud.update(sim.tick, hudCounts(sim));
     this.showCivEvents(sim);
+    this.updateAmbience(sim);
     this.inspector.update(sim);
     if (this.perf.isOpen) {
       this.perf.update({
@@ -440,10 +473,10 @@ export class Game {
     }
   }
 
-  private brushPreview(): { x: number; y: number; size: number } | null {
+  private brushPreview(): { x: number; y: number; size: number; tone: ToolTone } | null {
     if (!this.tool || this.moveMode || !this.hoverTile) return null;
     if (this.recognizer.activePointers > 0 && !this.stroke.isActive) return null;
-    return { x: this.hoverTile.x, y: this.hoverTile.y, size: this.brushSize };
+    return { x: this.hoverTile.x, y: this.hoverTile.y, size: this.brushSize, tone: toolTone(this.tool) };
   }
 
   private inspectAt(sx: number, sy: number): void {

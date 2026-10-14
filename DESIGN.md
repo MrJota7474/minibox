@@ -421,6 +421,18 @@ Tres capas sociales sobre las aldeas y los reinos (`civ/society.ts`), cada una c
 ### Después de K
 La hoja de ruta original está completa. Ideas: música ambiental, idiomas.
 
+### Fase L — Pulido
+Una pasada de acabado sobre lo que ya existe, sin mecánicas nuevas.
+
+- **Meteorito con forma redonda**: el cráter es el de siempre (radio 3 + pincel × 0,5) y alrededor queda una **zona chamuscada** redonda hasta 2,5 veces ese radio (1,4 en la bomba): las plantas desaparecen con una probabilidad que baja del 90 % junto al cráter al 30 % en el borde, la hierba se quema en proporción y la onda expansiva hiere (25) a quien esté dentro. Sólo el último 15 % de la zona prende llamas pequeñas. Con el pincel mediano (3) el círculo mide unas 22 casillas de ancho; con el mayor (15), unas 52.
+- **Fuego con fuerza**: hasta ahora cada llama contagiaba a sus vecinas igual que la primera, así que un incendio no se apagaba hasta quemar toda la hierba y el bosque conectados (un meteorito arrasaba la isla entera). Ahora `world.fire` guarda en cada casilla la **fuerza** del fuego (4 bits altos) y los **pasos que le quedan ardiendo** (4 bits bajos, 12 al prender). Una llama sólo contagia si le queda fuerza, y la nueva nace con 1 menos si salta a un bosque o un edificio y 2 menos si salta a la hierba. Fuerza inicial: 5 el pincel de fuego, el rayo y los escorios; 4 lo que prende la lava; 2 el borde del meteorito. Un incendio del pincel quema una mancha de unas pocas casillas (más en el bosque que en el prado) y se apaga solo. Las partidas guardadas con fuego activo lo cargan con fuerza 0: se apaga sin contagiar.
+- **Interfaz**: paneles con marco de pixel art (doble borde con brillo interior), aparición animada de menús, inspector y avisos, botones que se hunden al pulsar, herramienta elegida con un brillo que late y pestañas con transición. Respeta la opción «reducir movimiento» del sistema.
+- **Menú de inicio**: vista previa del mapa (miniatura del terreno de la semilla y el tamaño elegidos, que se regenera al cambiarlos) y, detrás del panel, el mismo mapa ampliado y en movimiento lento.
+- **Sprites**: las criaturas rebotan al caminar (el cuerpo sube un píxel en cada paso), tienen brillo en los ojos y luz cenital (pelo y hombros), y los animales ganan detalle. El anillo de selección late y el pincel muestra un anillo discontinuo que gira, rojo con las herramientas destructivas.
+- **Animaciones**: el meteorito cae del cielo con una estela de fuego antes del impacto (destello, doble onda, polvo y rocas); las criaturas que mueren a la vista dejan una nubecilla.
+- **Sonido**: panorámica estéreo según la posición en pantalla y volumen según la distancia al centro, un eco suave en los sonidos grandes, recetas con más capas (explosión, trueno, meteorito con silbido de caída) y sonidos propios para abrir, cerrar y cambiar de pestaña. **Ambiente**: olas cuando se ve el mar, viento en montañas y nieve, y gorjeos de pájaros sobre los bosques, mezclados según lo que hay en pantalla (casilla «Ambiente» en los ajustes).
+- **Guardado**: sin cambio de formato (el calor del fuego ya se guardaba).
+
 ---
 
 ## 7. Riesgos y mitigaciones
