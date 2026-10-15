@@ -1,6 +1,6 @@
 import type { CivSystem } from '../civ/civ-system';
 import { Job, VILLAGE_COLORS } from '../civ/model';
-import { SPECIES } from '../entities/species';
+import { SPECIES, Species } from '../entities/species';
 import { NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 import type { World } from '../world/world';
 import type { Camera } from './camera';
@@ -10,6 +10,7 @@ import type { HazardSystem } from '../powers/hazards';
 import type { ToolTone } from '../powers/tools';
 import { Status } from '../powers/status';
 import { BoatLayer } from './boat-layer';
+import { CaravanTrail, leadsCaravan } from './caravan';
 import { CivLayer } from './civ-layer';
 import { FxLayer } from './fx';
 import { NightLayer } from './night';
@@ -86,6 +87,9 @@ function toolFor(job: number, gear: boolean, diet: string): string | null {
 const TERRAIN_CHUNKS_PER_FRAME = 8;
 
 /** Render en Canvas 2D (aislado tras esta clase para poder cambiarlo a WebGL). */
+/** Fila del dibujo del dromedario donde arranca la joroba (sobre ella van los fardos). */
+const CAMEL_HUMP_Y = CELL_H - 15;
+
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly terrain: TerrainLayer;
@@ -108,6 +112,8 @@ export class Renderer {
   /** Tamaño de cada especie respecto a un aldeano y cuáles despiden resplandor de lava. */
   private readonly speciesScale: number[] = SPECIES.map((s) => MONSTER_SCALE[s.id] ?? ANIMAL_SCALE[s.id] ?? 1);
   private readonly speciesGlow: boolean[] = SPECIES.map((s) => s.monster?.fiery === true);
+  /** Rumbo de los dromedarios de carga de las caravanas. */
+  private readonly caravans: CaravanTrail;
   private readonly civLayer: CivLayer;
   private readonly boats: BoatLayer;
   private readonly civ: CivSystem;
@@ -142,6 +148,7 @@ export class Renderer {
     this.seenHandle = new Float64Array(units.capacity);
     this.seenX = new Float32Array(units.capacity);
     this.seenY = new Float32Array(units.capacity);
+    this.caravans = new CaravanTrail(units.capacity);
     this.speciesDiet = SPECIES.map((sp) => sp.diet);
     this.dprCap = dprCap;
     this.speciesColors = SPECIES.map((s) => s.color);
@@ -304,7 +311,11 @@ export class Renderer {
     }
     this.drawGlows(visible, alpha, tick, scale);
     visible.sort((a, b) => u.y[a] - u.y[b] || a - b);
-    for (const i of visible) this.drawCreature(i, alpha, tick, scale);
+    for (const i of visible) {
+      // El dromedario de carga va detrás del mercader: se dibuja antes.
+      if (leadsCaravan(u, i)) this.drawPackCamel(i, alpha, tick, scale);
+      this.drawCreature(i, alpha, tick, scale);
+    }
     this.puffDeaths(visible);
   }
 
@@ -386,7 +397,31 @@ export class Renderer {
     const hy = y0 + hand.y * s;
     const tool = toolFor(u.job[i], u.gear[i] !== 0, this.speciesDiet[sp]);
     if (tool) this.drawTool(tool, pose === Pose.STRIKE, flip, hx, hy, s, u.job[i] === Job.WARRIOR ? k : -1);
-    if (u.carry[i] !== 0) this.drawCargo(u.carry[i] - 1, x0 + w / 2, y0 + 2 * s, s);
+    // En una caravana la carga va en el dromedario, no sobre la cabeza.
+    if (u.carry[i] !== 0 && !leadsCaravan(u, i)) this.drawCargo(u.carry[i] - 1, x0 + w / 2, y0 + 2 * s, s);
+  }
+
+  /** Dromedario de carga de una caravana, con los fardos del mercader sobre la joroba. */
+  private drawPackCamel(i: number, alpha: number, tick: number, baseScale: number): void {
+    const u = this.units;
+    const cam = this.camera;
+    const ctx = this.ctx;
+    const mx = u.x[i] - u.px[i];
+    const my = u.y[i] - u.py[i];
+    const p = this.caravans.follow(i, u.px[i] + mx * alpha, u.py[i] + my * alpha, mx, my);
+    const s = baseScale * this.speciesScale[Species.CAMEL];
+    const sx = (p.x - cam.left) * cam.zoom;
+    const sy = (p.y - cam.top) * cam.zoom;
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(Math.round(sx - 6 * s), Math.round(sy - s), Math.round(12 * s), Math.max(1, Math.round(2 * s)));
+    const moving = mx !== 0 || my !== 0;
+    const pose = moving ? ((tick >> 1) + i + 2) & 3 : Pose.WALK0;
+    const cell = this.atlas.cell(Species.CAMEL, CLOTH_COUNT - 1, pose, p.flip);
+    const x0 = Math.round(sx - (CELL_W / 2) * s);
+    const y0 = Math.round(sy - (CELL_H - 1.5) * s);
+    ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, CELL_W, CELL_H, x0, y0, Math.round(CELL_W * s), Math.round(CELL_H * s));
+    // Fardos sobre la joroba (columna 7,5 del dibujo, o su reflejo si mira a la izquierda).
+    if (u.carry[i] !== 0) this.drawCargo(u.carry[i] - 1, x0 + (p.flip ? CELL_W - 8.5 : 7.5) * s, y0 + CAMEL_HUMP_Y * s, s);
   }
 
   /** Herramienta del oficio en la mano (en vertical o, al golpear, hacia delante). */

@@ -667,14 +667,19 @@ export class FxLayer {
   /** Tormenta de arena: polvo ocre espeso con jirones que corren en la dirección del viento. */
   private drawSandstorm(ctx: CanvasRenderingContext2D, sx: number, sy: number, r: number, time: number, dx: number, dy: number): void {
     const pulse = 0.45 + Math.sin(time / 400) * 0.05;
-    const g = ctx.createRadialGradient(sx, sy, r * 0.1, sx, sy, r);
+    // El degradado se aplasta junto con el círculo, para que el polvo se desvanezca hasta el borde.
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(1, 0.8);
+    const g = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r);
     g.addColorStop(0, `rgba(196,140,70,${pulse + 0.2})`);
     g.addColorStop(0.65, `rgba(206,156,86,${pulse})`);
     g.addColorStop(1, 'rgba(210,165,95,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.ellipse(sx, sy, r, r * 0.8, 0, 0, Math.PI * 2);
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
     // Jirones: rayas que cruzan el círculo a favor del viento.
     ctx.strokeStyle = 'rgba(240,215,160,0.45)';
     ctx.lineWidth = Math.max(1, r * 0.03);

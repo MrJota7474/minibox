@@ -34,6 +34,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase V (raza del desierto)** — llegan los **Dunarios**: el calor del desierto no les da hambre y sus mercaderes cargan el doble. Visten turbante y viven en casas de adobe con cúpulas blancas; su palacio tiene dos alminares.
 - **Fase W (noche sonora)** — al anochecer callan los pájaros y empiezan los grillos en la hierba, las ranas en el pantano y algún búho en el bosque.
 - **Fase X (tormenta de arena)** — un muro de polvo cruza el mapa: hiere poco a poco, entierra hierba y cosechas y deja arena junto a los desiertos; los dunarios y los dromedarios la aguantan.
+- **Fase Y (caravanas)** — los mercaderes dunarios viajan con un dromedario de carga detrás, con los fardos sobre la joroba.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 
