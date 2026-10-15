@@ -19,6 +19,7 @@ export const Species = {
   FOX: 13,
   BEAR: 14,
   SCALEFOLK: 15,
+  DUNEFOLK: 16,
 } as const;
 export type SpeciesId = (typeof Species)[keyof typeof Species];
 
@@ -75,6 +76,10 @@ export interface RaceTraits {
   mudWalker?: boolean;
   /** No enferman de plaga. */
   plagueImmune?: boolean;
+  /** El calor del desierto y la sabana no les da más hambre. */
+  heatProof?: boolean;
+  /** Multiplica lo que carga cada mercader. */
+  trade?: number;
   /** Descripción corta para el inspector. */
   trait: string;
 }
@@ -187,6 +192,7 @@ export const SPECIES: readonly SpeciesDef[] = [
   wild(Species.FOX, 'Zorro', 'Zorros', 'carnivore', { maxHp: 22, damage: 7, speed: 0.11, sprint: 1.8, sight: 9, lifeYears: 8, adultYears: 1, maxHunger: 1500, litterMax: 2, breedYears: 1, meatValue: 0, color: '#d8743a' }, { bodySize: 1, preyMax: 2, omnivore: true, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.SAVANNA], tilesPer: 1200 } }),
   wild(Species.BEAR, 'Oso', 'Osos', 'carnivore', { maxHp: 120, damage: 22, speed: 0.085, sprint: 2.1, sight: 10, lifeYears: 25, adultYears: 3, maxHunger: 3500, litterMax: 1, breedYears: 2.5, meatValue: 0, color: '#6a4a32' }, { bodySize: 4, preyMax: 4, omnivore: true, habitat: { biomes: [Biome.FOREST, Biome.SNOW], tilesPer: 2400 } }),
   civilized(Species.SCALEFOLK, 'Escamado', 'Escamados', { maxHp: 46, damage: 6, speed: 0.09, lifeYears: 80, adultYears: 15, breedYears: 3, color: '#4fa08a' }, { chop: 0.9, mine: 0.8, gather: 1.3, build: 1, farm: 1, fish: 1.6, mudWalker: true, plagueImmune: true, trait: 'Pescadores de los pantanos: el barro no los frena y no enferman de plaga' }),
+  civilized(Species.DUNEFOLK, 'Dunario', 'Dunarios', { maxHp: 40, damage: 5, speed: 0.092, lifeYears: 75, adultYears: 16, breedYears: 2.5, color: '#d8a868' }, { chop: 0.8, mine: 1.1, gather: 1, build: 1.1, farm: 0.9, heatProof: true, trade: 2, trait: 'Comerciantes del desierto: el calor no les da hambre y sus mercaderes cargan el doble' }),
 ];
 
 interface WildBase {
@@ -295,7 +301,7 @@ function civilized(id: SpeciesId, name: string, plural: string, b: CivBase, race
   };
 }
 
-export const RACE_IDS: readonly SpeciesId[] = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER, Species.SCALEFOLK];
+export const RACE_IDS: readonly SpeciesId[] = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER, Species.SCALEFOLK, Species.DUNEFOLK];
 
 export const MONSTER_IDS: readonly SpeciesId[] = [Species.PENANTE, Species.ESCORIO, Species.CENAGOSO];
 

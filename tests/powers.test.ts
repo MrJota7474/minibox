@@ -449,6 +449,10 @@ describe('desastres y poderes de la naturaleza', () => {
     if (!hall) return;
     sim.apply({ type: 'power', power: 'peace', x: hall.x, y: hall.y, size: 3 });
     expect(sim.civ.kingdoms.wars.some((w) => w.active)).toBe(false);
+    expect(sim.powers.fx.at(-1)?.kind).toBe('peace');
+    // Sin guerra que terminar no hay fanfarria de paz: sólo un soplo de humo.
+    sim.apply({ type: 'power', power: 'peace', x: hall.x, y: hall.y, size: 3 });
+    expect(sim.powers.fx.at(-1)?.kind).toBe('smoke');
   });
 
   it('una partida con ventisca y langostas en marcha se guarda y continúa igual', () => {

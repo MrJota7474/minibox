@@ -31,6 +31,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase R (manadas y voces)** — los herbívoros van en grupitos sueltos y, cuando uno ve un lobo, toda su manada sale corriendo; en el ambiente se oyen balidos y, de vez en cuando, el aullido de un lobo.
 - **Fase S (día y noche)** — el mundo vive días y noches: al anochecer el mapa se oscurece y se encienden hogueras, ventanas y santuarios; de noche los aldeanos se reúnen alrededor de la hoguera y los animales descansan.
 - **Fase U (poderes)** — **fertilidad**, que sacia a las criaturas y las deja listas para criar, y **paz divina**, que hace firmar la paz a los reinos de las aldeas que toques.
+- **Fase V (raza del desierto)** — llegan los **Dunarios**: el calor del desierto no les da hambre y sus mercaderes cargan el doble. Visten turbante y viven en casas de adobe con cúpulas blancas; su palacio tiene dos alminares.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 

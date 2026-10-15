@@ -33,7 +33,7 @@ interface RaceLook {
   legs: number;
   width: number;
   ears: 'round' | 'pointy' | 'none';
-  hairStyle: 'short' | 'long' | 'cap' | 'mohawk' | 'crest';
+  hairStyle: 'short' | 'long' | 'cap' | 'mohawk' | 'crest' | 'turban';
   /** Cola (color), que asoma por detrás. */
   tail?: string;
   beard?: string;
@@ -46,6 +46,7 @@ const RACES: Readonly<Record<number, RaceLook>> = {
   [Species.PETRINO]: { skin: '#e0a878', hair: '#9a9aa2', eye: '#2a1d14', pants: '#5a4030', shoes: '#2e2018', head: 5, torso: 5, legs: 2, width: 7, ears: 'round', hairStyle: 'cap', beard: '#b0642a' },
   [Species.TUSKER]: { skin: '#7fa25a', hair: '#1f1a16', eye: '#d2405e', pants: '#5a3a1a', shoes: '#2a1a0a', head: 6, torso: 6, legs: 3, width: 7, ears: 'pointy', hairStyle: 'mohawk', tusks: true },
   [Species.SCALEFOLK]: { skin: '#4fa08a', hair: '#e0a040', eye: '#f2d850', pants: '#3a5a4a', shoes: '#2a3a2a', head: 5, torso: 5, legs: 4, width: 5, ears: 'none', hairStyle: 'crest', tail: '#3f8a72' },
+  [Species.DUNEFOLK]: { skin: '#c88a5a', hair: '#ece4d4', eye: '#2a1d14', pants: '#d8c8a0', shoes: '#6a4a2a', head: 5, torso: 5, legs: 4, width: 5, ears: 'round', hairStyle: 'turban' },
 };
 
 /** Dónde queda la mano delantera en cada postura (para colocar la herramienta). */
@@ -185,6 +186,14 @@ function drawHair(p: Pix, look: RaceLook, hx: number, top: number, w: number): v
       for (let k = 0; k < w; k += 2) p.set(hx + k, top - 1, c);
       for (let k = 1; k < w; k += 2) p.set(hx + k, top - 2, shade(c, 1.2));
       p.set(hx - 1, top + 1, c);
+      break;
+    case 'turban':
+      // Turbante de tela clara con una vuelta en sombra, joya azul y la cola caída por la nuca.
+      p.rect(hx - 1, top - 1, w + 2, 2, c);
+      p.rect(hx, top - 2, w, 1, shine);
+      p.rect(hx - 1, top + 1, w + 2, 1, shade(c, 0.8));
+      p.rect(hx - 1, top + 2, 1, 2, shade(c, 0.9));
+      p.set(hx + w - 2, top, '#3a8ad0');
       break;
     case 'mohawk':
       p.rect(hx + 1, top - 2, w - 2, 2, c);

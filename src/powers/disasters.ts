@@ -169,8 +169,8 @@ export class PowerSystem {
       }
       case 'peace': {
         const r = PEACE_BASE + brush * PEACE_PER_BRUSH;
-        civ.peaceIn(cx, cy, r);
-        this.emit('peace', cx, cy, r);
+        // Si no había guerra que terminar, sólo un soplo de humo: nada de fanfarria de paz.
+        this.emit(civ.peaceIn(cx, cy, r) > 0 ? 'peace' : 'smoke', cx, cy, r);
         break;
       }
       case 'offering': {

@@ -11,10 +11,10 @@ export const BUILDING_PX = 8;
 
 interface Style {
   wall: string;
-  pattern: 'timber' | 'log' | 'stone' | 'hide' | 'reed';
+  pattern: 'timber' | 'log' | 'stone' | 'hide' | 'reed' | 'adobe';
   trim: string;
   roof: string;
-  roofShape: 'gable' | 'dome' | 'flat' | 'tent' | 'thatch';
+  roofShape: 'gable' | 'dome' | 'flat' | 'tent' | 'thatch' | 'cupola';
   /** Casas sobre pilotes (palafitos). */
   stilts?: boolean;
   door: string;
@@ -31,9 +31,10 @@ const STYLES: Readonly<Record<number, Style>> = {
   [Species.PETRINO]: { wall: '#a8a39a', pattern: 'stone', trim: '#76726c', roof: '#5a5a66', roofShape: 'flat', door: '#4a4a52', stone: '#7a7a80', accent: '#f2a03d', roofAlt: '#6a5650', wallAlt: '#b4aea2' },
   [Species.TUSKER]: { wall: '#a87a4a', pattern: 'hide', trim: '#6a4a2a', roof: '#8a5a32', roofShape: 'tent', door: '#2a1a0a', stone: '#6a5a4a', accent: '#f4f0e4', roofAlt: '#7a5a3a', wallAlt: '#b88a58' },
   [Species.SCALEFOLK]: { wall: '#b8a070', pattern: 'reed', trim: '#5a4a2a', roof: '#8a9a4a', roofShape: 'thatch', door: '#2a2a1a', stone: '#7a8a7a', accent: '#4fd0c0', roofAlt: '#a89a50', wallAlt: '#c8b080', stilts: true },
+  [Species.DUNEFOLK]: { wall: '#dcb47a', pattern: 'adobe', trim: '#a8784a', roof: '#c8a06a', roofShape: 'cupola', door: '#3a6aa8', stone: '#b89a78', accent: '#f4f0e4', roofAlt: '#d0aa74', wallAlt: '#e4c08c' },
 };
 const WINDOW = '#f2d16b';
-const RACES = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER, Species.SCALEFOLK];
+const RACES = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER, Species.SCALEFOLK, Species.DUNEFOLK];
 /** Altura (px) de los pilotes de los palafitos. */
 const STILT_H = 2;
 /** Variantes de cada edificio (tejado y pared de otro tono). */
@@ -70,6 +71,13 @@ function wall(p: Pix, s: Style, x: number, y: number, w: number, h: number): voi
       break;
     case 'hide':
       for (let xx = x + 2; xx < x + w; xx += 4) p.rect(xx, y, 1, h, dark);
+      break;
+    case 'adobe':
+      // Barro liso con alguna grieta y las cabezas de las vigas asomando arriba.
+      p.set(x + 2, y + Math.floor(h / 2), dark);
+      p.set(x + 3, y + Math.floor(h / 2) + 1, dark);
+      p.set(x + w - 3, y + 2, dark);
+      for (let xx = x + 1; xx < x + w; xx += 3) p.set(xx, y, s.trim);
       break;
   }
 }
@@ -137,6 +145,21 @@ function thatch(p: Pix, s: Style, x0: number, x1: number, base: number): void {
   // Fleco bajo el alero.
   for (let x = x0 - 1; x <= x1 + 1; x += 2) p.set(x, base + 1, shade(s.roof, 0.65));
   p.set(Math.round(cx), base - h, s.accent);
+}
+
+/** Azotea de adobe con una cúpula blanca encima (dunarios). */
+function cupola(p: Pix, s: Style, x0: number, x1: number, base: number, size: number): void {
+  flatRoof(p, s, x0, x1, base, 2);
+  const cx = (x0 + x1) / 2;
+  // Ancho de cada fila con la paridad del centro, para que la cúpula quede simétrica.
+  const odd = (x0 + x1) % 2 === 0 ? 1 : 0;
+  for (let y = 0; y < size; y++) {
+    const half = size * Math.sqrt(Math.max(0, 1 - ((y + 0.5) / size) ** 2));
+    const width = Math.max(2 - odd, 2 * Math.round(half - odd / 2) + odd);
+    const left = odd ? cx - (width - 1) / 2 : cx + 0.5 - width / 2;
+    p.rect(left, base - 2 - y, width, 1, y === 0 ? shade(s.accent, 0.85) : s.accent);
+  }
+  p.set(Math.round(cx), base - 2 - size, '#d8b450');
 }
 
 /** Pilotes de un palafito bajo el suelo de la casa (desde `floor` hasta el suelo). */
@@ -231,6 +254,8 @@ function house(p: Pix, s: Style, level: number): void {
     if (level >= 3) chimney(p, s, x1 - 3, base - 6);
   } else if (s.roofShape === 'thatch') {
     thatch(p, s, x0 - 1, x1 + 1, base);
+  } else if (s.roofShape === 'cupola') {
+    cupola(p, s, x0, x1, base, 2 + level);
   } else if (s.roofShape === 'dome') {
     dome(p, s, (x0 + x1) / 2, base, (x1 - x0) / 2 + 1.5, 3 + level);
     if (level >= 3) {
@@ -253,6 +278,7 @@ function storage(p: Pix, s: Style): void {
     wall(p, s, 1, g - 6, 14, 7);
     if (s.roofShape === 'dome') dome(p, s, 7.5, g - 7, 8, 5);
     else if (s.roofShape === 'thatch') thatch(p, s, 0, 15, g - 7);
+    else if (s.roofShape === 'cupola') cupola(p, s, 1, 14, g - 7, 3);
     else if (s.roofShape === 'flat') flatRoof(p, s, 1, 14, g - 7, 3);
     else gable(p, s, 0, 15, g - 7);
     // Portón de doble hoja.
@@ -302,10 +328,11 @@ function shrine(p: Pix, s: Style): void {
     p.set(8, g - 8, gold);
     if (s.roofShape === 'gable') gable(p, s, 2, 13, g - 11);
     else if (s.roofShape === 'thatch') thatch(p, s, 2, 13, g - 11);
+    else if (s.roofShape === 'cupola') cupola(p, s, 3, 12, g - 11, 4);
     else if (s.roofShape === 'dome') dome(p, s, 7.5, g - 11, 6, 5);
     else flatRoof(p, s, 3, 12, g - 11, 3);
     // El pináculo arranca justo encima del tejado (el de paja es más alto).
-    top = s.roofShape === 'flat' ? g - 15 : s.roofShape === 'thatch' ? g - 20 : g - 18;
+    top = s.roofShape === 'flat' ? g - 15 : s.roofShape === 'thatch' ? g - 20 : s.roofShape === 'cupola' ? g - 19 : g - 18;
   }
   // Pináculo: un disco dorado sobre un vástago.
   p.rect(7, top, 2, 3, s.stone);
@@ -366,6 +393,20 @@ function hall(p: Pix, s: Style, level: number): void {
     for (const [x, y] of [[6, g - 22], [16, g - 19], [12, g - 24], [9, g - 18]]) p.set(x, y, '#f4b6c8');
     return;
   }
+  if (s.roofShape === 'cupola' && level >= 3) {
+    // Palacio de adobe: gran cúpula central y dos alminares con su cupulita.
+    wall(p, s, 3, g - 11, 18, 12);
+    door(p, s, 12, g + 1, 6);
+    windowAt(p, s, 6, g - 8);
+    windowAt(p, s, 16, g - 8);
+    cupola(p, s, 3, 20, g - 11, 7);
+    for (const x of [0, 21]) {
+      wall(p, s, x, g - 19, 3, 20);
+      p.ellipse(x + 1, g - 20, 1.6, 1.6, s.accent);
+      p.set(x + 1, g - 22, '#d8b450');
+    }
+    return;
+  }
   if (s.roofShape === 'thatch' && level >= 3) {
     // Gran casa comunal de los escamados: más alta, con pilotes, tejado enorme y dos tótems.
     const floor = g - STILT_H;
@@ -409,6 +450,8 @@ function hall(p: Pix, s: Style, level: number): void {
     gable(p, s, 9, 14, base - 15);
   } else if (s.roofShape === 'thatch') {
     thatch(p, s, 1, 22, base);
+  } else if (s.roofShape === 'cupola') {
+    cupola(p, s, 2, 21, base, 6);
   } else if (s.roofShape === 'dome') {
     dome(p, s, 11.5, base, 11, 7);
   } else {

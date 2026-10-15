@@ -24,7 +24,7 @@ const TOUCH_CONTROLS: readonly (readonly [string, string])[] = [
 
 const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Fundar una aldea', 'Suelta al menos 3 aldeanos de la misma raza juntos (pincel 5 o más) en tierra libre'],
-  ['Razas', 'Humanos (se expanden rápido), silvanos (longevos, buenos en el bosque), petrinos (mineros y constructores), colmilludos (fuertes y prolíficos) y escamados (grandes pescadores; el barro no los frena y no enferman de plaga)'],
+  ['Razas', 'Humanos (se expanden rápido), silvanos (longevos, buenos en el bosque), petrinos (mineros y constructores), colmilludos (fuertes y prolíficos), escamados (grandes pescadores; el barro no los frena y no enferman de plaga) y dunarios (el calor del desierto no les da hambre y sus mercaderes cargan el doble)'],
   ['Recursos', 'Recolectores, leñadores, mineros, granjeros y cazadores llevan comida, madera, piedra, hierro y oro al almacén'],
   ['Crecer', 'Con casas libres y comida nacen niños; la aldea construye, mejora el ayuntamiento y amplía su territorio'],
   ['Colonos', 'Las aldeas grandes envían colonos que fundan nuevas aldeas'],
@@ -33,7 +33,7 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Guerras', 'Los guerreros conquistan aldeas enemigas sin defensores; las conquistadas pueden rebelarse con el tiempo'],
   ['Poderes', 'En la ficha de una aldea puedes forzar guerra, paz, alianza o una rebelión'],
   ['Desastres', 'Rayo, meteorito, bomba, terremoto, tornado, lluvia ácida, volcán, maremoto (sólo en la costa), ventisca (deja nieve), langostas (se comen las cosechas), fuego, lava y plaga'],
-  ['Poderes de la naturaleza', 'La lluvia fértil reverdece, hace brotar árboles y adelanta las cosechas; la ofrenda llena los almacenes de las aldeas que toques; la fertilidad sacia a las criaturas y las deja listas para criar; la paz divina hace que los reinos de las aldeas tocadas firmen la paz'],
+  ['Poderes de la naturaleza', 'La lluvia fértil reverdece, hace brotar árboles y adelanta las cosechas; la ofrenda llena los almacenes de las aldeas que toques; la fertilidad sacia a las criaturas (es una comida gratis) y las deja listas para criar; la paz divina hace que los reinos de las aldeas tocadas firmen la paz'],
   ['Imán', 'Mantén pulsado sobre criaturas para cogerlas, arrastra y suelta para dejarlas en otro sitio'],
   ['Leyes', 'En el menú puedes desactivar el hambre, la vejez, las guerras, las rebeliones, las plantas o el fuego'],
   ['Rasgos', 'Cada criatura puede tener rasgos (Fuerte, Longevo, Fértil…) que hereda de sus padres; Veterano y Superviviente se ganan'],

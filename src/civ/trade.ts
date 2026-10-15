@@ -1,5 +1,6 @@
 import { giveUp, type AiContext } from '../ai/context';
 import { clearPath } from '../ai/navigation';
+import { SPECIES } from '../entities/species';
 import { UnitState } from '../entities/units';
 import { Resource, type Village } from './model';
 
@@ -66,12 +67,13 @@ function bestPartner(ctx: AiContext, v: Village): Village | null {
   return best;
 }
 
-/** Carga hasta TRADE_LOAD sin tocar la reserva de quien vende ni desbordar el almacén de quien compra. */
+/** Carga hasta TRADE_LOAD (más si la raza es comerciante) sin tocar la reserva de quien vende ni desbordar el almacén de quien compra. */
 function load(ctx: AiContext, i: number, from: Village, to: Village, good: number): void {
   const u = ctx.units;
   const spare = Math.floor(from.resources[good] - reserveOf(from, good));
   const room = Math.floor(to.storageCap - to.resources[good]);
-  const amount = Math.max(1, Math.min(TRADE_LOAD, spare, room));
+  const cap = Math.round(TRADE_LOAD * (SPECIES[u.species[i]].race?.trade ?? 1));
+  const amount = Math.max(1, Math.min(cap, spare, room));
   from.resources[good] -= amount;
   u.carry[i] = good + 1;
   u.carryAmount[i] = amount;

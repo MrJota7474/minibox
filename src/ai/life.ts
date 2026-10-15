@@ -1,6 +1,6 @@
 import type { SpeciesDef } from '../entities/species';
 import { traitMods } from '../entities/traits';
-import { BIOME_INFO, isWalkableTerrain } from '../world/terrain';
+import { BIOME_INFO, Biome, isWalkableTerrain } from '../world/terrain';
 import type { UnitStore } from '../entities/units';
 import { DeathCause, killUnit, type AiContext } from './context';
 import { escapeBlockedTile } from './movement';
@@ -30,8 +30,11 @@ export function updateLife(ctx: AiContext, i: number, def: SpeciesDef): boolean 
     killUnit(ctx, i, DeathCause.AGE);
     return false;
   }
-  const biome = BIOME_INFO[ctx.world.biome[ctx.world.idx(Math.floor(u.x[i]), Math.floor(u.y[i]))]] ?? BIOME_INFO[0];
-  if (!updateHunger(ctx, i, def, mods.hunger * biome.hunger * ctx.climate.hunger)) return false;
+  const biomeId = ctx.world.biome[ctx.world.idx(Math.floor(u.x[i]), Math.floor(u.y[i]))];
+  const biome = BIOME_INFO[biomeId] ?? BIOME_INFO[0];
+  // Los dunarios no pasan más hambre por el calor del desierto y la sabana.
+  const heat = def.race?.heatProof && (biomeId === Biome.DESERT || biomeId === Biome.SAVANNA) ? Math.min(1, biome.hunger) : biome.hunger;
+  if (!updateHunger(ctx, i, def, mods.hunger * heat * ctx.climate.hunger)) return false;
   // A los no-muertos les pasa al revés: el yermo maldito los cura y la arboleda mágica los hiere.
   const vitality = def.monster?.undead ? -biome.vitality : biome.vitality;
   if (vitality !== 0 && (ctx.tick + i) % HEAL_INTERVAL === 0 && !applyVitality(ctx, i, def, vitality)) return false;

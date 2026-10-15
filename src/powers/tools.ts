@@ -102,6 +102,7 @@ export const TOOLS: readonly ToolDef[] = [
   { id: 'petrino', label: 'Petrinos', tab: 'razas', kind: 'spawn', species: Species.PETRINO, repeatMs: SPAWN_REPEAT_MS },
   { id: 'tusker', label: 'Colmilludos', tab: 'razas', kind: 'spawn', species: Species.TUSKER, repeatMs: SPAWN_REPEAT_MS },
   { id: 'scalefolk', label: 'Escamados', tab: 'razas', kind: 'spawn', species: Species.SCALEFOLK, repeatMs: SPAWN_REPEAT_MS },
+  { id: 'dunefolk', label: 'Dunarios', tab: 'razas', kind: 'spawn', species: Species.DUNEFOLK, repeatMs: SPAWN_REPEAT_MS },
   { id: 'penante', label: 'Penante', tab: 'monstruos', kind: 'spawn', species: Species.PENANTE, repeatMs: SPAWN_REPEAT_MS },
   { id: 'escorio', label: 'Escorio', tab: 'monstruos', kind: 'spawn', species: Species.ESCORIO, repeatMs: SPAWN_REPEAT_MS },
   { id: 'cenagoso', label: 'Cenagoso', tab: 'monstruos', kind: 'spawn', species: Species.CENAGOSO, repeatMs: SPAWN_REPEAT_MS },

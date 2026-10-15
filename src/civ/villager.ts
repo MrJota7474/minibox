@@ -27,7 +27,7 @@ const SEARCH_RADIUS = 18;
 const WORK_RANGE = 24;
 const HOME_WANDER = 5;
 /** De noche, quien no tiene tarea se queda a este radio de la hoguera de su aldea. */
-const GATHER_RADIUS = 3.5;
+export const GATHER_RADIUS = 3.5;
 /** Intentos para encontrar un hueco pisable en el corro (el centro lo ocupa el ayuntamiento). */
 const GATHER_TRIES = 6;
 const MATE_RANGE = 1;
@@ -124,7 +124,7 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
 }
 
 /** De noche: quien está lejos de la hoguera (centro de la aldea) va hacia ella; quien ya está al lado, descansa. */
-function gatherAtFire(ctx: AiContext, i: number, v: Village): void {
+export function gatherAtFire(ctx: AiContext, i: number, v: Village): void {
   const u = ctx.units;
   if (u.state[i] === UnitState.WANDER) return;
   const dx = v.cx + 0.5 - u.x[i];
@@ -133,12 +133,16 @@ function gatherAtFire(ctx: AiContext, i: number, v: Village): void {
     u.state[i] = UnitState.IDLE;
     return;
   }
-  // Un hueco pisable en el corro, alrededor de la hoguera (el ayuntamiento ocupa el centro).
+  // Un hueco pisable y alcanzable en el corro, alrededor de la hoguera (el ayuntamiento ocupa el centro).
   const reach = Math.floor(GATHER_RADIUS);
+  const region = ctx.world.regionAt(u.x[i], u.y[i]);
   for (let k = 0; k < GATHER_TRIES; k++) {
-    const tx = v.cx + 0.5 + ctx.rng.range(-reach, reach);
-    const ty = v.cy + 0.5 + ctx.rng.range(-reach, reach);
-    if (!ctx.world.isWalkableAt(tx, ty)) continue;
+    const ox = ctx.rng.range(-reach, reach);
+    const oy = ctx.rng.range(-reach, reach);
+    if (ox * ox + oy * oy > GATHER_RADIUS * GATHER_RADIUS) continue;
+    const tx = v.cx + 0.5 + ox;
+    const ty = v.cy + 0.5 + oy;
+    if (!ctx.world.isWalkableAt(tx, ty) || ctx.world.regionAt(tx, ty) !== region) continue;
     u.tx[i] = tx;
     u.ty[i] = ty;
     clearPath(ctx, i);

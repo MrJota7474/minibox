@@ -241,6 +241,16 @@ describe('comercio', () => {
     expect(worn).toBeGreaterThan(20);
   });
 
+  it('un mercader dunario carga el doble', () => {
+    const { ctx, a, b } = pair();
+    const merchant = ctx.units.spawn(Species.DUNEFOLK, a.cx + 0.5, a.cy + 2.5, { sex: 0, ageTicks: SPECIES[Species.DUNEFOLK].adultTicks + 10, generation: 0, thinkOffset: 0, nameSeed: 9 });
+    ctx.civ.joinVillage(merchant, a);
+    expect(startTrade(ctx, merchant, a)).toBe(true);
+    expect(ctx.units.carryAmount[merchant]).toBe(16);
+    expect(a.resources[Resource.WOOD]).toBe(74);
+    expect(b.resources[Resource.WOOD]).toBe(5);
+  });
+
   it('el comercio entre reinos distintos borra agravios; con el enemigo no se comercia', () => {
     const { ctx, a, b } = pair();
     const ks = ctx.civ.kingdoms;
