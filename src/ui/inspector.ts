@@ -26,7 +26,10 @@ export interface InspectorActions {
 const MAX_DIPLOMACY_ROWS = 6;
 
 type Target = { kind: 'unit'; handle: number } | { kind: 'tile'; index: number } | { kind: 'village'; id: number } | { kind: 'boat'; id: number } | null;
-type Row = readonly [string, string | HTMLElement];
+/** Una fila (etiqueta y valor) o, si es un texto suelto, el título de un apartado. */
+type Row = readonly [string, string | HTMLElement] | string;
+/** Iconos de los recursos, en el orden de Resource. */
+const RESOURCE_ICONS: readonly string[] = ['res-food', 'res-wood', 'res-stone', 'res-iron', 'res-gold'];
 
 /** Panel de inspección: criatura, aldea o casilla. Lateral en PC, hoja inferior en móvil. */
 export class Inspector {
@@ -82,6 +85,8 @@ export class Inspector {
 
   private open(target: Target): void {
     this.target = target;
+    // La franja de color del reino sólo la pone la ficha de una aldea.
+    this.root.style.removeProperty('--kcolor');
     this.root.hidden = false;
   }
 
@@ -105,7 +110,31 @@ export class Inspector {
   }
 
   private rows(pairs: readonly Row[]): void {
-    this.body.replaceChildren(...pairs.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', {}, [v])]));
+    this.body.replaceChildren(
+      ...pairs.flatMap((r) => {
+        if (typeof r === 'string') return [el('h4', { class: 'insp-section', text: r })];
+        const [k, v] = r;
+        // Sin etiqueta: el valor ocupa toda la fila (la cuadrícula de recursos).
+        if (k === '') return [el('div', { class: 'insp-wide' }, [v])];
+        return [el('dt', { text: k }), el('dd', {}, [v])];
+      }),
+    );
+  }
+
+  /** Recursos de la aldea: icono, cantidad y lo lleno que está el almacén. */
+  private resourceGrid(v: Village): HTMLElement {
+    return el(
+      'div',
+      { class: 'insp-res' },
+      v.resources.map((amount, k) => {
+        const pct = Math.max(0, Math.min(100, Math.round((amount / Math.max(1, v.storageCap)) * 100)));
+        return el('div', { class: 'insp-res-cell', title: `${RESOURCE_NAMES[k]}: ${Math.floor(amount)} de ${v.storageCap}` }, [
+          el('img', { attrs: { src: gridIcon(RESOURCE_ICONS[k]), alt: RESOURCE_NAMES[k] } }),
+          el('span', { class: 'insp-res-value', text: String(Math.floor(amount)) }),
+          el('span', { class: 'insp-res-bar' }, [el('span', { class: 'insp-res-fill', attrs: { style: `width:${pct}%` } })]),
+        ]);
+      }),
+    );
   }
 
   private bar(value: number, max: number, cls: string): HTMLElement {
@@ -236,20 +265,26 @@ export class Inspector {
     }
     this.setPortrait(v.race);
     this.title.textContent = v.name;
+    const K = sim.civ.kingdoms.kingdoms[v.kingdom];
+    if (K) this.root.style.setProperty('--kcolor', VILLAGE_COLORS[K.colorIndex]);
     const hall = sim.civ.building(v.hallId);
     const founded = tickToDate(v.founded);
     const rows: Row[] = [
+      'Aldea',
       ['Raza', SPECIES[v.race].plural],
       ['Nivel', hall ? `${hallLevelName(hall.level)}${hall.underConstruction ? ' (mejorando)' : ''}` : '—'],
       ['Población', this.bar(v.population, Math.max(1, v.housing), 'bar-pop')],
-      ...v.resources.map((r, k): Row => [RESOURCE_NAMES[k], `${Math.floor(r)} / ${v.storageCap}`]),
-      ['Edificios', `${v.houses} viviendas · ${v.storages} almacenes · ${v.farms} granjas${this.dockCount(sim, v) > 0 ? ' · muelle' : ''}`],
-      ['En obras', String(v.sites)],
       ['Territorio', `${v.zones} zonas`],
       ['Fundada', `Año ${founded.year}`],
+      'Economía',
+      ['', this.resourceGrid(v)],
+      ['Edificios', `${v.houses} viviendas · ${v.storages} almacenes · ${v.farms} granjas${this.dockCount(sim, v) > 0 ? ' · muelle' : ''}`],
+      ['En obras', String(v.sites)],
+      'Sociedad',
       ...this.societyRows(sim, v),
     ];
-    rows.push(...this.kingdomRows(sim, v));
+    const kingdom = this.kingdomRows(sim, v);
+    if (kingdom.length > 0) rows.push('Reino', ...kingdom);
     this.rows(rows);
     this.renderDiplomacy(sim, v);
   }

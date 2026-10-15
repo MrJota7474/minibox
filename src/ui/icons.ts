@@ -59,6 +59,12 @@ const GRIDS: Readonly<Record<string, readonly string[]>> = {
   madness: ['..RRRRRR..', '.RR....RR.', '.R..RR..R.', '.R.R..R.R.', '.R.R.RR.R.', '.R..R...R.', '.RR....R..', '..RRRRR...', '..........', '..........'],
   heal: ['....WW....', '..W.WW.W..', '...WWWW...', 'WWWWWWWWWW', '...WWWW...', '..W.WW.W..', '....WW....', '..........', '..........', '..........'],
   magnet: ['.RR....RR.', '.RR....RR.', '.WW....WW.', '.RR....RR.', '.RR....RR.', '.RRR..RRR.', '..RRRRRR..', '...RRRR...', '..........', '..........'],
+  // Recursos de una aldea (inspector).
+  'res-food': ['..........', '...g......', '..rrr.....', '.rrrrr.yy.', '.rrRrr.yyy', '..rrr.yyyy', '.......yy.', '..........', '..........', '..........'],
+  'res-wood': ['..........', '..........', '.bbbbbbbb.', 'tbbbbbbbbd', 'tbbbbbbbbd', '.bbbbbbbb.', '..........', '..........', '..........', '..........'],
+  'res-stone': ['..........', '...ssss...', '..sssssss.', '.ssCssssss', '.sssssCss.', '..ssssss..', '..........', '..........', '..........', '..........'],
+  'res-iron': ['..........', '..dddd....', '.dkdkdkd..', '.ddkdddk..', '.dkdddkd..', '..dddd....', '..........', '..........', '..........', '..........'],
+  'res-gold': ['..........', '...YYYY...', '..YyyyyY..', '..YyYYyY..', '..YyyyyY..', '...YYYY...', '..........', '..........', '..........', '..........'],
   // Iconos del menú principal.
   globe: ['...gggg...', '..gGGgbg..', '.gGggbbbg.', '.ggbbbgGg.', '.gbbbggGg.', '.gbbgggGg.', '..gbggGg..', '...gggg...', '..........', '..........'],
   save: ['.kkkkkkkk.', '.koooookk.', '.koooookk.', '.kkkkkkkk.', '.kssssssk.', '.ksyyyysk.', '.ksyyyysk.', '.kkkkkkkk.', '..........', '..........'],
