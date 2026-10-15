@@ -102,6 +102,11 @@ const STYLES: Readonly<Record<string, Style>> = {
   rocks: { colors: ['#4a3e36', '#6a5a4c', '#2e2622', '#ff8a2a'], shape: 'square', speed: 9, rise: -6, gravity: 14, size: 0.3 },
   dust: { colors: ['#a8957a', '#8a7a64', '#c4b498'], shape: 'square', speed: 2.2, rise: -0.4, gravity: 0, size: 0.45 },
   puff: { colors: ['#ece6da', '#cfc7b8', '#aba394'], shape: 'square', speed: 0.9, rise: -0.9, gravity: 0, size: 0.2 },
+  spray: { colors: ['#eef6ff', '#c8e4ff', '#8ac0f0', '#4a8ad0'], shape: 'square', speed: 5, rise: -4, gravity: 9, size: 0.22 },
+  sprout: { colors: ['#9be38a', '#62ab3b', '#c8f08a'], shape: 'square', speed: 0.8, rise: -1.4, gravity: 0, size: 0.16 },
+  gold: { colors: ['#ffd04a', '#fff2a0', '#f2c14e'], shape: 'star', speed: 2.2, rise: -1.6, gravity: 1 },
+  snowfall: { colors: ['#ffffff', '#e8f0f6', '#c8e4ff'], shape: 'square', speed: 0.6, rise: 0.6, gravity: 0.4, size: 0.15 },
+  swarm: { colors: ['#5a4a20', '#8a7a30', '#3a2e14'], shape: 'square', speed: 2.4, rise: 0, gravity: 0, size: 0.1 },
 };
 /** Partículas con las que aparece cada monstruo recién nacido. */
 const BIRTH_FX: Readonly<Record<number, string>> = { [Species.PENANTE]: 'curse', [Species.ESCORIO]: 'explosion', [Species.CENAGOSO]: 'mud' };
@@ -205,6 +210,15 @@ export class FxLayer {
         if (Math.random() < 0.5) this.burst(e.x, e.y, 2, 'explosion', 0.8);
       }
       if (e.kind === 'tornado' && Math.random() < 0.6) this.burst(e.x, e.y, 1, 'debris', 0.8);
+      if (e.kind === 'blizzard' && this.visible(e.x, e.y, e.r)) {
+        // Copos arrastrados por el viento por todo el círculo.
+        for (let k = 0; k < 3; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * e.r;
+          this.burst(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, 1, 'snowfall', 2);
+        }
+      }
+      if (e.kind === 'locusts' && this.visible(e.x, e.y, e.r)) this.burst(e.x + (Math.random() - 0.5) * e.r * 1.6, e.y + (Math.random() - 0.5) * e.r * 1.6, 3, 'swarm', 0.8);
     }
     for (const p of this.particles) {
       p.vy += p.ay * dt;
@@ -261,6 +275,21 @@ export class FxLayer {
         this.burst(e.x, e.y, Math.min(60, 10 + e.r * 4), 'smoke', 2);
         this.shake = Math.max(this.shake, Math.min(14, 3 + e.r));
         break;
+      case 'wave':
+        // Tres ondas que salen una tras otra, espuma y una sacudida suave.
+        for (let k = 0; k < 3; k++) this.rings.push({ x: e.x, y: e.y, r: e.r * (1 + k * 0.25), max: 0.9, t: -k * 0.22, color: k === 0 ? '#eef6ff' : '#4a8ad0' });
+        this.burst(e.x, e.y, Math.min(120, 30 + e.r * 8), 'spray', 1 + e.r * 0.25);
+        this.shake = Math.max(this.shake, 4);
+        break;
+      case 'rain':
+        this.rings.push({ x: e.x, y: e.y, r: e.r, max: 0.8, t: 0, color: '#8ac0f0' });
+        this.rainOn(e.x, e.y, e.r);
+        this.burst(e.x, e.y, Math.min(60, 12 + e.r * 5), 'sprout', Math.max(1, e.r * 0.5));
+        break;
+      case 'offering':
+        this.rings.push({ x: e.x, y: e.y, r: e.r + 0.5, max: 0.7, t: 0, color: '#ffd04a' });
+        this.burst(e.x, e.y - 0.5, Math.min(70, 20 + e.r * 6), 'gold', Math.max(1, e.r * 0.6));
+        break;
       case 'meteor':
         // La simulación ya abrió el cráter: aquí sólo se ve caer y estallar.
         this.meteors.push({ x: e.x, y: e.y, r: e.r, t: 0 });
@@ -294,6 +323,17 @@ export class FxLayer {
     const p = Math.min(1, m.t / METEOR_FALL_S);
     const left = 1 - p * p;
     return { x: m.x + sky * 0.45 * left, y: m.y - sky * left };
+  }
+
+  /** Chaparrón: gotas que caen sobre el círculo. */
+  private rainOn(x: number, y: number, r: number): void {
+    const n = Math.min(160, 30 + r * r * 3);
+    for (let k = 0; k < n && this.particles.length < MAX_PARTICLES; k++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r;
+      const life = 0.4 + Math.random() * 0.5;
+      this.particles.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d - 3, vx: 0.4, vy: 9, ay: 0, life, max: life, color: 'rgba(170,200,255,0.9)', size: 1, shape: 'drop' });
+    }
   }
 
   /** Nubecilla donde muere una criatura a la vista. */
@@ -513,6 +553,8 @@ export class FxLayer {
       if (e.kind === 'tornado') this.drawTornado(ctx, sx, sy, z, time);
       else if (e.kind === 'acid-rain') this.drawAcid(ctx, sx, sy, e.r * z, time);
       else if (e.kind === 'volcano') this.drawVolcano(ctx, sx, sy, z, time);
+      else if (e.kind === 'blizzard') this.drawBlizzard(ctx, sx, sy, e.r * z, time);
+      else if (e.kind === 'locusts') this.drawSwarm(ctx, sx, sy, e.r * z, time);
     }
     for (const m of this.meteors) this.drawMeteor(ctx, m);
     for (const r of this.rings) {
@@ -591,6 +633,26 @@ export class FxLayer {
       const dx = ((k * 37) % 100) / 50 - 1;
       const fall = ((time / 400 + k * 0.13) % 1) * r * 1.4;
       ctx.fillRect(sx + dx * r * 0.95, sy - r * 0.75 + fall, 1.5, drop);
+    }
+  }
+
+  /** Ventisca: neblina blanca que late sobre el círculo. */
+  private drawBlizzard(ctx: CanvasRenderingContext2D, sx: number, sy: number, r: number, time: number): void {
+    const pulse = 0.18 + Math.sin(time / 500) * 0.05;
+    ctx.fillStyle = `rgba(230,240,250,${pulse})`;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r, r * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** Langostas: nube oscura que se arremolina. */
+  private drawSwarm(ctx: CanvasRenderingContext2D, sx: number, sy: number, r: number, time: number): void {
+    ctx.fillStyle = 'rgba(70,58,28,0.85)';
+    const s = Math.max(1.5, r * 0.05);
+    for (let k = 0; k < 60; k++) {
+      const a = time / (300 + (k % 7) * 40) + k * 2.399;
+      const d = r * (0.15 + ((k * 37) % 100) / 120);
+      ctx.fillRect(sx + Math.cos(a) * d, sy + Math.sin(a * 1.3) * d * 0.7, s, s);
     }
   }
 

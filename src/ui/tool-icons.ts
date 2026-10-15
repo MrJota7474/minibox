@@ -168,6 +168,58 @@ const POWER_DRAW: Readonly<Record<string, (p: Pix) => void>> = {
     p.set(2, 2, '#c8f0ff');
     p.set(13, 13, '#c8f0ff');
   },
+  tsunami: (p) => {
+    // Ola que rompe con cresta de espuma.
+    p.rect(1, 11, 14, 4, '#1f4a86');
+    p.ellipse(9, 8, 5, 5, '#3678bd');
+    p.rect(4, 9, 11, 3, '#3678bd');
+    p.ellipse(9, 6, 3, 2.4, '#1f4a86');
+    for (const [x, y] of [[5, 4], [6, 3], [7, 3], [8, 3], [11, 4], [12, 5], [13, 6]]) p.set(x, y, '#eef6ff');
+    p.set(4, 5, '#c8e4ff');
+    p.rect(1, 13, 3, 1, '#c8e4ff');
+  },
+  blizzard: (p) => {
+    p.ellipse(8, 4, 6, 2.6, '#b8c4d0');
+    p.ellipse(6, 3, 3.4, 1.8, '#dfe8ea');
+    for (const [x, y] of [[3, 8], [7, 9], [11, 8], [5, 12], [9, 13], [13, 11], [2, 14]]) {
+      p.set(x, y, '#ffffff');
+      p.set(x + 1, y, '#c8e4ff');
+    }
+    // Ráfagas de viento.
+    p.rect(2, 10, 5, 1, '#8ac0f0');
+    p.rect(9, 11, 5, 1, '#8ac0f0');
+  },
+  locusts: (p) => {
+    for (const [x, y] of [[3, 3], [7, 2], [11, 4], [5, 6], [9, 7], [13, 6], [3, 9], [7, 10], [11, 11], [5, 13], [9, 14]]) {
+      p.set(x, y, '#5a4a20');
+      p.set(x + 1, y, '#8a7a30');
+      p.set(x, y - 1, '#c8c090');
+    }
+    p.rect(1, 15, 14, 1, '#62ab3b');
+  },
+  rain: (p) => {
+    p.ellipse(8, 4, 6, 2.6, '#6a8ab0');
+    p.ellipse(6, 3, 3.4, 1.8, '#8aaad0');
+    for (const [x, y] of [[4, 8], [8, 9], [12, 8], [6, 11], [10, 12]]) {
+      p.set(x, y, '#8ac0f0');
+      p.set(x, y + 1, '#4a8ad0');
+    }
+    // Brotes verdes en el suelo.
+    p.rect(1, 14, 14, 2, '#62ab3b');
+    for (const x of [3, 7, 11]) p.set(x, 13, '#9be38a');
+  },
+  offering: (p) => {
+    // Cofre abierto con oro, pan y madera.
+    p.rect(3, 9, 10, 5, '#8a5a2a');
+    p.rect(3, 9, 10, 1, '#b07a43');
+    p.rect(7, 10, 2, 2, '#f2d16b');
+    p.rect(3, 6, 10, 3, '#6a4422');
+    p.ellipse(6, 6, 2, 1.4, '#f2d16b');
+    p.ellipse(10, 6, 1.6, 1.2, '#d8a868');
+    p.set(8, 4, '#fff6c0');
+    p.set(4, 3, '#ffd04a');
+    p.set(12, 3, '#ffd04a');
+  },
 };
 
 const BRUSH_DRAW: Readonly<Record<string, (p: Pix) => void>> = {

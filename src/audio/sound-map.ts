@@ -32,7 +32,8 @@ export type SoundId =
   | 'meteor'
   | 'open'
   | 'close'
-  | 'tab';
+  | 'tab'
+  | 'wave';
 
 /** Intervalo mínimo (ms) entre dos repeticiones del mismo sonido. */
 export const MIN_INTERVAL_MS: Readonly<Record<SoundId, number>> = {
@@ -63,6 +64,7 @@ export const MIN_INTERVAL_MS: Readonly<Record<SoundId, number>> = {
   open: 120,
   close: 120,
   tab: 60,
+  wave: 600,
 };
 
 /** Cuánto de cada sonido va al eco (0-1): mucho en los grandes, casi nada en la interfaz. */
@@ -94,6 +96,7 @@ export const REVERB_SEND: Readonly<Record<SoundId, number>> = {
   open: 0.05,
   close: 0.05,
   tab: 0,
+  wave: 0.5,
 };
 
 /** Volumen relativo de lo que ocurre fuera de la pantalla. */
@@ -131,6 +134,9 @@ const FX_SOUNDS: Readonly<Record<string, SoundId>> = {
   lightning: 'lightning',
   explosion: 'explosion',
   meteor: 'meteor',
+  wave: 'wave',
+  rain: 'heal',
+  offering: 'discovery',
   quake: 'rumble',
   sparkle: 'sparkle',
   curse: 'curse',
@@ -182,7 +188,8 @@ export function soundForCommand(c: Command): SoundId | null {
       return 'click';
     case 'power':
       if (c.power === 'fire' || c.power === 'lava') return 'fire';
-      if (c.power === 'earthquake' || c.power === 'tornado' || c.power === 'acid-rain' || c.power === 'volcano') return 'rumble';
+      if (c.power === 'earthquake' || c.power === 'tornado' || c.power === 'acid-rain' || c.power === 'volcano' || c.power === 'blizzard') return 'rumble';
+      if (c.power === 'locusts') return 'plague';
       return null;
     default:
       return null;

@@ -77,6 +77,12 @@ const RECIPES: Readonly<Record<SoundId, Recipe>> = {
     s.noise(0.42, 'bandpass', 3200, 300, 0.35 * g);
     s.tone('sawtooth', 900, 180, 0.42, 0.05 * g);
   },
+  wave: (s, g) => {
+    // Ola: rugido que crece y rompe en espuma.
+    s.noise(1.4, 'lowpass', 200, 1400, 0.55 * g);
+    s.noise(0.9, 'highpass', 1500, 4000, 0.25 * g, 0.5);
+    s.tone('sine', 60, 40, 1.2, 0.3 * g);
+  },
   rumble: (s, g) => {
     s.noise(1.2, 'lowpass', 160, 50, 0.7 * g);
     s.tone('sine', 55, 35, 1.2, 0.45 * g);

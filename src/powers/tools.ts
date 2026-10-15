@@ -111,6 +111,9 @@ export const TOOLS: readonly ToolDef[] = [
   power('desastres', 'tornado', 'Tornado'),
   power('desastres', 'acid-rain', 'Lluvia ácida'),
   power('desastres', 'volcano', 'Volcán'),
+  power('desastres', 'tsunami', 'Maremoto', 900),
+  power('desastres', 'blizzard', 'Ventisca'),
+  power('desastres', 'locusts', 'Langostas'),
   power('desastres', 'fire', 'Fuego', 150, true),
   power('desastres', 'lava', 'Lava', 150, true),
   power('desastres', 'plague', 'Plaga', 300, true),
@@ -118,6 +121,8 @@ export const TOOLS: readonly ToolDef[] = [
   power('poderes', 'curse', 'Maldición', 300, true),
   power('poderes', 'madness', 'Locura', 300, true),
   power('poderes', 'heal', 'Luz divina', 300, true),
+  power('poderes', 'rain', 'Lluvia fértil', 400),
+  power('poderes', 'offering', 'Ofrenda', 600),
   { id: 'magnet', label: 'Imán', tab: 'poderes', kind: 'magnet' },
 ];
 

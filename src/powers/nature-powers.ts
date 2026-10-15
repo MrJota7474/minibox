@@ -1,0 +1,172 @@
+import type { AiContext } from '../ai/context';
+import type { Rng } from '../core/rng';
+import { BIOME_INFO, Biome, Flora, Terrain, isFertileTerrain } from '../world/terrain';
+import { treeNeighbors } from '../world/vegetation';
+import type { World } from '../world/world';
+import { damageInRadius, type BuildingDamage, type Effect } from './disasters';
+import { Status } from './status';
+
+/**
+ * Desastres y poderes de la naturaleza (Fase P): maremoto, ventisca, langostas y lluvia
+ * fértil. Todo determinista: el azar llega del flujo de los poderes.
+ */
+
+/** Visita las casillas del círculo (centro y radio en casillas). */
+export function forCircle(w: World, cx: number, cy: number, r: number, visit: (i: number) => void): void {
+  const ir = Math.ceil(r);
+  const x0 = Math.floor(cx);
+  const y0 = Math.floor(cy);
+  for (let dy = -ir; dy <= ir; dy++) {
+    for (let dx = -ir; dx <= ir; dx++) {
+      const x = x0 + dx;
+      const y = y0 + dy;
+      if (!w.inBounds(x, y)) continue;
+      const ox = x + 0.5 - cx;
+      const oy = y + 0.5 - cy;
+      if (ox * ox + oy * oy <= r * r) visit(w.idx(x, y));
+    }
+  }
+}
+
+/** Apaga el fuego de una casilla (y la marca para repintarla). */
+function douse(w: World, i: number): void {
+  if (w.fire[i] === 0) return;
+  w.fire[i] = 0;
+  w.markDirtyIdx(i);
+}
+
+// ---------- Maremoto ----------
+
+/** Parte mínima de agua en el círculo para que haya ola (tierra adentro no pasa nada). */
+const TSUNAMI_MIN_WATER = 0.12;
+const TSUNAMI_DAMAGE = 45;
+/** Casillas que la ola arrastra a las criaturas tierra adentro. */
+const TSUNAMI_PUSH = 2.5;
+const TSUNAMI_PLANT_LOSS = 0.5;
+const TSUNAMI_BUILDING_CHANCE = 0.35;
+const TSUNAMI_BOAT_CHANCE = 0.8;
+/** Los edificios caen en la parte de la ola más cercana al mar. */
+const TSUNAMI_BUILDING_REACH = 0.8;
+
+/** ¿Tierra baja (arena o tierra llana), la que inunda una ola? */
+function isLowLand(w: World, i: number): boolean {
+  const t = w.terrain[i];
+  return t === Terrain.SAND || t === Terrain.SOIL_LOW;
+}
+
+/**
+ * Maremoto: una ola barre la costa del radio. Arrastra plantas y hierba de la tierra baja,
+ * apaga el fuego, hiere y empuja tierra adentro a las criaturas, hunde barcos y derriba
+ * parte de los edificios. Devuelve false si no hay mar cerca (entonces no pasa nada).
+ */
+export function tsunami(w: World, cx: number, cy: number, r: number, ctx: AiContext, rng: Rng, civ: BuildingDamage): boolean {
+  let water = 0;
+  let total = 0;
+  forCircle(w, cx, cy, r, (i) => {
+    total++;
+    if (w.isWaterIdx(i)) water++;
+  });
+  if (total === 0 || water / total < TSUNAMI_MIN_WATER) return false;
+  forCircle(w, cx, cy, r, (i) => {
+    if (w.isWaterIdx(i) || !isLowLand(w, i)) return;
+    w.setGrass(i, 0);
+    douse(w, i);
+    if (w.flora[i] !== Flora.NONE && w.flora[i] <= Flora.BERRY_BUSH && rng.chance(TSUNAMI_PLANT_LOSS)) w.setFlora(i, Flora.NONE);
+  });
+  const u = ctx.units;
+  ctx.spatial.forEachInRadius(u, cx, cy, r, (j) => {
+    if (u.alive[j] === 0 || (u.status[j] & Status.HELD) !== 0) return;
+    if (!isLowLand(w, w.idx(Math.floor(u.x[j]), Math.floor(u.y[j])))) return;
+    // Empujón en dirección contraria al centro de la ola (si cae en tierra pisable).
+    const dx = u.x[j] - cx;
+    const dy = u.y[j] - cy;
+    const d = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = u.x[j] + (dx / d) * TSUNAMI_PUSH;
+    const ny = u.y[j] + (dy / d) * TSUNAMI_PUSH;
+    if (!w.isWalkableAt(nx, ny)) return;
+    u.x[j] = nx;
+    u.y[j] = ny;
+    u.pathLen[j] = 0;
+  });
+  damageInRadius(ctx, cx, cy, r, TSUNAMI_DAMAGE);
+  civ.damageBuildingsIn(cx, cy, r * TSUNAMI_BUILDING_REACH, TSUNAMI_BUILDING_CHANCE, rng);
+  civ.wreckBoatsIn(cx, cy, r, TSUNAMI_BOAT_CHANCE, rng);
+  return true;
+}
+
+// ---------- Ventisca ----------
+
+const BLIZZARD_INTERVAL = 10;
+const BLIZZARD_DAMAGE = 2;
+const BLIZZARD_TILES = 6;
+const BLIZZARD_GRASS_LOSS = 15;
+/** Probabilidad de que una casilla tocada quede nevada para siempre. */
+const BLIZZARD_SNOW_CHANCE = 0.2;
+const BLIZZARD_FROST = -4;
+
+/** Ventisca: el frío hiere, hiela las cosechas, apaga el fuego y deja la tierra nevada. */
+export function stepBlizzard(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingDamage, randomTile: () => number): void {
+  if (ctx.tick % BLIZZARD_INTERVAL !== 0) return;
+  damageInRadius(ctx, e.x, e.y, e.r, BLIZZARD_DAMAGE);
+  civ.tendFarmsIn(e.x, e.y, e.r, BLIZZARD_FROST);
+  const w = ctx.world;
+  for (let k = 0; k < BLIZZARD_TILES; k++) {
+    const i = randomTile();
+    if (i < 0 || w.isWaterIdx(i)) continue;
+    w.setGrass(i, w.grass[i] - BLIZZARD_GRASS_LOSS);
+    douse(w, i);
+    if (isFertileTerrain(w.terrain[i]) && w.biome[i] !== Biome.SNOW && rng.chance(BLIZZARD_SNOW_CHANCE)) w.setBiome(i, Biome.SNOW);
+  }
+}
+
+// ---------- Langostas ----------
+
+const LOCUST_SPEED = 0.12;
+const LOCUST_TURN_INTERVAL = 40;
+const LOCUST_TILES = 4;
+const LOCUST_FARM_INTERVAL = 5;
+const LOCUST_FARM_LOSS = -6;
+const LOCUST_SAPLING_LOSS = 0.3;
+
+/** Plaga de langostas: una nube que vaga devorando hierba, bayas, retoños y cosechas (no hiere a nadie). */
+export function stepLocusts(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingDamage, randomTile: () => number): void {
+  const w = ctx.world;
+  if (ctx.tick % LOCUST_TURN_INTERVAL === 0) {
+    e.dx += (rng.float() - 0.5) * 0.8;
+    e.dy += (rng.float() - 0.5) * 0.8;
+    const len = Math.sqrt(e.dx * e.dx + e.dy * e.dy) || 1;
+    e.dx /= len;
+    e.dy /= len;
+  }
+  e.x = Math.min(w.width - 1, Math.max(1, e.x + e.dx * LOCUST_SPEED));
+  e.y = Math.min(w.height - 1, Math.max(1, e.y + e.dy * LOCUST_SPEED));
+  for (let k = 0; k < LOCUST_TILES; k++) {
+    const i = randomTile();
+    if (i < 0) continue;
+    w.setGrass(i, 0);
+    if (w.flora[i] === Flora.BERRY_BUSH) w.setFlora(i, Flora.BUSH);
+    else if (w.flora[i] === Flora.SAPLING && rng.chance(LOCUST_SAPLING_LOSS)) w.setFlora(i, Flora.NONE);
+  }
+  if (ctx.tick % LOCUST_FARM_INTERVAL === 0) civ.tendFarmsIn(e.x, e.y, e.r, LOCUST_FARM_LOSS);
+}
+
+// ---------- Lluvia fértil ----------
+
+const RAIN_SAPLING_CHANCE = 0.06;
+const RAIN_FARM_GROWTH = 40;
+const MAX_TREE_NEIGHBORS = 3;
+
+/** Lluvia fértil: hierba a tope, bayas de nuevo, algún retoño, cosechas adelantadas y el fuego apagado. */
+export function fertileRain(w: World, cx: number, cy: number, r: number, rng: Rng, civ: BuildingDamage): void {
+  forCircle(w, cx, cy, r, (i) => {
+    if (w.isWaterIdx(i)) return;
+    douse(w, i);
+    w.setGrass(i, BIOME_INFO[w.biome[i]].grassMax);
+    if (w.flora[i] === Flora.BUSH) w.setFlora(i, Flora.BERRY_BUSH);
+    else if (w.flora[i] === Flora.NONE && w.buildingAt[i] === 0 && isFertileTerrain(w.terrain[i]) && rng.chance(RAIN_SAPLING_CHANCE)) {
+      const x = i % w.width;
+      if (treeNeighbors(w, x, (i - x) / w.width) < MAX_TREE_NEIGHBORS) w.setFlora(i, Flora.SAPLING);
+    }
+  });
+  civ.tendFarmsIn(cx, cy, r, RAIN_FARM_GROWTH);
+}

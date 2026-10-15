@@ -16,6 +16,7 @@ import type { Command } from '../src/sim/commands';
 import { defaultLaws } from '../src/sim/laws';
 import { neutralClimate } from '../src/world/climate';
 import { Simulation } from '../src/sim/simulation';
+import { deserialize, describe as describeSave, serialize } from '../src/persistence/snapshot';
 import { Biome, Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
 import { World } from '../src/world/world';
 
@@ -319,5 +320,103 @@ describe('leyes y determinismo', () => {
       return sim;
     };
     expect(make().stateHash()).toBe(make().stateHash());
+  });
+});
+
+describe('desastres y poderes de la naturaleza', () => {
+  /** Mitad izquierda mar (x < 30), mitad derecha tierra llana. */
+  function coast(): Rig {
+    const r = rig();
+    const w = r.ctx.world;
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < 30; x++) w.setHeight(w.idx(x, y), TERRAIN_INFO[Terrain.OCEAN].paintHeight);
+    w.computeRegions();
+    return r;
+  }
+
+  it('el maremoto barre la costa: hiere y empuja tierra adentro; tierra adentro no pasa nada', () => {
+    const r = coast();
+    const s = sheep(r, 31.5, 32.5);
+    apply(r, 'tsunami', 30, 32, 3);
+    const u = r.ctx.units;
+    expect(u.hp[s]).toBeLessThan(SPECIES[Species.SHEEP].maxHp);
+    expect(u.x[s]).toBeGreaterThan(31.5);
+    expect(r.powers.fx.some((f) => f.kind === 'wave')).toBe(true);
+    // Lejos del mar: ni daño ni ola.
+    const inland = rig();
+    const t = sheep(inland, 32.5, 32.5);
+    apply(inland, 'tsunami', 32, 32, 3);
+    expect(inland.ctx.units.hp[t]).toBe(SPECIES[Species.SHEEP].maxHp);
+    expect(inland.powers.fx.some((f) => f.kind === 'wave')).toBe(false);
+  });
+
+  it('la ventisca dura un tiempo, hiere poco a poco y deja tierra nevada', () => {
+    const r = rig();
+    const s = sheep(r, 32.5, 32.5);
+    apply(r, 'blizzard', 32, 32, 5);
+    expect(r.powers.effects.some((e) => e.kind === 'blizzard')).toBe(true);
+    run(r, 300);
+    expect(r.powers.effects.some((e) => e.kind === 'blizzard')).toBe(false);
+    let snow = 0;
+    for (let i = 0; i < r.ctx.world.size; i++) if (r.ctx.world.biome[i] === Biome.SNOW) snow++;
+    expect(snow).toBeGreaterThan(5);
+    const u = r.ctx.units;
+    expect(!u.isAlive(s) || u.hp[s] < SPECIES[Species.SHEEP].maxHp).toBe(true);
+  });
+
+  it('las langostas devoran la hierba sin herir a nadie', () => {
+    const r = rig();
+    const s = sheep(r, 32.5, 32.5);
+    r.ctx.units.hunger[s] = SPECIES[Species.SHEEP].maxHunger;
+    const grassAround = (): number => {
+      let g = 0;
+      for (let y = 26; y < 38; y++) for (let x = 26; x < 38; x++) g += r.ctx.world.grass[r.ctx.world.idx(x, y)];
+      return g;
+    };
+    const before = grassAround();
+    apply(r, 'locusts', 32, 32, 3);
+    run(r, 100);
+    expect(grassAround()).toBeLessThan(before * 0.9);
+    expect(r.ctx.stats.deaths[DeathCause.DISASTER]).toBe(0);
+  });
+
+  it('la lluvia fértil reverdece, vuelve a dar bayas y apaga el fuego', () => {
+    const r = rig();
+    const w = r.ctx.world;
+    const i = w.idx(32, 32);
+    w.setGrass(i, 0);
+    w.setFlora(w.idx(33, 32), Flora.BUSH);
+    r.hazards.ignite(w.idx(31, 32));
+    apply(r, 'rain', 32, 32, 5);
+    expect(w.grass[i]).toBeGreaterThan(100);
+    expect(w.flora[w.idx(33, 32)]).toBe(Flora.BERRY_BUSH);
+    expect(w.fire[w.idx(31, 32)]).toBe(0);
+    expect(r.powers.fx.some((f) => f.kind === 'rain')).toBe(true);
+  });
+
+  it('la ofrenda llena el almacén de la aldea tocada, sin pasar de su capacidad', () => {
+    const r = rig();
+    const members = [0, 1, 2].map((k) => sheep(r, 40 + k, 40));
+    r.ctx.spatial.rebuild(r.ctx.units);
+    const v = r.ctx.civ.foundVillage(Species.HUMAN, 32, 32, members, r.ctx);
+    expect(v).not.toBeNull();
+    if (!v) return;
+    const food = v.resources[0];
+    apply(r, 'offering', 32, 32, 3);
+    expect(v.resources[0]).toBeGreaterThan(food);
+    for (let k = 0; k < 20; k++) apply(r, 'offering', 32, 32, 3);
+    for (const amount of v.resources) expect(amount).toBeLessThanOrEqual(v.storageCap);
+  });
+
+  it('una partida con ventisca y langostas en marcha se guarda y continúa igual', () => {
+    const sim = new Simulation({ seedText: 'naturaleza', size: 96, capacity: 300, populate: true });
+    sim.apply({ type: 'power', power: 'blizzard', x: 40, y: 40, size: 5 });
+    sim.apply({ type: 'power', power: 'locusts', x: 60, y: 50, size: 3 });
+    for (let t = 0; t < 30; t++) sim.step();
+    const loaded = deserialize(serialize(sim, describeSave(sim, 'Naturaleza', 1)));
+    for (let t = 0; t < 200; t++) {
+      sim.step();
+      loaded.step();
+    }
+    expect(loaded.stateHash()).toBe(sim.stateHash());
   });
 });

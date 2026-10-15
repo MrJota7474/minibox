@@ -10,6 +10,7 @@ import { scaledStep } from '../ai/life';
 import {
   BUILDING_DEFS,
   BuildingType,
+  FARM_RIPE,
   FISH_MAX,
   JOB_COUNT,
   Job,
@@ -20,6 +21,9 @@ import {
   type Village,
 } from './model';
 import { KingdomSystem } from './kingdoms';
+
+/** Lo que trae una ofrenda divina a cada aldea (comida, madera, piedra, hierro, oro). */
+const OFFERING: readonly number[] = [40, 20, 12, 4, 3];
 import { boatsHash, updateBoats, wreckBoatsIn, type Boat } from './boats';
 import { villageName } from './names';
 import { canPlace, clearFootprint, findBuildSpot } from './placement';
@@ -333,6 +337,26 @@ export class CivSystem {
 
   wreckBoatsIn(x: number, y: number, r: number, chance: number, rng: Rng): void {
     wreckBoatsIn(this, x, y, r, chance, rng);
+  }
+
+  /** Hace crecer (amount > 0, lluvia fértil) o arruina (amount < 0, helada, langostas) las cosechas del radio. */
+  tendFarmsIn(x: number, y: number, r: number, amount: number): void {
+    for (const b of this.buildingsInCircle(x, y, r)) {
+      if (b.type !== BuildingType.FARM || b.level < 1) continue;
+      b.growth = Math.max(0, Math.min(FARM_RIPE, b.growth + amount));
+    }
+  }
+
+  /** Ofrenda divina: las aldeas cuyo ayuntamiento está en el radio reciben recursos. Devuelve cuántas. */
+  giftVillagesIn(x: number, y: number, r: number): number {
+    let n = 0;
+    for (const b of this.buildingsInCircle(x, y, r)) {
+      if (b.type !== BuildingType.HALL) continue;
+      const v = this.villages[b.village];
+      OFFERING.forEach((amount, res) => (v.resources[res] = Math.min(v.storageCap, v.resources[res] + amount)));
+      n++;
+    }
+    return n;
   }
 
   private buildingsInCircle(x: number, y: number, r: number): Building[] {
