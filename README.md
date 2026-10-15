@@ -32,6 +32,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase S (día y noche)** — el mundo vive días y noches: al anochecer el mapa se oscurece y se encienden hogueras, ventanas y santuarios; de noche los aldeanos se reúnen alrededor de la hoguera y los animales descansan.
 - **Fase U (poderes)** — **fertilidad**, que sacia a las criaturas y las deja listas para criar, y **paz divina**, que hace firmar la paz a los reinos de las aldeas que toques.
 - **Fase V (raza del desierto)** — llegan los **Dunarios**: el calor del desierto no les da hambre y sus mercaderes cargan el doble. Visten turbante y viven en casas de adobe con cúpulas blancas; su palacio tiene dos alminares.
+- **Fase W (noche sonora)** — al anochecer callan los pájaros y empiezan los grillos en la hierba, las ranas en el pantano y algún búho en el bosque.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 

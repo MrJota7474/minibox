@@ -25,6 +25,15 @@ const BLEAT_CHANCE = 0.06;
 const HOWL_CHANCE = 0.012;
 const BLEAT_GAIN = 0.03;
 const HOWL_GAIN = 0.04;
+/** Noche: probabilidad por actualización con la capa al máximo y volumen de cada voz. */
+const CRICKET_CHANCE = 0.9;
+const FROG_CHANCE = 0.25;
+const OWL_CHANCE = 0.012;
+const CRICKET_GAIN = 0.014;
+const FROG_GAIN = 0.022;
+const OWL_GAIN = 0.04;
+/** Desfase máximo (s) con el que arranca cada voz de la noche. */
+const VOICE_JITTER_S = 0.2;
 
 interface Layer {
   /** Volumen general de la capa (lo que cambia con la vista). */
@@ -44,6 +53,9 @@ export class Ambience {
   private birds = 0;
   private bleats = 0;
   private howls = 0;
+  private crickets = 0;
+  private frogs = 0;
+  private owls = 0;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -97,9 +109,46 @@ export class Ambience {
     this.birds = levels ? levels.birds : 0;
     this.bleats = levels ? levels.bleats : 0;
     this.howls = levels ? levels.howls : 0;
+    this.crickets = levels ? levels.crickets : 0;
+    this.frogs = levels ? levels.frogs : 0;
+    this.owls = levels ? levels.owls : 0;
     if (this.birds > 0.02 && Math.random() < this.birds * CHIRP_CHANCE) this.chirp();
     if (this.bleats > 0.02 && Math.random() < this.bleats * BLEAT_CHANCE) this.bleat();
     if (this.howls > 0 && Math.random() < this.howls * HOWL_CHANCE) this.howl();
+    // Con muchos grillos a la vista, a veces cantan dos a la vez.
+    if (this.crickets > 0.02 && Math.random() < this.crickets * CRICKET_CHANCE) this.cricket(0);
+    if (this.crickets > 0.5 && Math.random() < (this.crickets - 0.5) * CRICKET_CHANCE) this.cricket(0.12);
+    if (this.frogs > 0.02 && Math.random() < this.frogs * FROG_CHANCE) this.frog();
+    if (this.owls > 0.02 && Math.random() < this.owls * OWL_CHANCE) this.owl();
+  }
+
+  /** Grillo: tres o cuatro pulsos muy agudos y secos, cada uno en su tono. */
+  private cricket(delay: number): void {
+    const f = 4000 + Math.random() * 1200;
+    const pulses = 3 + Math.floor(Math.random() * 2);
+    const gain = CRICKET_GAIN * (0.5 + this.crickets * 0.5);
+    // Un desfase al azar para que los cantos no caigan siempre al ritmo de las actualizaciones.
+    const start = delay + Math.random() * VOICE_JITTER_S;
+    for (let k = 0; k < pulses; k++) this.tones.tone('sine', f, f * 0.98, 0.025, gain, start + k * 0.045);
+  }
+
+  /** Rana: un croar grave hecho de golpecitos rápidos que bajan un poco. */
+  private frog(): void {
+    const f = 120 + Math.random() * 70;
+    const pulses = 3 + Math.floor(Math.random() * 3);
+    const gain = FROG_GAIN * (0.5 + this.frogs * 0.5);
+    const start = Math.random() * VOICE_JITTER_S;
+    for (let k = 0; k < pulses; k++) this.tones.tone('square', f * (1 - k * 0.02), f * 0.9, 0.035, gain, start + k * 0.055);
+  }
+
+  /** Búho: «uuu… u-uuu», grave y suave. */
+  private owl(): void {
+    const f = 330 + Math.random() * 50;
+    const gain = OWL_GAIN * this.owls;
+    const start = Math.random() * VOICE_JITTER_S;
+    this.tones.tone('sine', f, f * 0.94, 0.4, gain, start);
+    this.tones.tone('sine', f * 1.02, f * 0.96, 0.16, gain * 0.8, start + 0.62);
+    this.tones.tone('sine', f, f * 0.92, 0.45, gain, start + 0.84);
   }
 
   /** Balido: tres golpes de voz que tiemblan y bajan, cada animal en su tono. */

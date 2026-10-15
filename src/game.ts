@@ -1,6 +1,7 @@
 import { SoundEngine } from './audio/sound';
 import { soundForCommand, soundForEvent, soundForFx, spatialMix, type ViewRect } from './audio/sound-map';
 import { ambienceMix, sampleView, type VisibleAnimals } from './audio/ambience-mix';
+import { daylight } from './world/daylight';
 import { moodFor } from './audio/music-theory';
 import { FixedClock, type Speed } from './core/clock';
 import type { DeviceProfile } from './core/device';
@@ -276,7 +277,9 @@ export class Game {
     }
     const season = sim.climate.seasonAt(sim.tick, sim.laws.seasons);
     const view = this.view(cam);
-    this.sound.setAmbience(ambienceMix(sampleView(sim.world, view), season, cam.zoom, visibleAnimals(sim, view)));
+    // Sin el ciclo de día y noche a la vista, el ambiente tampoco anochece.
+    const light = this.settings.dayNight ? daylight(sim.tick) : 1;
+    this.sound.setAmbience(ambienceMix(sampleView(sim.world, view), season, cam.zoom, visibleAnimals(sim, view), light));
   }
 
   /** Llega una versión nueva (service worker): se aplica sin interrumpir una partida en curso. */

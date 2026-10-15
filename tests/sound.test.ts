@@ -4,7 +4,7 @@ import { MIN_INTERVAL_MS, OFFSCREEN_GAIN, REVERB_SEND, RateLimiter, masterGain, 
 import { Species } from '../src/entities/species';
 import { DEFAULT_SETTINGS } from '../src/ui/settings';
 import { Season } from '../src/world/climate';
-import { Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
+import { Biome, Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
 import { World } from '../src/world/world';
 
 describe('mapa de sonidos', () => {
@@ -120,9 +120,9 @@ describe('posición del sonido', () => {
 
 describe('ambiente', () => {
   it('el mar suena si se ve agua, los pájaros sobre el bosque y el viento en la montaña', () => {
-    const sea = ambienceMix({ water: 200, forest: 0, cold: 0, total: 256 }, Season.SUMMER, 10);
-    const forest = ambienceMix({ water: 0, forest: 180, cold: 0, total: 256 }, Season.SUMMER, 10);
-    const peaks = ambienceMix({ water: 0, forest: 0, cold: 200, total: 256 }, Season.SUMMER, 10);
+    const sea = ambienceMix({ water: 200, forest: 0, cold: 0, meadow: 0, swamp: 0, total: 256 }, Season.SUMMER, 10);
+    const forest = ambienceMix({ water: 0, forest: 180, cold: 0, meadow: 0, swamp: 0, total: 256 }, Season.SUMMER, 10);
+    const peaks = ambienceMix({ water: 0, forest: 0, cold: 200, meadow: 0, swamp: 0, total: 256 }, Season.SUMMER, 10);
     expect(sea.sea).toBeGreaterThan(0.5);
     expect(sea.birds).toBe(0);
     expect(forest.birds).toBeGreaterThan(0.5);
@@ -131,7 +131,7 @@ describe('ambiente', () => {
   });
 
   it('en invierno apenas cantan los pájaros y sopla más viento; de lejos se oyen menos', () => {
-    const sample = { water: 0, forest: 180, cold: 0, total: 256 };
+    const sample = { water: 0, forest: 180, cold: 0, meadow: 0, swamp: 0, total: 256 };
     const summer = ambienceMix(sample, Season.SUMMER, 10);
     const winter = ambienceMix(sample, Season.WINTER, 10);
     expect(winter.birds).toBeLessThan(summer.birds * 0.3);
@@ -140,10 +140,10 @@ describe('ambiente', () => {
   });
 
   it('sin casillas a la vista sólo queda el viento de fondo y todo está entre 0 y 1', () => {
-    const empty = ambienceMix({ water: 0, forest: 0, cold: 0, total: 0 }, Season.SUMMER, 10);
+    const empty = ambienceMix({ water: 0, forest: 0, cold: 0, meadow: 0, swamp: 0, total: 0 }, Season.SUMMER, 10);
     expect(empty.sea).toBe(0);
     expect(empty.birds).toBe(0);
-    const full = ambienceMix({ water: 0, forest: 256, cold: 256, total: 256 }, Season.WINTER, 40);
+    const full = ambienceMix({ water: 0, forest: 256, cold: 256, meadow: 0, swamp: 0, total: 256 }, Season.WINTER, 40);
     for (const v of Object.values(full)) {
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThanOrEqual(1);
@@ -151,7 +151,7 @@ describe('ambiente', () => {
   });
 
   it('se oyen balidos si hay herbívoros a la vista y aullidos sólo si hay lobos', () => {
-    const sample = { water: 0, forest: 0, cold: 0, total: 256 };
+    const sample = { water: 0, forest: 0, cold: 0, meadow: 0, swamp: 0, total: 256 };
     const quiet = ambienceMix(sample, Season.SUMMER, 10);
     expect(quiet.bleats).toBe(0);
     expect(quiet.howls).toBe(0);
@@ -162,6 +162,29 @@ describe('ambiente', () => {
     expect(wolves.howls).toBeGreaterThan(0.5);
     // De lejos, los balidos apenas se oyen.
     expect(ambienceMix(sample, Season.SUMMER, 2, { herbivores: 12, wolves: 0 }).bleats).toBeLessThan(0.3);
+  });
+
+  it('de noche callan los pájaros y cantan grillos en la hierba, ranas en el pantano y búhos en el bosque', () => {
+    const sample = { water: 0, forest: 80, cold: 0, meadow: 120, swamp: 50, total: 256 };
+    const day = ambienceMix(sample, Season.SUMMER, 12, undefined, 1);
+    const night = ambienceMix(sample, Season.SUMMER, 12, undefined, 0);
+    expect(day.crickets).toBe(0);
+    expect(day.frogs).toBe(0);
+    expect(day.owls).toBe(0);
+    expect(day.birds).toBeGreaterThan(0.4);
+    expect(night.birds).toBe(0);
+    expect(night.crickets).toBeGreaterThan(0.5);
+    expect(night.frogs).toBeGreaterThan(0.5);
+    expect(night.owls).toBeGreaterThan(0.5);
+    // En invierno no hay grillos ni ranas, pero el búho sigue ahí.
+    const cold = ambienceMix(sample, Season.WINTER, 12, undefined, 0);
+    expect(cold.crickets).toBe(0);
+    expect(cold.frogs).toBe(0);
+    expect(cold.owls).toBeGreaterThan(0.5);
+    // Sin bosque no hay búhos; en el desierto, sin hierba, tampoco grillos.
+    const sand = ambienceMix({ water: 0, forest: 0, cold: 0, meadow: 0, swamp: 0, total: 256 }, Season.SUMMER, 12, undefined, 0);
+    expect(sand.owls).toBe(0);
+    expect(sand.crickets).toBe(0);
   });
 
   it('la muestra de la vista cuenta agua, bosque y frío', () => {
@@ -176,5 +199,30 @@ describe('ambiente', () => {
     expect(s.forest).toBe(128);
     // Fuera del mapa no cuenta.
     expect(sampleView(w, { left: -100, top: -100, width: 10, height: 10 }).total).toBe(0);
+  });
+
+  it('la muestra cuenta la hierba sin árbol y el pantano (el agua no es pantano)', () => {
+    const w = new World(32, 32);
+    for (let i = 0; i < w.size; i++) {
+      const x = i % 32;
+      w.setHeight(i, TERRAIN_INFO[x < 8 ? Terrain.SHALLOW : Terrain.SOIL_LOW].paintHeight);
+      w.setBiome(i, x < 16 ? Biome.SWAMP : x < 24 ? Biome.GRASS : Biome.DESERT);
+    }
+    const s = sampleView(w, { left: 0, top: 0, width: 32, height: 32 });
+    expect(s.water).toBe(64);
+    expect(s.swamp).toBe(64);
+    expect(s.meadow).toBe(64);
+  });
+
+  it('la noche llega poco a poco al anochecer, el otoño apaga a medias los grillos y todo queda entre 0 y 1', () => {
+    const sample = { water: 0, forest: 0, cold: 0, meadow: 256, swamp: 0, total: 256 };
+    expect(ambienceMix(sample, Season.SUMMER, 12, undefined, 0.85).crickets).toBe(0);
+    expect(ambienceMix(sample, Season.SUMMER, 12, undefined, 0.55).crickets).toBeCloseTo(0.5, 5);
+    expect(ambienceMix(sample, Season.AUTUMN, 12, undefined, 0).crickets).toBeCloseTo(0.6, 5);
+    const full = ambienceMix({ water: 256, forest: 256, cold: 256, meadow: 256, swamp: 256, total: 256 }, Season.SUMMER, 40, { herbivores: 99, wolves: 9 }, 0);
+    for (const v of Object.values(full)) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
   });
 });

@@ -80,7 +80,7 @@ export function settingsContent(current: Settings, onChange: (s: Settings) => vo
   return el('div', { class: 'laws settings' }, [
     el('div', { class: 'settings-row' }, [checkbox('set-sound', 'Sonido', s.sound, (v) => update({ sound: v })), volume]),
     checkbox('set-music', 'Música', s.music, (v) => update({ music: v })),
-    checkbox('set-ambience', 'Ambiente (mar, viento, pájaros)', s.ambience, (v) => update({ ambience: v })),
+    checkbox('set-ambience', 'Ambiente (mar, viento, animales y noche)', s.ambience, (v) => update({ ambience: v })),
     el('div', { class: 'settings-row' }, [checkbox('set-autosave', 'Autoguardado', s.autosave, (v) => update({ autosave: v })), select]),
     checkbox('set-daynight', 'Día y noche', s.dayNight, (v) => update({ dayNight: v })),
     checkbox('set-labels', 'Nombres de aldeas', s.showLabels, (v) => update({ showLabels: v })),
