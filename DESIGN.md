@@ -511,5 +511,5 @@ Ideas propuestas al usuario y aceptadas («sigue con esas mejoras»). Fases cort
 | Fase | Contenido | Estado |
 |---|---|---|
 | **S — Día y noche** | Ciclo de luz de 36 s (en x1): el mapa se oscurece de noche y se encienden ventanas, hogueras, braseros y fuegos. De noche los aldeanos sin tarea se reúnen junto a la hoguera de su aldea y los herbívoros descansan más. Casilla «Día y noche» en los ajustes (sólo lo visual: la vida de noche sigue igual). `world/daylight.ts` (puro, por tick: sin estado que guardar) y `render/night.ts` (oscuridad y halos precalculados) | hecha (0.22.0) |
-| **U — Poderes** | **Fertilidad** (las criaturas del círculo pueden volver a criar ya y se sacian) y **paz divina** (los reinos con aldeas en el círculo firman la paz) | pendiente |
+| **U — Poderes** | **Fertilidad** (las criaturas del círculo, salvo los monstruos, quedan saciadas y pueden volver a criar ya; los cupos de cada especie siguen valiendo) y **paz divina** (los reinos con aldeas en el círculo firman la paz con todos sus enemigos). Además, de noche los aldeanos sin tarea buscan un hueco a 3 casillas de la hoguera (el ayuntamiento ocupa el centro) y descansan allí | hecha (0.23.0) |
 | **V — Raza del desierto** | Una quinta raza civilizada para desierto y sabana, con su arquitectura de adobe y su rasgo | pendiente |

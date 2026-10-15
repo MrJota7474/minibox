@@ -124,6 +124,8 @@ export const TOOLS: readonly ToolDef[] = [
   power('poderes', 'heal', 'Luz divina', 300, true),
   power('poderes', 'rain', 'Lluvia fértil', 400),
   power('poderes', 'offering', 'Ofrenda', 600),
+  power('poderes', 'fertility', 'Fertilidad', 400),
+  power('poderes', 'peace', 'Paz divina', 900),
   { id: 'magnet', label: 'Imán', tab: 'poderes', kind: 'magnet' },
 ];
 

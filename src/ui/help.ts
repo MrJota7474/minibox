@@ -33,7 +33,7 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Guerras', 'Los guerreros conquistan aldeas enemigas sin defensores; las conquistadas pueden rebelarse con el tiempo'],
   ['Poderes', 'En la ficha de una aldea puedes forzar guerra, paz, alianza o una rebelión'],
   ['Desastres', 'Rayo, meteorito, bomba, terremoto, tornado, lluvia ácida, volcán, maremoto (sólo en la costa), ventisca (deja nieve), langostas (se comen las cosechas), fuego, lava y plaga'],
-  ['Poderes de la naturaleza', 'La lluvia fértil reverdece, hace brotar árboles y adelanta las cosechas; la ofrenda llena los almacenes de las aldeas que toques'],
+  ['Poderes de la naturaleza', 'La lluvia fértil reverdece, hace brotar árboles y adelanta las cosechas; la ofrenda llena los almacenes de las aldeas que toques; la fertilidad sacia a las criaturas y las deja listas para criar; la paz divina hace que los reinos de las aldeas tocadas firmen la paz'],
   ['Imán', 'Mantén pulsado sobre criaturas para cogerlas, arrastra y suelta para dejarlas en otro sitio'],
   ['Leyes', 'En el menú puedes desactivar el hambre, la vejez, las guerras, las rebeliones, las plantas o el fuego'],
   ['Rasgos', 'Cada criatura puede tener rasgos (Fuerte, Longevo, Fértil…) que hereda de sus padres; Veterano y Superviviente se ganan'],

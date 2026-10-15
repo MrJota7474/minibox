@@ -7,7 +7,7 @@ import { Flora, TERRAIN_INFO, Terrain, isPlant } from '../world/terrain';
 import type { World } from '../world/world';
 import type { BuildingHazards, HazardSystem } from './hazards';
 import { Status, bless, curse, heal, infect, madden, smite } from './status';
-import { fertileRain, stepBlizzard, stepLocusts, tsunami } from './nature-powers';
+import { fertileRain, fertility, stepBlizzard, stepLocusts, tsunami } from './nature-powers';
 
 export type PowerId =
   | 'lightning'
@@ -28,10 +28,12 @@ export type PowerId =
   | 'blizzard'
   | 'locusts'
   | 'rain'
-  | 'offering';
+  | 'offering'
+  | 'fertility'
+  | 'peace';
 
 /** Avisos visuales para el render (no forman parte del estado de la simulación). */
-export type FxKind = 'lightning' | 'explosion' | 'meteor' | 'wave' | 'rain' | 'offering' | 'smoke' | 'sparkle' | 'curse' | 'plague' | 'heal' | 'madness';
+export type FxKind = 'lightning' | 'explosion' | 'meteor' | 'wave' | 'rain' | 'offering' | 'fertility' | 'peace' | 'smoke' | 'sparkle' | 'curse' | 'plague' | 'heal' | 'madness';
 export interface FxEvent {
   readonly kind: FxKind;
   readonly x: number;
@@ -58,6 +60,8 @@ export interface BuildingDamage extends BuildingHazards {
   tendFarmsIn(x: number, y: number, r: number, amount: number): void;
   /** Reparte una ofrenda a las aldeas del radio; devuelve cuántas la recibieron. */
   giftVillagesIn(x: number, y: number, r: number): number;
+  /** Paz divina: los reinos con aldeas en el radio firman la paz con sus enemigos; devuelve las guerras terminadas. */
+  peaceIn(x: number, y: number, r: number): number;
   damageBuildingsIn(x: number, y: number, r: number, chance: number, rng: Rng): void;
   /** Hunde los barcos del radio (con `chance` < 1, sólo a algunos). */
   wreckBoatsIn(x: number, y: number, r: number, chance: number, rng: Rng): void;
@@ -85,6 +89,10 @@ const TSUNAMI_BASE = 5;
 const TSUNAMI_PER_BRUSH = 0.7;
 const RAIN_BASE = 3;
 const RAIN_PER_BRUSH = 0.6;
+const FERTILITY_BASE = 2;
+const FERTILITY_PER_BRUSH = 0.5;
+const PEACE_BASE = 3;
+const PEACE_PER_BRUSH = 0.6;
 const OFFERING_BASE = 2;
 const OFFERING_PER_BRUSH = 0.5;
 const EFFECT_TTL: Readonly<Record<EffectKind, number>> = { earthquake: 150, tornado: 300, 'acid-rain': 240, volcano: 500, blizzard: 300, locusts: 400 };
@@ -151,6 +159,18 @@ export class PowerSystem {
         const r = RAIN_BASE + brush * RAIN_PER_BRUSH;
         fertileRain(this.world, this.hazards, cx, cy, r, rng, civ);
         this.emit('rain', cx, cy, r);
+        break;
+      }
+      case 'fertility': {
+        const r = FERTILITY_BASE + brush * FERTILITY_PER_BRUSH;
+        fertility(ctx, cx, cy, r);
+        this.emit('fertility', cx, cy, r);
+        break;
+      }
+      case 'peace': {
+        const r = PEACE_BASE + brush * PEACE_PER_BRUSH;
+        civ.peaceIn(cx, cy, r);
+        this.emit('peace', cx, cy, r);
         break;
       }
       case 'offering': {

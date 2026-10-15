@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/ui/settings';
 import { DAY_TICKS, daylight, isNight } from '../src/world/daylight';
+import { Species } from '../src/entities/species';
+import { deserialize, describe as describeSave, serialize } from '../src/persistence/snapshot';
+import { Simulation } from '../src/sim/simulation';
+import { TERRAIN_INFO, Terrain } from '../src/world/terrain';
 
 describe('día y noche', () => {
   it('de día hay luz plena y en plena noche ninguna', () => {
@@ -29,5 +33,37 @@ describe('día y noche', () => {
 
   it('el ciclo se ve por defecto (se puede apagar en los ajustes)', () => {
     expect(DEFAULT_SETTINGS.dayNight).toBe(true);
+  });
+});
+
+describe('la vida de noche', () => {
+  it('cruza el anochecer igual tras guardar y cargar, y los aldeanos se reúnen junto a la hoguera', () => {
+    const sim = new Simulation({ seedText: 'noche', size: 128, capacity: 600, populate: true });
+    for (let y = 40; y < 90; y++) for (let x = 40; x < 90; x++) sim.world.setHeight(sim.world.idx(x, y), TERRAIN_INFO[Terrain.SOIL_LOW].paintHeight);
+    sim.apply({ type: 'spawn', species: Species.HUMAN, x: 64, y: 64, size: 9 });
+    // Hasta poco antes del anochecer.
+    while (sim.tick < 900 || sim.tick % DAY_TICKS !== Math.round(DAY_TICKS * 0.5)) sim.step();
+    const loaded = deserialize(serialize(sim, describeSave(sim, 'Noche', 1)));
+    // Hasta plena noche, con las dos partidas a la par.
+    for (let t = 0; t < Math.round(DAY_TICKS * 0.3); t++) {
+      sim.step();
+      loaded.step();
+    }
+    expect(isNight(sim.tick)).toBe(true);
+    expect(loaded.stateHash()).toBe(sim.stateHash());
+    const v = sim.civ.villages.find((x) => x.alive);
+    expect(v).toBeDefined();
+    if (!v) return;
+    const u = sim.units;
+    // Los que descansan (sin tarea en marcha) lo hacen en el corro de la hoguera.
+    let near = 0;
+    let idle = 0;
+    for (let i = 0; i < u.highWater; i++) {
+      if (!u.alive[i] || u.village[i] !== v.id || u.state[i] !== 0) continue;
+      idle++;
+      if (Math.hypot(u.x[i] - v.cx - 0.5, u.y[i] - v.cy - 0.5) <= 4.5) near++;
+    }
+    expect(idle).toBeGreaterThan(0);
+    expect(near / idle).toBeGreaterThan(0.5);
   });
 });

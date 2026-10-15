@@ -347,6 +347,24 @@ export class CivSystem {
     }
   }
 
+  /** Paz divina: los reinos con aldeas en el radio firman la paz con todos sus enemigos. Devuelve las guerras terminadas. */
+  peaceIn(x: number, y: number, r: number): number {
+    const kingdoms = new Set<number>();
+    for (const b of this.buildingsInCircle(x, y, r)) {
+      const k = this.villages[b.village].kingdom;
+      if (k >= 0) kingdoms.add(k);
+    }
+    let ended = 0;
+    for (const k of kingdoms) {
+      for (const w of this.kingdoms.activeWarsOf(k)) {
+        const enemies = w.attackers.includes(k) ? w.defenders : w.attackers;
+        for (const e of enemies) this.kingdoms.peaceBetween(k, e);
+        if (!w.active) ended++;
+      }
+    }
+    return ended;
+  }
+
   /** Ofrenda divina: las aldeas cuyo ayuntamiento está en el radio reciben recursos. Devuelve cuántas. */
   giftVillagesIn(x: number, y: number, r: number): number {
     let n = 0;

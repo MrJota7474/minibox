@@ -1,4 +1,5 @@
 import type { AiContext } from '../ai/context';
+import { SPECIES } from '../entities/species';
 import type { Rng } from '../core/rng';
 import { BIOME_INFO, Biome, Flora, Terrain, isFertileTerrain } from '../world/terrain';
 import { treeNeighbors } from '../world/vegetation';
@@ -143,6 +144,23 @@ export function stepLocusts(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingDa
     else if (w.flora[i] === Flora.SAPLING && rng.chance(LOCUST_SAPLING_LOSS)) w.setFlora(i, Flora.NONE);
   }
   if (ctx.tick % LOCUST_FARM_INTERVAL === 0) civ.tendFarmsIn(e.x, e.y, e.r, LOCUST_FARM_LOSS);
+}
+
+// ---------- Fertilidad ----------
+
+/**
+ * Fertilidad: las criaturas del círculo (salvo los monstruos y las que sujeta el imán) quedan
+ * saciadas y pueden volver a criar enseguida. Los cupos de cada especie siguen valiendo.
+ */
+export function fertility(ctx: AiContext, cx: number, cy: number, r: number): void {
+  const u = ctx.units;
+  ctx.spatial.forEachInRadius(u, cx, cy, r, (j) => {
+    if (u.alive[j] === 0 || (u.status[j] & Status.HELD) !== 0) return;
+    const def = SPECIES[u.species[j]];
+    if (def.diet === 'monster') return;
+    u.cooldown[j] = 0;
+    u.hunger[j] = def.maxHunger;
+  });
 }
 
 // ---------- Lluvia fértil ----------

@@ -286,6 +286,15 @@ export class FxLayer {
         this.rainOn(e.x, e.y, e.r);
         this.burst(e.x, e.y, Math.min(60, 12 + e.r * 5), 'sprout', Math.max(1, e.r * 0.5));
         break;
+      case 'fertility':
+        this.rings.push({ x: e.x, y: e.y, r: e.r, max: 0.7, t: 0, color: '#ff9ab0' });
+        this.burst(e.x, e.y - 0.5, Math.min(50, 12 + e.r * 4), 'hearts', Math.max(1, e.r * 0.6));
+        break;
+      case 'peace':
+        this.rings.push({ x: e.x, y: e.y, r: e.r, max: 0.9, t: 0, color: '#f4f6fa' });
+        this.rings.push({ x: e.x, y: e.y, r: e.r * 1.3, max: 1.1, t: -0.2, color: '#c8e4ff' });
+        this.burst(e.x, e.y - 0.5, Math.min(60, 16 + e.r * 4), 'heal', Math.max(1, e.r * 0.5));
+        break;
       case 'offering':
         this.rings.push({ x: e.x, y: e.y, r: e.r + 0.5, max: 0.7, t: 0, color: '#ffd04a' });
         this.burst(e.x, e.y - 0.5, Math.min(70, 20 + e.r * 6), 'gold', Math.max(1, e.r * 0.6));

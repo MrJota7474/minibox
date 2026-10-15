@@ -420,6 +420,37 @@ describe('desastres y poderes de la naturaleza', () => {
     expect(r.hazards.burningTiles().filter((t) => t === i)).toHaveLength(1);
   });
 
+  it('la fertilidad sacia a las criaturas y las deja listas para criar (a los monstruos no)', () => {
+    const r = rig();
+    const s = sheep(r, 32.5, 32.5);
+    const u = r.ctx.units;
+    u.cooldown[s] = 500;
+    u.hunger[s] = 10;
+    const ghost = u.spawn(Species.PENANTE, 33.5, 32.5, { sex: 0, ageTicks: 0, generation: 0, thinkOffset: 0 });
+    u.cooldown[ghost] = 50;
+    apply(r, 'fertility', 32, 32, 3);
+    expect(u.cooldown[s]).toBe(0);
+    expect(u.hunger[s]).toBe(SPECIES[Species.SHEEP].maxHunger);
+    expect(u.cooldown[ghost]).toBe(50);
+    expect(r.powers.fx.some((f) => f.kind === 'fertility')).toBe(true);
+  });
+
+  it('la paz divina termina las guerras de los reinos con aldeas en el círculo', () => {
+    const sim = new Simulation({ seedText: 'paz', size: 128, capacity: 400, populate: false });
+    for (let y = 30; y < 100; y++) for (let x = 20; x < 110; x++) sim.world.setHeight(sim.world.idx(x, y), TERRAIN_INFO[Terrain.SOIL_LOW].paintHeight);
+    sim.apply({ type: 'spawn', species: Species.HUMAN, x: 40, y: 64, size: 9 });
+    sim.apply({ type: 'spawn', species: Species.TUSKER, x: 90, y: 64, size: 9 });
+    for (let t = 0; t < 150; t++) sim.step();
+    expect(sim.civ.kingdoms.kingdoms.length).toBeGreaterThanOrEqual(2);
+    sim.apply({ type: 'diplomacy', action: 'war', a: 0, b: 1 });
+    expect(sim.civ.kingdoms.wars.some((w) => w.active)).toBe(true);
+    const hall = sim.civ.building(sim.civ.villages[0].hallId);
+    expect(hall).not.toBeNull();
+    if (!hall) return;
+    sim.apply({ type: 'power', power: 'peace', x: hall.x, y: hall.y, size: 3 });
+    expect(sim.civ.kingdoms.wars.some((w) => w.active)).toBe(false);
+  });
+
   it('una partida con ventisca y langostas en marcha se guarda y continúa igual', () => {
     const sim = new Simulation({ seedText: 'naturaleza', size: 96, capacity: 300, populate: true });
     sim.apply({ type: 'power', power: 'blizzard', x: 40, y: 40, size: 5 });

@@ -27,7 +27,9 @@ const SEARCH_RADIUS = 18;
 const WORK_RANGE = 24;
 const HOME_WANDER = 5;
 /** De noche, quien no tiene tarea se queda a este radio de la hoguera de su aldea. */
-const GATHER_RADIUS = 2;
+const GATHER_RADIUS = 3.5;
+/** Intentos para encontrar un hueco pisable en el corro (el centro lo ocupa el ayuntamiento). */
+const GATHER_TRIES = 6;
 const MATE_RANGE = 1;
 const MELEE_RANGE = 0.9;
 const ATTACK_COOLDOWN = 8;
@@ -117,7 +119,33 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (u.workTimer[i] === 0 && startJob(ctx, i, v)) return;
   if (u.job[i] !== Job.NONE && u.workTimer[i] === 0) u.workTimer[i] = SEARCH_BACKOFF_TICKS;
   // De noche, los que no tienen tarea se reúnen junto a la hoguera.
-  wanderNear(ctx, i, v.cx, v.cy, isNight(ctx.tick) ? GATHER_RADIUS : HOME_WANDER);
+  if (isNight(ctx.tick)) gatherAtFire(ctx, i, v);
+  else wanderNear(ctx, i, v.cx, v.cy, HOME_WANDER);
+}
+
+/** De noche: quien está lejos de la hoguera (centro de la aldea) va hacia ella; quien ya está al lado, descansa. */
+function gatherAtFire(ctx: AiContext, i: number, v: Village): void {
+  const u = ctx.units;
+  if (u.state[i] === UnitState.WANDER) return;
+  const dx = v.cx + 0.5 - u.x[i];
+  const dy = v.cy + 0.5 - u.y[i];
+  if (dx * dx + dy * dy <= GATHER_RADIUS * GATHER_RADIUS) {
+    u.state[i] = UnitState.IDLE;
+    return;
+  }
+  // Un hueco pisable en el corro, alrededor de la hoguera (el ayuntamiento ocupa el centro).
+  const reach = Math.floor(GATHER_RADIUS);
+  for (let k = 0; k < GATHER_TRIES; k++) {
+    const tx = v.cx + 0.5 + ctx.rng.range(-reach, reach);
+    const ty = v.cy + 0.5 + ctx.rng.range(-reach, reach);
+    if (!ctx.world.isWalkableAt(tx, ty)) continue;
+    u.tx[i] = tx;
+    u.ty[i] = ty;
+    clearPath(ctx, i);
+    u.state[i] = UnitState.WANDER;
+    return;
+  }
+  wanderNear(ctx, i, v.cx, v.cy, HOME_WANDER);
 }
 
 /** ¿Es un guerrero en otra isla que su aldea, sin flota en camino ni aldea que asaltar allí? */

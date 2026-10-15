@@ -11,6 +11,8 @@ const NIGHT_RGB = '10,14,40';
 const GLOW_PX = 64;
 /** Fuegos que se iluminan como mucho por fotograma. */
 const MAX_FIRE_LIGHTS = 300;
+/** Margen del velo de noche (más que el mayor temblor de la cámara). */
+const SHAKE_PAD = 24;
 
 /** Radio (en casillas) y fuerza de la luz de cada edificio de noche. */
 function lightOf(type: number, level: number): { r: number; a: number } | null {
@@ -56,8 +58,10 @@ export class NightLayer {
     const dark = 1 - light;
     if (dark <= 0.01) return;
     const c = this.camera;
+    ctx.globalAlpha = 1;
     ctx.fillStyle = `rgba(${NIGHT_RGB},${dark * NIGHT_ALPHA})`;
-    ctx.fillRect(0, 0, c.viewW, c.viewH);
+    // Con margen: el temblor de la cámara desplaza el dibujo y no debe dejar bordes sin oscurecer.
+    ctx.fillRect(-SHAKE_PAD, -SHAKE_PAD, c.viewW + SHAKE_PAD * 2, c.viewH + SHAKE_PAD * 2);
     const prev = ctx.globalCompositeOperation;
     ctx.globalCompositeOperation = 'lighter';
     const right = c.left + c.viewW / c.zoom;

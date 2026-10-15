@@ -137,6 +137,8 @@ const FX_SOUNDS: Readonly<Record<string, SoundId>> = {
   wave: 'wave',
   rain: 'heal',
   offering: 'discovery',
+  fertility: 'heal',
+  peace: 'peace',
   quake: 'rumble',
   sparkle: 'sparkle',
   curse: 'curse',

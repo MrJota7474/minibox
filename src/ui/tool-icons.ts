@@ -208,6 +208,29 @@ const POWER_DRAW: Readonly<Record<string, (p: Pix) => void>> = {
     p.rect(1, 14, 14, 2, '#62ab3b');
     for (const x of [3, 7, 11]) p.set(x, 13, '#9be38a');
   },
+  fertility: (p) => {
+    // Dos corazones.
+    for (const [ox, oy, c] of [[1, 3, '#ff6a8a'], [7, 7, '#ff9ab0']] as const) {
+      p.rect(ox + 1, oy, 2, 1, c);
+      p.rect(ox + 4, oy, 2, 1, c);
+      p.rect(ox, oy + 1, 7, 2, c);
+      p.rect(ox + 1, oy + 3, 5, 1, c);
+      p.rect(ox + 2, oy + 4, 3, 1, c);
+      p.set(ox + 3, oy + 5, c);
+      p.set(ox + 1, oy + 1, '#ffe0e8');
+    }
+  },
+  peace: (p) => {
+    // Paloma blanca con una rama de olivo.
+    p.ellipse(8, 8, 4, 2.6, '#f4f6fa');
+    p.ellipse(11, 6, 1.8, 1.6, '#f4f6fa');
+    p.rect(3, 6, 4, 2, '#dfe6ee');
+    p.set(13, 6, '#e8a33d');
+    p.set(11, 5, '#1a1410');
+    p.rect(9, 11, 5, 1, '#6a8a3a');
+    p.set(10, 12, '#62ab3b');
+    p.set(12, 12, '#62ab3b');
+  },
   offering: (p) => {
     // Cofre abierto con oro, pan y madera.
     p.rect(3, 9, 10, 5, '#8a5a2a');
