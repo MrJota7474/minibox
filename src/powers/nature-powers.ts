@@ -3,6 +3,7 @@ import type { Rng } from '../core/rng';
 import { BIOME_INFO, Biome, Flora, Terrain, isFertileTerrain } from '../world/terrain';
 import { treeNeighbors } from '../world/vegetation';
 import type { World } from '../world/world';
+import type { HazardSystem } from './hazards';
 import { damageInRadius, type BuildingDamage, type Effect } from './disasters';
 import { Status } from './status';
 
@@ -26,13 +27,6 @@ export function forCircle(w: World, cx: number, cy: number, r: number, visit: (i
       if (ox * ox + oy * oy <= r * r) visit(w.idx(x, y));
     }
   }
-}
-
-/** Apaga el fuego de una casilla (y la marca para repintarla). */
-function douse(w: World, i: number): void {
-  if (w.fire[i] === 0) return;
-  w.fire[i] = 0;
-  w.markDirtyIdx(i);
 }
 
 // ---------- Maremoto ----------
@@ -70,9 +64,11 @@ export function tsunami(w: World, cx: number, cy: number, r: number, ctx: AiCont
   forCircle(w, cx, cy, r, (i) => {
     if (w.isWaterIdx(i) || !isLowLand(w, i)) return;
     w.setGrass(i, 0);
-    douse(w, i);
+    ctx.hazards.extinguish(i);
     if (w.flora[i] !== Flora.NONE && w.flora[i] <= Flora.BERRY_BUSH && rng.chance(TSUNAMI_PLANT_LOSS)) w.setFlora(i, Flora.NONE);
   });
+  // Primero el golpe de la ola (a todos los del círculo) y luego el arrastre tierra adentro.
+  damageInRadius(ctx, cx, cy, r, TSUNAMI_DAMAGE);
   const u = ctx.units;
   ctx.spatial.forEachInRadius(u, cx, cy, r, (j) => {
     if (u.alive[j] === 0 || (u.status[j] & Status.HELD) !== 0) return;
@@ -88,7 +84,6 @@ export function tsunami(w: World, cx: number, cy: number, r: number, ctx: AiCont
     u.y[j] = ny;
     u.pathLen[j] = 0;
   });
-  damageInRadius(ctx, cx, cy, r, TSUNAMI_DAMAGE);
   civ.damageBuildingsIn(cx, cy, r * TSUNAMI_BUILDING_REACH, TSUNAMI_BUILDING_CHANCE, rng);
   civ.wreckBoatsIn(cx, cy, r, TSUNAMI_BOAT_CHANCE, rng);
   return true;
@@ -114,7 +109,7 @@ export function stepBlizzard(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingD
     const i = randomTile();
     if (i < 0 || w.isWaterIdx(i)) continue;
     w.setGrass(i, w.grass[i] - BLIZZARD_GRASS_LOSS);
-    douse(w, i);
+    ctx.hazards.extinguish(i);
     if (isFertileTerrain(w.terrain[i]) && w.biome[i] !== Biome.SNOW && rng.chance(BLIZZARD_SNOW_CHANCE)) w.setBiome(i, Biome.SNOW);
   }
 }
@@ -157,10 +152,10 @@ const RAIN_FARM_GROWTH = 40;
 const MAX_TREE_NEIGHBORS = 3;
 
 /** Lluvia fértil: hierba a tope, bayas de nuevo, algún retoño, cosechas adelantadas y el fuego apagado. */
-export function fertileRain(w: World, cx: number, cy: number, r: number, rng: Rng, civ: BuildingDamage): void {
+export function fertileRain(w: World, hazards: HazardSystem, cx: number, cy: number, r: number, rng: Rng, civ: BuildingDamage): void {
   forCircle(w, cx, cy, r, (i) => {
     if (w.isWaterIdx(i)) return;
-    douse(w, i);
+    hazards.extinguish(i);
     w.setGrass(i, BIOME_INFO[w.biome[i]].grassMax);
     if (w.flora[i] === Flora.BUSH) w.setFlora(i, Flora.BERRY_BUSH);
     else if (w.flora[i] === Flora.NONE && w.buildingAt[i] === 0 && isFertileTerrain(w.terrain[i]) && rng.chance(RAIN_SAPLING_CHANCE)) {

@@ -87,6 +87,16 @@ export class HazardSystem {
     this.burning.push(i);
   }
 
+  /** Apaga el fuego de una casilla y la quita de las activas (si siguiera en la lista y volviera a prender, saldría dos veces). */
+  extinguish(i: number): void {
+    const w = this.world;
+    if (w.fire[i] === 0) return;
+    w.fire[i] = 0;
+    w.markDirtyIdx(i);
+    const k = this.burning.indexOf(i);
+    if (k >= 0) this.burning.splice(k, 1);
+  }
+
   /** Lo que pierde el fuego al saltar a la casilla: menos en el bosque que en la hierba. */
   private spreadLoss(i: number): number {
     const w = this.world;

@@ -335,10 +335,13 @@ describe('desastres y poderes de la naturaleza', () => {
 
   it('el maremoto barre la costa: hiere y empuja tierra adentro; tierra adentro no pasa nada', () => {
     const r = coast();
-    const s = sheep(r, 31.5, 32.5);
+    // Un dromedario (50 de vida) aguanta el golpe de la ola (45) y se ve arrastrado.
+    const camel = SPECIES[Species.CAMEL];
+    const s = r.ctx.units.spawn(Species.CAMEL, 31.5, 32.5, { sex: 0, ageTicks: camel.adultTicks, generation: 0, thinkOffset: 0 });
     apply(r, 'tsunami', 30, 32, 3);
     const u = r.ctx.units;
-    expect(u.hp[s]).toBeLessThan(SPECIES[Species.SHEEP].maxHp);
+    expect(u.isAlive(s)).toBe(true);
+    expect(u.hp[s]).toBeLessThan(camel.maxHp);
     expect(u.x[s]).toBeGreaterThan(31.5);
     expect(r.powers.fx.some((f) => f.kind === 'wave')).toBe(true);
     // Lejos del mar: ni daño ni ola.
@@ -405,6 +408,16 @@ describe('desastres y poderes de la naturaleza', () => {
     expect(v.resources[0]).toBeGreaterThan(food);
     for (let k = 0; k < 20; k++) apply(r, 'offering', 32, 32, 3);
     for (const amount of v.resources) expect(amount).toBeLessThanOrEqual(v.storageCap);
+  });
+
+  it('apagar con la lluvia un fuego que vuelve a prender no lo duplica en la lista de fuegos', () => {
+    const r = rig(true);
+    const i = r.ctx.world.idx(32, 32);
+    r.hazards.ignite(i);
+    apply(r, 'rain', 32, 32, 1);
+    expect(r.ctx.world.fire[i]).toBe(0);
+    r.hazards.ignite(i);
+    expect(r.hazards.burningTiles().filter((t) => t === i)).toHaveLength(1);
   });
 
   it('una partida con ventisca y langostas en marcha se guarda y continúa igual', () => {

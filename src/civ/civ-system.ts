@@ -353,7 +353,8 @@ export class CivSystem {
     for (const b of this.buildingsInCircle(x, y, r)) {
       if (b.type !== BuildingType.HALL) continue;
       const v = this.villages[b.village];
-      OFFERING.forEach((amount, res) => (v.resources[res] = Math.min(v.storageCap, v.resources[res] + amount)));
+      // Nunca quita: si el almacén ya estaba por encima de su tope (el comercio lo permite), se queda igual.
+      OFFERING.forEach((amount, res) => (v.resources[res] = Math.max(v.resources[res], Math.min(v.storageCap, v.resources[res] + amount))));
       n++;
     }
     return n;

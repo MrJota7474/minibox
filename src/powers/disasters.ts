@@ -149,7 +149,7 @@ export class PowerSystem {
       }
       case 'rain': {
         const r = RAIN_BASE + brush * RAIN_PER_BRUSH;
-        fertileRain(this.world, cx, cy, r, rng, civ);
+        fertileRain(this.world, this.hazards, cx, cy, r, rng, civ);
         this.emit('rain', cx, cy, r);
         break;
       }
