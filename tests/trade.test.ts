@@ -5,7 +5,7 @@ import { Pathfinder } from '../src/ai/pathfinder';
 import { updateUnits } from '../src/ai/update';
 import { CivSystem } from '../src/civ/civ-system';
 import { JOB_COUNT, JOB_NAMES, Job, Resource, type Village } from '../src/civ/model';
-import { finishTrade, pickGood, startTrade } from '../src/civ/trade';
+import { ambush, canHoldFair, finishTrade, holdFair, onDangerousRoad, pickGood, startTrade } from '../src/civ/trade';
 import { Rng } from '../src/core/rng';
 import { SPECIES, Species } from '../src/entities/species';
 import { SpatialHash } from '../src/entities/spatial';
@@ -241,6 +241,67 @@ describe('comercio', () => {
     expect(worn).toBeGreaterThan(20);
   });
 
+  it('lejos de las dos aldeas y sin escolta el camino es peligroso; los bandidos se llevan la carga', () => {
+    const { ctx, a } = pair();
+    const merchant = adult(ctx, a.cx + 0.5, a.cy + 2.5, 9);
+    ctx.civ.joinVillage(merchant, a);
+    ctx.units.job[merchant] = Job.MERCHANT;
+    expect(startTrade(ctx, merchant, a)).toBe(true);
+    const u = ctx.units;
+    // Junto a casa no hay peligro.
+    ctx.spatial.rebuild(u);
+    expect(onDangerousRoad(ctx, merchant)).toBe(false);
+    // A medio camino (las aldeas están a 40 casillas), sí.
+    u.x[merchant] = 40.5;
+    ctx.spatial.rebuild(u);
+    expect(onDangerousRoad(ctx, merchant)).toBe(true);
+    // Con un guerrero de su aldea al lado, no.
+    const guard = adult(ctx, 41.5, a.cy + 0.5, 3);
+    ctx.civ.joinVillage(guard, a);
+    u.job[guard] = Job.WARRIOR;
+    ctx.spatial.rebuild(u);
+    expect(onDangerousRoad(ctx, merchant)).toBe(false);
+    ambush(ctx, merchant);
+    expect(u.carry[merchant]).toBe(0);
+    expect(u.work[merchant]).toBe(-1);
+    expect(u.hp[merchant]).toBeLessThan(SPECIES[Species.HUMAN].maxHp);
+    expect(ctx.civ.chronicle.at(-1)?.type).toBe('bandits');
+    // Vuelve a casa y tarda en salir de nuevo: no reanuda el viaje desde el sitio del asalto.
+    expect(u.state[merchant]).toBe(UnitState.WANDER);
+    expect(u.tx[merchant]).toBe(a.cx + 0.5);
+    const woodBefore = a.resources[Resource.WOOD];
+    run(ctx, 40);
+    expect(u.state[merchant]).not.toBe(UnitState.TRADE);
+    expect(a.resources[Resource.WOOD]).toBe(woodBefore);
+  });
+
+  it('un asalto puede matar a un mercader malherido', () => {
+    const { ctx, a } = pair();
+    const merchant = adult(ctx, 40.5, a.cy + 0.5, 9);
+    ctx.civ.joinVillage(merchant, a);
+    ctx.units.job[merchant] = Job.MERCHANT;
+    ctx.units.hp[merchant] = 5;
+    ambush(ctx, merchant);
+    expect(ctx.units.isAlive(merchant)).toBe(false);
+  });
+
+  it('en una aldea próspera y poblada puede montarse una feria: oro para las dos y la anfitriona de fiesta', () => {
+    const { ctx, a, b } = pair();
+    b.population = 10;
+    b.resources[Resource.FOOD] = 10;
+    expect(canHoldFair(b)).toBe(false);
+    b.resources[Resource.FOOD] = 60;
+    expect(canHoldFair(b)).toBe(true);
+    const goldA = a.resources[Resource.GOLD];
+    const goldB = b.resources[Resource.GOLD];
+    holdFair(ctx, a, b);
+    expect(a.resources[Resource.GOLD]).toBeGreaterThan(goldA);
+    expect(b.resources[Resource.GOLD]).toBeGreaterThan(goldB);
+    expect(ctx.civ.isFestive(b.id)).toBe(true);
+    expect(ctx.civ.chronicle.at(-1)?.type).toBe('fair');
+    expect(ctx.civ.chronicle.at(-1)?.text).toContain(b.name);
+  });
+
   it('un mercader dunario carga el doble', () => {
     const { ctx, a, b } = pair();
     const merchant = ctx.units.spawn(Species.DUNEFOLK, a.cx + 0.5, a.cy + 2.5, { sex: 0, ageTicks: SPECIES[Species.DUNEFOLK].adultTicks + 10, generation: 0, thinkOffset: 0, nameSeed: 9 });
@@ -256,6 +317,8 @@ describe('comercio', () => {
     const ks = ctx.civ.kingdoms;
     ks.kingdoms[a.kingdom].grievances[b.kingdom] = 3;
     ks.kingdoms[b.kingdom].grievances[a.kingdom] = 1;
+    // Una aldea pequeña: sin feria, que también limaría agravios.
+    b.population = 2;
     const merchant = adult(ctx, b.cx + 0.5, b.cy + 0.5, 9);
     ctx.civ.joinVillage(merchant, a);
     expect(startTrade(ctx, merchant, a)).toBe(true);

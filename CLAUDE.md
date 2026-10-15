@@ -19,7 +19,7 @@ Este archivo es el traspaso de contexto para cualquier sesión de Claude que tra
 | Copia local del usuario | `C:\Users\sscri\Documents\minibox` (Windows 11) |
 | Zips para itch.io | `release/minibox-<versión>-itch.zip` (no se suben al repo) |
 
-Versión actual: **0.31.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
+Versión actual: **0.32.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
 
 ## 3. Cómo se ejecuta
 
@@ -28,7 +28,7 @@ npm install
 npm run dev          # servidor de desarrollo (vite --host)
 npm run build        # tsc --noEmit && vite build → dist/
 npm run build:itch   # build + zip con index.html en la raíz → release/
-npm test             # vitest run (374 pruebas, 29 archivos)
+npm test             # vitest run (377 pruebas, 29 archivos)
 npm run lint         # eslint (incluye reglas de determinismo)
 npm run coverage
 ```
@@ -56,6 +56,7 @@ TypeScript (~6.0; typescript-eslint exige <6.1) + HTML5 Canvas 2D + Vite 8. Sin 
 | I (0.11.0) | Cultura (rasgo + saber → agricultura, albañilería, forja, medicina; asimilación), religión (santuario, preceptos, conversión; pesa en lealtad y opinión) y clanes (herencia paterna, sucesión dinástica, cambio de dinastía). Guardado MBX v5 |
 | K (0.13.0) | Puentes (calzada sobre el agua: los tienden los reinos en ríos y estrechos de hasta 8 casillas y el jugador con el pincel «Puente») y comercio (mercaderes que llevan excedentes entre aldeas no enemigas; oro para ambas y menos agravios entre reinos) |
 | J (0.12.0) | Caminos (senderos por desgaste, calzadas de los reinos y pincel «Calzada»; más velocidad al caminar) y sonido sintetizado con WebAudio (desastres, trabajo, combate, avisos, interfaz; volumen en ajustes). Guardado MBX v6 |
+| AD (0.32.0) | Caminos peligrosos: bandidos que asaltan a los mercaderes sin escolta y ferias en las aldeas prósperas (civ/trade.ts) |
 | AC (0.31.0) | Clima de zona: poderes lentos reverdecer y sequía (`stepGreening`, `stepDrought` en powers/nature-powers.ts) |
 | AB (0.30.0) | Fiestas: banquete la primera noche de cada estación, baile, hoguera grande, chispas y música de fiesta (`civ/festival.ts`) |
 | AA (0.29.0) | Oasis: charca con palmeras al generar en desiertos grandes y poder «Oasis» (`world/oasis.ts`) |

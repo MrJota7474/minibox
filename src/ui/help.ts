@@ -45,7 +45,7 @@ const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Clanes', 'Cada aldeano pertenece a un clan que hereda de su padre. El trono pasa dentro del clan reinante; si el linaje se extingue hay cambio de dinastía y las aldeas se inquietan'],
   ['Caminos', 'Donde los aldeanos pasan a menudo se marca un sendero y luego un camino, por los que se anda más deprisa; los reinos tienden calzadas hasta sus colonias y tú puedes pintarlas con «Calzada» (Terreno)'],
   ['Puentes', 'Cruzan ríos y estrechos (no el abismo): los reinos los tienden hacia sus colonias y tú puedes pintarlos con «Puente» (Terreno). Unen islas para aldeanos, ejércitos y mercaderes'],
-  ['Comercio', 'Las aldeas con gente de sobra tienen mercaderes que llevan excedentes a la aldea vecina y traen lo que allí abunda; da oro a las dos y reconcilia a los reinos'],
+  ['Comercio', 'Las aldeas con gente de sobra tienen mercaderes que llevan excedentes a la aldea vecina y traen lo que allí abunda; da oro a las dos y reconcilia a los reinos. Lejos de las aldeas acechan los bandidos (un guerrero cerca los espanta) y, al llegar a una aldea próspera, a veces se monta una feria'],
   ['Sonido','Menú › Ajustes: activa o silencia el sonido y elige el volumen'],
   ['Mar','Las aldeas de la costa construyen un muelle: allí pescan y botan barcos que llevan colonos a otras islas o ejércitos a costas enemigas'],
   ['Partidas', 'Menú › Guardar / cargar: 5 ranuras, autoguardado y exportar o importar un archivo .minibox'],

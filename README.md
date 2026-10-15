@@ -39,6 +39,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase AA (oasis)** — los desiertos grandes nacen con algún oasis: una charca con palmeras, hierba y bayas. También se puede crear uno con el poder «Oasis».
 - **Fase AB (fiestas)** — la primera noche de cada estación, las aldeas con comida de sobra celebran un banquete: bailan alrededor de una hoguera más grande, saltan chispas de colores y la música se anima.
 - **Fase AC (clima de zona)** — dos poderes lentos: **reverdecer** convierte poco a poco el desierto en sabana y la sabana en pradera, y la **sequía** hace lo contrario, seca las cosechas y a veces prende fuego.
+- **Fase AD (caminos peligrosos)** — los bandidos asaltan a los mercaderes que viajan solos lejos de las aldeas (si no los escolta un guerrero), y cuando un mercader llega a una aldea próspera a veces se monta una feria con oro para las dos.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 

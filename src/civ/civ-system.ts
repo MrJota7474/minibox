@@ -35,7 +35,7 @@ import { canPlace, clearFootprint, findBuildSpot } from './placement';
 import { planVillage } from './planner';
 import { assignClans, buildBonus, createCulture, onShrineBuilt, societyHash, type Clan, type Culture, type Religion } from './society';
 
-export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era' | 'monster' | 'culture' | 'faith' | 'dynasty' | 'festival';
+export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era' | 'monster' | 'culture' | 'faith' | 'dynasty' | 'festival' | 'bandits' | 'fair';
 
 export interface ChronicleEntry {
   readonly tick: number;
@@ -188,6 +188,13 @@ export class CivSystem {
     if (this.festive.size === 1) this.addEvent('festival', first.id, `Fiesta en ${first.name}: ${reason}`);
     else this.addEvent('festival', first.id, `Fiesta en ${this.festive.size} aldeas: ${reason}`);
     return this.festive.size;
+  }
+
+  /** Una feria alegra la aldea un rato (como las fiestas: sólo para el dibujo y la música). */
+  markFestive(village: number, until: number): void {
+    if (this.tick >= this.festiveUntil) this.festive.clear();
+    this.festive.add(village);
+    this.festiveUntil = Math.max(this.festiveUntil, until);
   }
 
   /** ¿Está de fiesta la aldea? */

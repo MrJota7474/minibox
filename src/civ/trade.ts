@@ -1,8 +1,8 @@
-import { giveUp, type AiContext } from '../ai/context';
+import { DeathCause, giveUp, killUnit, type AiContext } from '../ai/context';
 import { clearPath } from '../ai/navigation';
 import { SPECIES } from '../entities/species';
 import { UnitState } from '../entities/units';
-import { Resource, type Village } from './model';
+import { Job, Resource, type Village } from './model';
 
 /**
  * Comercio entre aldeas: un mercader lleva a pie lo que a su aldea le sobra a otra aldea
@@ -21,6 +21,20 @@ const TRADE_GAP = 10;
 /** Comida por habitante que no se exporta. */
 const FOOD_PER_HEAD = 3;
 const TRADE_GOLD = 1;
+/** Bandidos: a esta distancia (casillas) de las dos aldeas el camino ya es peligroso, salvo con escolta. */
+const BANDIT_FAR = 14;
+const ESCORT_RADIUS = 5;
+/** Probabilidad de asalto cada vez que el mercader piensa en un tramo peligroso, y la herida que le dejan. */
+const BANDIT_CHANCE = 0.004;
+const BANDIT_WOUND = 8;
+/** Ticks que el mercader asaltado tarda en volver a salir (antes, vuelve a casa). */
+const BANDIT_SHOCK_TICKS = 300;
+/** Feria: hace falta una aldea así de poblada y próspera (comida por habitante); probabilidad, oro extra y cuánto dura la alegría. */
+const FAIR_POP = 8;
+const FAIR_FOOD_PER_HEAD = 3;
+const FAIR_CHANCE = 0.35;
+const FAIR_BONUS = 3;
+const FAIR_TICKS = 150;
 /** Lo que se comercia (el oro es la ganancia, no la mercancía). */
 const GOODS: readonly number[] = [Resource.FOOD, Resource.WOOD, Resource.STONE, Resource.IRON];
 
@@ -113,11 +127,76 @@ export function finishTrade(ctx: AiContext, i: number): void {
     u.carryAmount[i] = 0;
     for (const v of [home, partner]) v.resources[Resource.GOLD] = Math.min(Math.max(v.storageCap, v.resources[Resource.GOLD]), v.resources[Resource.GOLD] + TRADE_GOLD);
     easeGrievances(ctx, home.kingdom, partner.kingdom);
+    if (canHoldFair(partner) && ctx.rng.chance(FAIR_CHANCE)) holdFair(ctx, home, partner);
     const back = pickGood(partner, home);
     if (back >= 0) load(ctx, i, partner, home, back);
   }
   giveUp(u, i);
   u.think[i] = 1;
+}
+
+/** ¿Va el mercader por un tramo peligroso: lejos de su aldea y de la de destino, y sin un guerrero de su aldea cerca? */
+export function onDangerousRoad(ctx: AiContext, i: number): boolean {
+  const u = ctx.units;
+  const home = ctx.civ.villageOf(i);
+  if (!home) return false;
+  const far = (cx: number, cy: number): boolean => {
+    const dx = u.x[i] - cx - 0.5;
+    const dy = u.y[i] - cy - 0.5;
+    return dx * dx + dy * dy > BANDIT_FAR * BANDIT_FAR;
+  };
+  if (!far(home.cx, home.cy)) return false;
+  const b = u.work[i] >= ctx.world.size ? ctx.civ.building(u.work[i] - ctx.world.size) : null;
+  const partner = b ? ctx.civ.villages[b.village] : null;
+  if (partner && !far(partner.cx, partner.cy)) return false;
+  const escort = ctx.spatial.nearest(u, u.x[i], u.y[i], ESCORT_RADIUS, (j) => j !== i && u.job[j] === Job.WARRIOR && u.village[j] === u.village[i]);
+  return escort < 0;
+}
+
+/** Asalto: el mercader pierde la carga, sale herido y vuelve a casa (tarda en volver a salir); la crónica lo cuenta. */
+export function ambush(ctx: AiContext, i: number): void {
+  const u = ctx.units;
+  const home = ctx.civ.villageOf(i);
+  u.carry[i] = 0;
+  u.carryAmount[i] = 0;
+  ctx.civ.releaseWork(i);
+  giveUp(u, i);
+  if (home) ctx.civ.addEvent('bandits', home.id, `Unos bandidos asaltan a un mercader de ${home.name}`);
+  u.hp[i] -= BANDIT_WOUND;
+  if (u.hp[i] <= 0) {
+    killUnit(ctx, i, DeathCause.KILLED);
+    return;
+  }
+  // El susto: no busca otro viaje en un rato (si no, saldría otra vez desde el sitio del asalto).
+  u.workTimer[i] = BANDIT_SHOCK_TICKS;
+  if (!home) return;
+  u.tx[i] = home.cx + 0.5;
+  u.ty[i] = home.cy + 0.5;
+  clearPath(ctx, i);
+  u.state[i] = UnitState.WANDER;
+}
+
+/**
+ * Al pensar en camino: en un tramo peligroso puede haber bandidos. Sólo a la ida (el viaje en
+ * estado TRADE), que es cuando el mercader lleva la mercancía al otro pueblo. Devuelve si hubo asalto.
+ */
+export function checkBandits(ctx: AiContext, i: number): boolean {
+  if (!onDangerousRoad(ctx, i) || !ctx.rng.chance(BANDIT_CHANCE)) return false;
+  ambush(ctx, i);
+  return true;
+}
+
+/** ¿Puede la aldea montar una feria cuando llega un mercader? (el oro se gasta en obras: la prosperidad se mide en comida) */
+export function canHoldFair(v: Village): boolean {
+  return v.population >= FAIR_POP && v.resources[Resource.FOOD] >= v.population * FAIR_FOOD_PER_HEAD;
+}
+
+/** Feria: más oro para las dos aldeas, menos agravios entre sus reinos y la aldea anfitriona de fiesta un rato. */
+export function holdFair(ctx: AiContext, home: Village, host: Village): void {
+  for (const v of [home, host]) v.resources[Resource.GOLD] = Math.min(Math.max(v.storageCap, v.resources[Resource.GOLD]), v.resources[Resource.GOLD] + FAIR_BONUS);
+  easeGrievances(ctx, home.kingdom, host.kingdom);
+  ctx.civ.markFestive(host.id, ctx.civ.tick + FAIR_TICKS);
+  ctx.civ.addEvent('fair', host.id, `Feria en ${host.name}: llegan mercaderes de ${home.name}`);
 }
 
 /** El trato entre reinos distintos va borrando los agravios de guerras pasadas. */

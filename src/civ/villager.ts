@@ -10,7 +10,7 @@ import { Flora } from '../world/terrain';
 import { isNight } from '../world/daylight';
 import { actFight, actFlee, actMarch, defendFromMonsters, fleeIfThreatened, thinkWarrior } from './combat';
 import { farmBonus, workBonus } from './society';
-import { finishTrade, startTrade } from './trade';
+import { checkBandits, finishTrade, startTrade } from './trade';
 import { BuildingType, FARM_HARVEST_FOOD, FARM_RIPE, FISH_CATCH, FISH_FOOD, Job, Resource, type Building, type Village } from './model';
 
 const CIV_TIMEOUT_TICKS = 600;
@@ -93,7 +93,12 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (home && u.job[i] !== Job.WARRIOR && fleeIfThreatened(ctx, i, home)) return;
   const s = u.state[i];
   if (s === UnitState.WORK || s === UnitState.DELIVER || s === UnitState.EAT_GO || s === UnitState.SETTLE || s === UnitState.MATE || s === UnitState.HUNT || s === UnitState.BOARD) return;
-  if (s === UnitState.FIGHT || s === UnitState.MARCH || s === UnitState.FLEE || s === UnitState.TRADE) return;
+  // En camino, lejos de las aldeas, acechan los bandidos.
+  if (s === UnitState.TRADE) {
+    checkBandits(ctx, i);
+    return;
+  }
+  if (s === UnitState.FIGHT || s === UnitState.MARCH || s === UnitState.FLEE) return;
   const v = ctx.civ.villageOf(i);
   const canForage = u.carry[i] === 0 && s !== UnitState.WORK_GO && u.workTimer[i] === 0;
   if (canForage && u.hunger[i] < def.maxHunger * HUNGRY_FRACTION && (!v || v.resources[Resource.FOOD] === 0)) {

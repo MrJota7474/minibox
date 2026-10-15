@@ -170,6 +170,8 @@ const EVENT_SOUNDS: Readonly<Partial<Record<CivEventType, SoundId>>> = {
   shipwreck: 'fallen',
   era: 'discovery',
   festival: 'discovery',
+  fair: 'discovery',
+  bandits: 'war',
   culture: 'discovery',
   faith: 'faith',
   monster: 'monster',
