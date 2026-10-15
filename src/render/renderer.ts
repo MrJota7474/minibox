@@ -88,7 +88,9 @@ const TERRAIN_CHUNKS_PER_FRAME = 8;
 
 /** Render en Canvas 2D (aislado tras esta clase para poder cambiarlo a WebGL). */
 /** Fila del dibujo del dromedario donde arranca la joroba (sobre ella van los fardos). */
-const CAMEL_HUMP_Y = CELL_H - 15;
+const CAMEL_HUMP_Y = CELL_H - 16;
+/** Centro de la joroba en el dibujo (columnas 5 a 9). */
+const CAMEL_HUMP_X = 7.5;
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
@@ -312,9 +314,16 @@ export class Renderer {
     this.drawGlows(visible, alpha, tick, scale);
     visible.sort((a, b) => u.y[a] - u.y[b] || a - b);
     for (const i of visible) {
-      // El dromedario de carga va detrás del mercader: se dibuja antes.
-      if (leadsCaravan(u, i)) this.drawPackCamel(i, alpha, tick, scale);
+      if (!leadsCaravan(u, i)) {
+        this.drawCreature(i, alpha, tick, scale);
+        continue;
+      }
+      // El dromedario de carga tapa al mercader sólo si queda más cerca de la cámara (más abajo).
+      const camel = this.camelSpot(i, alpha, tick);
+      const inFront = camel.y > u.py[i] + (u.y[i] - u.py[i]) * alpha;
+      if (!inFront) this.drawPackCamel(i, camel, tick, scale);
       this.drawCreature(i, alpha, tick, scale);
+      if (inFront) this.drawPackCamel(i, camel, tick, scale);
     }
     this.puffDeaths(visible);
   }
@@ -401,14 +410,21 @@ export class Renderer {
     if (u.carry[i] !== 0 && !leadsCaravan(u, i)) this.drawCargo(u.carry[i] - 1, x0 + w / 2, y0 + 2 * s, s);
   }
 
+  /** Dónde va el dromedario de carga del mercader `i` en este fotograma. */
+  private camelSpot(i: number, alpha: number, tick: number): { x: number; y: number; flip: boolean } {
+    const u = this.units;
+    const mx = u.x[i] - u.px[i];
+    const my = u.y[i] - u.py[i];
+    return this.caravans.follow(i, u.handleOf(i), tick, u.px[i] + mx * alpha, u.py[i] + my * alpha, mx, my);
+  }
+
   /** Dromedario de carga de una caravana, con los fardos del mercader sobre la joroba. */
-  private drawPackCamel(i: number, alpha: number, tick: number, baseScale: number): void {
+  private drawPackCamel(i: number, p: { x: number; y: number; flip: boolean }, tick: number, baseScale: number): void {
     const u = this.units;
     const cam = this.camera;
     const ctx = this.ctx;
     const mx = u.x[i] - u.px[i];
     const my = u.y[i] - u.py[i];
-    const p = this.caravans.follow(i, u.px[i] + mx * alpha, u.py[i] + my * alpha, mx, my);
     const s = baseScale * this.speciesScale[Species.CAMEL];
     const sx = (p.x - cam.left) * cam.zoom;
     const sy = (p.y - cam.top) * cam.zoom;
@@ -420,8 +436,9 @@ export class Renderer {
     const x0 = Math.round(sx - (CELL_W / 2) * s);
     const y0 = Math.round(sy - (CELL_H - 1.5) * s);
     ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, CELL_W, CELL_H, x0, y0, Math.round(CELL_W * s), Math.round(CELL_H * s));
-    // Fardos sobre la joroba (columna 7,5 del dibujo, o su reflejo si mira a la izquierda).
-    if (u.carry[i] !== 0) this.drawCargo(u.carry[i] - 1, x0 + (p.flip ? CELL_W - 8.5 : 7.5) * s, y0 + CAMEL_HUMP_Y * s, s);
+    // Fardos sobre la joroba; al voltear, cada columna x pasa a CELL_W - 1 - x.
+    const humpX = p.flip ? CELL_W - CAMEL_HUMP_X : CAMEL_HUMP_X;
+    if (u.carry[i] !== 0) this.drawCargo(u.carry[i] - 1, x0 + humpX * s, y0 + CAMEL_HUMP_Y * s, s);
   }
 
   /** Herramienta del oficio en la mano (en vertical o, al golpear, hacia delante). */

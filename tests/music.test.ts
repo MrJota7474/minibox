@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MOOD_STYLES, chordFor, composeBar, midiToHz, moodFor, type Mood } from '../src/audio/music-theory';
+import { MOOD_STYLES, chordFor, composeBar, dominantRace, midiToHz, moodFor, styleFor, type Mood } from '../src/audio/music-theory';
+import { Species } from '../src/entities/species';
 import { DEFAULT_SETTINGS } from '../src/ui/settings';
 import { Season } from '../src/world/climate';
 
@@ -73,5 +74,59 @@ describe('composición', () => {
     expect(MOOD_STYLES.tension.bpm).toBeGreaterThan(MOOD_STYLES.calm.bpm);
     expect(midiToHz(69)).toBeCloseTo(440, 6);
     expect(midiToHz(81)).toBeCloseTo(880, 6);
+  });
+});
+
+describe('música de cada raza', () => {
+  it('los humanos usan la música de base; las demás razas cambian escala, instrumento o percusión', () => {
+    expect(styleFor('calm', Species.HUMAN)).toBe(MOOD_STYLES.calm);
+    expect(styleFor('calm', null)).toBe(MOOD_STYLES.calm);
+    const dune = styleFor('calm', Species.DUNEFOLK);
+    expect(dune.instrument).toBe('lute');
+    expect(dune.handDrum).toBe(true);
+    // Hijaz: segunda menor y tercera mayor, también en guerra.
+    expect(dune.scale).toEqual([0, 1, 4, 5, 7, 8, 10]);
+    expect(styleFor('tension', Species.DUNEFOLK).scale).toEqual(dune.scale);
+    expect(styleFor('tension', Species.DUNEFOLK).drums).toBe(true);
+    // La lidia de los silvanos sólo en calma; en invierno vuelve la menor, pero con flauta.
+    expect(styleFor('calm', Species.SILVAN).scale).toContain(6);
+    expect(styleFor('winter', Species.SILVAN).scale).toEqual(MOOD_STYLES.winter.scale);
+    expect(styleFor('winter', Species.SILVAN).instrument).toBe('flute');
+    expect(styleFor('calm', Species.PETRINO).root).toBeLessThan(MOOD_STYLES.calm.root);
+    expect(styleFor('calm', Species.TUSKER).drums).toBe(true);
+    expect(styleFor('calm', Species.TUSKER).bpm).toBeGreaterThan(MOOD_STYLES.calm.bpm);
+    // Los escamados cantan en pélog en cualquier ambiente.
+    expect(styleFor('winter', Species.SCALEFOLK).pentatonic).toEqual([0, 1, 3, 7, 8]);
+  });
+
+  it('las progresiones de cada raza dan acordes mayores o menores, nunca aumentados ni disminuidos', () => {
+    for (const race of [Species.SILVAN, Species.PETRINO, Species.DUNEFOLK]) {
+      for (const mood of ['calm', 'winter', 'tension'] as const) {
+        const style = styleFor(mood, race);
+        for (const degree of style.progression) {
+          const [a, b, c] = chordFor(style, degree);
+          const shape = `${b - a}-${c - b}`;
+          expect(['4-3', '3-4']).toContain(shape);
+        }
+      }
+    }
+  });
+
+  it('con percusión de mano cada compás lleva sus golpes; sin ella, ninguno', () => {
+    const with_ = composeBar(styleFor('calm', Species.DUNEFOLK), 0, seeded(3), 4).notes.filter((n) => n.voice === 'handdrum');
+    const without = composeBar(MOOD_STYLES.calm, 0, seeded(3), 4).notes.filter((n) => n.voice === 'handdrum');
+    expect(with_.length).toBeGreaterThanOrEqual(4);
+    expect(without.length).toBe(0);
+    for (const n of with_) expect(n.beat).toBeLessThan(4);
+  });
+
+  it('manda la raza más poblada a la vista; si no se ve ninguna aldea, la más poblada del mundo', () => {
+    const v = (race: number, population: number, cx: number): { alive: boolean; race: number; population: number; cx: number; cy: number } => ({ alive: true, race, population, cx, cy: 10 });
+    const view = { left: 0, top: 0, width: 40, height: 40 };
+    const villages = [v(Species.HUMAN, 30, 100), v(Species.DUNEFOLK, 8, 10), v(Species.SILVAN, 5, 20)];
+    expect(dominantRace(villages, view)).toBe(Species.DUNEFOLK);
+    expect(dominantRace(villages, { left: 500, top: 500, width: 10, height: 10 })).toBe(Species.HUMAN);
+    expect(dominantRace([], view)).toBeNull();
+    expect(dominantRace([{ ...v(Species.TUSKER, 9, 10), alive: false }], view)).toBeNull();
   });
 });

@@ -275,10 +275,10 @@ export class SoundEngine {
   }
 
   /** Ambiente musical (null = silencio, con fundido). */
-  setMusic(mood: Mood | null): void {
+  setMusic(mood: Mood | null, race: number | null = null): void {
     if (!this.ctx || this.ctx.state !== 'running') return;
     try {
-      this.music?.setMood(mood);
+      this.music?.setMood(mood, race);
     } catch {
       // La música es un adorno: si falla, se sigue sin ella.
     }

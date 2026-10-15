@@ -17,18 +17,36 @@ export function leadsCaravan(u: UnitStore, i: number): boolean {
   return u.state[i] === UnitState.TRADE || u.carry[i] !== 0;
 }
 
+/** Ticks sin dibujarse tras los que el rumbo guardado ya no vale (salió de la vista, se cargó otra partida...). */
+const STALE_TICKS = 30;
+
 /** Posición del dromedario detrás de su mercader, con la dirección de marcha suavizada. */
 export class CaravanTrail {
   private readonly dx: Float32Array;
   private readonly dy: Float32Array;
+  /** De quién es el rumbo guardado (los índices de las criaturas muertas se reutilizan) y cuándo se usó. */
+  private readonly owner: Float64Array;
+  private readonly lastTick: Float64Array;
 
   constructor(capacity: number) {
     this.dx = new Float32Array(capacity);
     this.dy = new Float32Array(capacity);
+    this.owner = new Float64Array(capacity).fill(-1);
+    this.lastTick = new Float64Array(capacity);
   }
 
-  /** `(x, y)` es el mercader y `(mx, my)` su último paso; si está quieto se mantiene el rumbo. */
-  follow(i: number, x: number, y: number, mx: number, my: number): { x: number; y: number; flip: boolean } {
+  /**
+   * `(x, y)` es el mercader y `(mx, my)` su último paso; si está quieto se mantiene el rumbo.
+   * `handle` identifica a la criatura y `tick` es el del mundo: con otro dueño o un rumbo viejo
+   * se empieza de nuevo según hacia dónde camina.
+   */
+  follow(i: number, handle: number, tick: number, x: number, y: number, mx: number, my: number): { x: number; y: number; flip: boolean } {
+    if (this.owner[i] !== handle || Math.abs(tick - this.lastTick[i]) > STALE_TICKS) {
+      this.owner[i] = handle;
+      this.dx[i] = 0;
+      this.dy[i] = 0;
+    }
+    this.lastTick[i] = tick;
     const len = Math.sqrt(mx * mx + my * my);
     let dx = this.dx[i];
     let dy = this.dy[i];

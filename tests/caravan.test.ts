@@ -35,20 +35,33 @@ describe('caravanas', () => {
   it('el dromedario va detrás según hacia dónde camina el mercader y gira poco a poco', () => {
     const trail = new CaravanTrail(4);
     // Hacia la derecha: el dromedario a su izquierda, mirando a la derecha.
-    const right = trail.follow(1, 10, 10, 0.1, 0);
+    const right = trail.follow(1, 77, 100, 10, 10, 0.1, 0);
     expect(right.x).toBeCloseTo(10 - CARAVAN_GAP, 5);
     expect(right.y).toBeCloseTo(10, 5);
     expect(right.flip).toBe(false);
     // Media vuelta: no salta de golpe al otro lado.
-    const turning = trail.follow(1, 10, 10, -0.1, 0);
+    const turning = trail.follow(1, 77, 100, 10, 10, -0.1, 0);
     expect(turning.x).toBeLessThan(10);
     // Tras unos pasos hacia la izquierda ya va detrás, a su derecha, y mirando a la izquierda.
     let p = turning;
-    for (let k = 0; k < 40; k++) p = trail.follow(1, 10, 10, -0.1, 0);
+    for (let k = 0; k < 40; k++) p = trail.follow(1, 77, 100, 10, 10, -0.1, 0);
     expect(p.x).toBeCloseTo(10 + CARAVAN_GAP, 2);
     expect(p.flip).toBe(true);
     // Quieto, mantiene el rumbo.
-    const still = trail.follow(1, 10, 10, 0, 0);
+    const still = trail.follow(1, 77, 100, 10, 10, 0, 0);
     expect(still.x).toBeCloseTo(p.x, 5);
+  });
+
+  it('otra criatura en el mismo índice, o un rumbo viejo, empiezan de nuevo según hacia dónde caminan', () => {
+    const trail = new CaravanTrail(4);
+    for (let k = 0; k < 20; k++) trail.follow(2, 5, 100, 10, 10, -0.1, 0);
+    // El índice 2 lo ocupa otra criatura (otro handle) que va hacia la derecha: sin giro heredado.
+    const fresh = trail.follow(2, 6, 101, 10, 10, 0.1, 0);
+    expect(fresh.x).toBeCloseTo(10 - CARAVAN_GAP, 5);
+    expect(fresh.flip).toBe(false);
+    // La misma criatura, vista mucho después y caminando al revés: tampoco hereda el rumbo.
+    const later = trail.follow(2, 6, 500, 10, 10, -0.1, 0);
+    expect(later.x).toBeCloseTo(10 + CARAVAN_GAP, 5);
+    expect(later.flip).toBe(true);
   });
 });

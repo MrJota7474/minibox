@@ -2,7 +2,7 @@ import { SoundEngine } from './audio/sound';
 import { soundForCommand, soundForEvent, soundForFx, spatialMix, type ViewRect } from './audio/sound-map';
 import { ambienceMix, sampleView, type VisibleAnimals } from './audio/ambience-mix';
 import { daylight } from './world/daylight';
-import { moodFor } from './audio/music-theory';
+import { dominantRace, moodFor } from './audio/music-theory';
 import { FixedClock, type Speed } from './core/clock';
 import type { DeviceProfile } from './core/device';
 import { SPECIES, Species } from './entities/species';
@@ -264,7 +264,9 @@ export class Game {
     }
     const counts = hudCounts(sim);
     const season = sim.climate.seasonAt(sim.tick, sim.laws.seasons);
-    this.sound.setMusic(moodFor({ wars: counts.wars, monsters: counts.monsters, season }));
+    // La raza de las aldeas que se ven (o la más poblada) da color a la música.
+    const race = this.camera ? dominantRace(sim.civ.villages, this.view(this.camera)) : null;
+    this.sound.setMusic(moodFor({ wars: counts.wars, monsters: counts.monsters, season }), race);
   }
 
   /** Ambiente según lo que se ve (o silencio si está desactivado o no hay mundo). */
