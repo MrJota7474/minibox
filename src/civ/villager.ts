@@ -7,6 +7,7 @@ import { inheritTraits, traitMods } from '../entities/traits';
 import { SPECIES, type RaceTraits, type SpeciesDef } from '../entities/species';
 import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
+import { isNight } from '../world/daylight';
 import { actFight, actFlee, actMarch, defendFromMonsters, fleeIfThreatened, thinkWarrior } from './combat';
 import { farmBonus, workBonus } from './society';
 import { finishTrade, startTrade } from './trade';
@@ -25,6 +26,8 @@ const SEARCH_RADIUS = 18;
 /** Distancia máxima (Chebyshev) al ayuntamiento para buscar recursos. */
 const WORK_RANGE = 24;
 const HOME_WANDER = 5;
+/** De noche, quien no tiene tarea se queda a este radio de la hoguera de su aldea. */
+const GATHER_RADIUS = 2;
 const MATE_RANGE = 1;
 const MELEE_RANGE = 0.9;
 const ATTACK_COOLDOWN = 8;
@@ -113,7 +116,8 @@ function think(ctx: AiContext, i: number, def: SpeciesDef): void {
   if (isAdult(u, i, def) && ctx.rng.chance(BREED_TRY_CHANCE) && tryFindMate(ctx, i, def, v)) return;
   if (u.workTimer[i] === 0 && startJob(ctx, i, v)) return;
   if (u.job[i] !== Job.NONE && u.workTimer[i] === 0) u.workTimer[i] = SEARCH_BACKOFF_TICKS;
-  wanderNear(ctx, i, v.cx, v.cy, HOME_WANDER);
+  // De noche, los que no tienen tarea se reúnen junto a la hoguera.
+  wanderNear(ctx, i, v.cx, v.cy, isNight(ctx.tick) ? GATHER_RADIUS : HOME_WANDER);
 }
 
 /** ¿Es un guerrero en otra isla que su aldea, sin flota en camino ni aldea que asaltar allí? */

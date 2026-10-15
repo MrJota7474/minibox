@@ -321,6 +321,7 @@ export class Game {
     if (this.renderer) {
       this.renderer.showLabels = s.showLabels;
       this.renderer.showTerritory = s.showTerritory;
+      this.renderer.showNight = s.dayNight;
     }
   }
 
@@ -346,6 +347,7 @@ export class Game {
     this.renderer = new Renderer(this.canvas, sim.world, sim.units, camera, sim.civ, sim.powers, sim.hazards, this.device.dprCap, this.atlas);
     this.renderer.showLabels = this.settings.showLabels;
     this.renderer.showTerritory = this.settings.showTerritory;
+    this.renderer.showNight = this.settings.dayNight;
     this.renderer.setSoundHook((kind, x, y) => this.playAt(kind, x, y));
     this.renderer.resize();
     camera.fitWorld();

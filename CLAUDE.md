@@ -19,7 +19,7 @@ Este archivo es el traspaso de contexto para cualquier sesión de Claude que tra
 | Copia local del usuario | `C:\Users\sscri\Documents\minibox` (Windows 11) |
 | Zips para itch.io | `release/minibox-<versión>-itch.zip` (no se suben al repo) |
 
-Versión actual: **0.21.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
+Versión actual: **0.22.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
 
 ## 3. Cómo se ejecuta
 
@@ -28,7 +28,7 @@ npm install
 npm run dev          # servidor de desarrollo (vite --host)
 npm run build        # tsc --noEmit && vite build → dist/
 npm run build:itch   # build + zip con index.html en la raíz → release/
-npm test             # vitest run (336 pruebas, 25 archivos)
+npm test             # vitest run (339 pruebas, 26 archivos)
 npm run lint         # eslint (incluye reglas de determinismo)
 npm run coverage
 ```
@@ -56,6 +56,7 @@ TypeScript (~6.0; typescript-eslint exige <6.1) + HTML5 Canvas 2D + Vite 8. Sin 
 | I (0.11.0) | Cultura (rasgo + saber → agricultura, albañilería, forja, medicina; asimilación), religión (santuario, preceptos, conversión; pesa en lealtad y opinión) y clanes (herencia paterna, sucesión dinástica, cambio de dinastía). Guardado MBX v5 |
 | K (0.13.0) | Puentes (calzada sobre el agua: los tienden los reinos en ríos y estrechos de hasta 8 casillas y el jugador con el pincel «Puente») y comercio (mercaderes que llevan excedentes entre aldeas no enemigas; oro para ambas y menos agravios entre reinos) |
 | J (0.12.0) | Caminos (senderos por desgaste, calzadas de los reinos y pincel «Calzada»; más velocidad al caminar) y sonido sintetizado con WebAudio (desastres, trabajo, combate, avisos, interfaz; volumen en ajustes). Guardado MBX v6 |
+| S (0.22.0) | Día y noche: ciclo de 36 s, oscuridad con luces de hogueras, ventanas, santuarios y fuegos; de noche los aldeanos sin tarea se reúnen junto a la hoguera y los herbívoros descansan |
 | R (0.21.0) | IA de manada (alarma al huir, grupitos sueltos) y voces de animales en el ambiente (balidos y aullidos) |
 | O2 (0.20.0) | Inspector por apartados con cuadrícula de recursos y franja del color del reino; contadores de la barra superior en píldoras |
 | Q (0.19.0) | Raza nueva: los Escamados (pescadores de pantano, el barro no los frena, inmunes a la plaga) con palafitos de caña |

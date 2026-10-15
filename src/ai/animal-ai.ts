@@ -4,6 +4,7 @@ import { Flora } from '../world/terrain';
 import { DeathCause, STATE_TIMEOUT_TICKS, THINK_INTERVAL, giveUp, killUnit, type AiContext } from './context';
 import { Move, moveToward, pickWanderTarget } from './movement';
 import { habitatCap, inHabitat, isScarce } from './habitat';
+import { isNight } from '../world/daylight';
 import { recordBirth, setBreedCooldown } from './life';
 import { inheritTraits } from '../entities/traits';
 import { damageMultiplier, damageTakenMultiplier } from '../powers/status';
@@ -24,6 +25,8 @@ const WANDER_RADIUS = 6;
 const FAR_WANDER_RADIUS = 14;
 const FLEE_DISTANCE = 7;
 const IDLE_CHANCE = 0.3;
+/** De noche los herbívoros descansan más a menudo. */
+const NIGHT_IDLE_CHANCE = 0.7;
 /** Con tantos de su especie a esta distancia ya no cría... */
 const CROWD_RADIUS = 5;
 const CROWD_LIMIT = 4;
@@ -174,7 +177,8 @@ function joinHerd(ctx: AiContext, i: number, def: SpeciesDef): boolean {
 export function wander(ctx: AiContext, i: number, radius: number, def?: SpeciesDef): void {
   const u = ctx.units;
   if (u.state[i] === UnitState.WANDER) return;
-  if (ctx.rng.chance(IDLE_CHANCE)) {
+  const rest = def?.diet === 'herbivore' && isNight(ctx.tick) ? NIGHT_IDLE_CHANCE : IDLE_CHANCE;
+  if (ctx.rng.chance(rest)) {
     u.state[i] = UnitState.IDLE;
     return;
   }

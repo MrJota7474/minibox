@@ -13,9 +13,11 @@ export interface Settings {
   readonly ambience: boolean;
   /** Música compuesta mientras se juega. */
   readonly music: boolean;
+  /** Se ve el ciclo de día y noche (oscuridad y luces). */
+  readonly dayNight: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { autosave: true, autosaveMinutes: 2, showLabels: true, showTerritory: true, sound: true, volume: 60, ambience: true, music: true };
+export const DEFAULT_SETTINGS: Settings = { autosave: true, autosaveMinutes: 2, showLabels: true, showTerritory: true, sound: true, volume: 60, ambience: true, music: true, dayNight: true };
 const MAX_VOLUME = 100;
 export const AUTOSAVE_CHOICES: readonly number[] = [1, 2, 5, 10];
 const STORAGE_KEY = 'minibox.settings';
@@ -37,6 +39,7 @@ export function loadSettings(): Settings {
       volume: typeof data.volume === 'number' && data.volume >= 0 && data.volume <= MAX_VOLUME ? Math.round(data.volume) : DEFAULT_SETTINGS.volume,
       ambience: bool(data.ambience, DEFAULT_SETTINGS.ambience),
       music: bool(data.music, DEFAULT_SETTINGS.music),
+      dayNight: bool(data.dayNight, DEFAULT_SETTINGS.dayNight),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -79,6 +82,7 @@ export function settingsContent(current: Settings, onChange: (s: Settings) => vo
     checkbox('set-music', 'Música', s.music, (v) => update({ music: v })),
     checkbox('set-ambience', 'Ambiente (mar, viento, pájaros)', s.ambience, (v) => update({ ambience: v })),
     el('div', { class: 'settings-row' }, [checkbox('set-autosave', 'Autoguardado', s.autosave, (v) => update({ autosave: v })), select]),
+    checkbox('set-daynight', 'Día y noche', s.dayNight, (v) => update({ dayNight: v })),
     checkbox('set-labels', 'Nombres de aldeas', s.showLabels, (v) => update({ showLabels: v })),
     checkbox('set-territory', 'Territorios', s.showTerritory, (v) => update({ showTerritory: v })),
   ]);

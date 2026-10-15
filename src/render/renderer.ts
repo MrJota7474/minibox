@@ -12,6 +12,8 @@ import { Status } from '../powers/status';
 import { BoatLayer } from './boat-layer';
 import { CivLayer } from './civ-layer';
 import { FxLayer } from './fx';
+import { NightLayer } from './night';
+import { daylight } from '../world/daylight';
 import { ANIMAL_SCALE, CELL_H, CELL_W, CLOTH_COUNT, Pose, buildCreatureAtlas, buildToolAtlas, type CreatureAtlas, type ToolAtlas } from './creature-art';
 import { TerrainLayer } from './terrain-layer';
 import { buildFloraAtlas } from './flora-art';
@@ -114,6 +116,9 @@ export class Renderer {
   /** Capas que el jugador puede ocultar desde los ajustes. */
   showLabels = true;
   showTerritory = true;
+  /** Ciclo de día y noche visible (la vida de noche sigue aunque esté apagado). */
+  showNight = true;
+  private readonly night: NightLayer;
   private firstFrame = true;
 
   constructor(
@@ -146,6 +151,7 @@ export class Renderer {
     this.civ = civ;
     this.powers = powers;
     this.fx = new FxLayer(powers, hazards, world, camera);
+    this.night = new NightLayer(world, civ, hazards, camera);
   }
 
   /** Conecta los avisos de efectos (rayos, explosiones, golpes...) con quien los haga sonar. */
@@ -201,6 +207,8 @@ export class Renderer {
     this.fx.ambient(this.units, this.civ);
     this.fx.motes();
     this.fx.weather(overlay.season);
+    // La noche cae sobre el mapa y sus criaturas; los efectos y los nombres quedan por encima.
+    if (this.showNight) this.night.draw(ctx, daylight(tick));
     if (overlay.heldAt) this.drawHeld(overlay.heldAt.x, overlay.heldAt.y);
     this.fx.drawOver(ctx, now);
     if (this.showLabels) this.civLayer.drawLabels(ctx);
