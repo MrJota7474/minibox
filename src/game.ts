@@ -1,6 +1,6 @@
 import { SoundEngine } from './audio/sound';
 import { soundForCommand, soundForEvent, soundForFx, spatialMix, type ViewRect } from './audio/sound-map';
-import { ambienceMix, sampleView } from './audio/ambience-mix';
+import { ambienceMix, sampleView, type VisibleAnimals } from './audio/ambience-mix';
 import { moodFor } from './audio/music-theory';
 import { FixedClock, type Speed } from './core/clock';
 import type { DeviceProfile } from './core/device';
@@ -31,6 +31,22 @@ import { loadSettings, saveSettings, type Settings } from './ui/settings';
 import { tickToDate } from './core/time';
 
 const UI_INTERVAL_MS = 250;
+
+/** Herbívoros y lobos a la vista (para sus voces en el ambiente). */
+function visibleAnimals(sim: Simulation, view: ViewRect): VisibleAnimals {
+  const u = sim.units;
+  const out: VisibleAnimals = { herbivores: 0, wolves: 0 };
+  for (let i = 0; i < u.highWater; i++) {
+    if (u.alive[i] === 0) continue;
+    const x = u.x[i];
+    const y = u.y[i];
+    if (x < view.left || y < view.top || x > view.left + view.width || y > view.top + view.height) continue;
+    const s = u.species[i];
+    if (s === Species.WOLF) out.wolves++;
+    else if (SPECIES[s].diet === 'herbivore') out.herbivores++;
+  }
+  return out;
+}
 
 /** Recuento agrupado para la barra superior. */
 function hudCounts(sim: Simulation): HudCounts {
@@ -259,7 +275,8 @@ export class Game {
       return;
     }
     const season = sim.climate.seasonAt(sim.tick, sim.laws.seasons);
-    this.sound.setAmbience(ambienceMix(sampleView(sim.world, this.view(cam)), season, cam.zoom));
+    const view = this.view(cam);
+    this.sound.setAmbience(ambienceMix(sampleView(sim.world, view), season, cam.zoom, visibleAnimals(sim, view)));
   }
 
   /** Llega una versión nueva (service worker): se aplica sin interrumpir una partida en curso. */

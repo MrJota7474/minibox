@@ -179,6 +179,34 @@ describe('hábitat', () => {
   });
 });
 
+describe('manadas', () => {
+  it('cuando una oveja ve un lobo y huye, las de su lado huyen también aunque no lo vean', () => {
+    const ctx = makeCtx(makeWorld(Biome.GRASS));
+    // A ve al lobo (a 6 casillas, su vista es 7); B está a 5 de A y a 11 del lobo: no lo ve.
+    const a = spawn(ctx, Species.SHEEP, 20.5, 30.5, Sex.FEMALE);
+    const b = spawn(ctx, Species.SHEEP, 15.5, 30.5, Sex.FEMALE);
+    const wolf = spawn(ctx, Species.WOLF, 26.5, 30.5);
+    for (const i of [a, b]) ctx.units.hunger[i] = SPECIES[Species.SHEEP].maxHunger;
+    ctx.units.hunger[wolf] = SPECIES[Species.WOLF].maxHunger;
+    let fled = false;
+    for (let t = 0; t < 12 && !fled; t++) {
+      run(ctx, 1);
+      fled = ctx.units.state[b] === UnitState.FLEE;
+    }
+    expect(fled).toBe(true);
+  });
+
+  it('dos ovejas sueltas acaban juntándose en una manada', () => {
+    const ctx = makeCtx(makeWorld(Biome.GRASS));
+    const a = spawn(ctx, Species.SHEEP, 15.5, 30.5, Sex.FEMALE);
+    const b = spawn(ctx, Species.SHEEP, 29.5, 30.5, Sex.FEMALE);
+    for (const i of [a, b]) ctx.units.hunger[i] = SPECIES[Species.SHEEP].maxHunger;
+    run(ctx, 600);
+    const u = ctx.units;
+    expect(Math.hypot(u.x[a] - u.x[b], u.y[a] - u.y[b])).toBeLessThan(9);
+  });
+});
+
 describe('migración', () => {
   /** Mitad de bosque (ciervos) y mitad de pradera (ovejas). */
   function mixedCtx(): AiContext {

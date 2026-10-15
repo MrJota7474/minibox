@@ -28,6 +28,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase O (menús)** — el menú principal se rediseña como una cuadrícula de secciones con icono; cada una se abre dentro del panel con su título y un botón para volver.
 - **Fase Q (raza nueva)** — llegan los **Escamados**, gente-lagarto de los pantanos: grandes pescadores, el barro no los frena y no enferman de plaga. Viven en palafitos de caña y se gobiernan desde una gran casa comunal con tótems.
 - **Menús, segunda parte** — la ficha de una aldea se ordena en apartados, con los recursos en una cuadrícula de iconos y barras y una franja del color de su reino; los contadores de arriba se leen mejor.
+- **Fase R (manadas y voces)** — los herbívoros van en grupitos sueltos y, cuando uno ve un lobo, toda su manada sale corriendo; en el ambiente se oyen balidos y, de vez en cuando, el aullido de un lobo.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 

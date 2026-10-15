@@ -1,5 +1,5 @@
 import { SPECIES, isMonster, type SpeciesDef } from '../entities/species';
-import { NO_UNIT, Sex, UnitState, type UnitStore } from '../entities/units';
+import { NO_UNIT, OFFMAP_FLAGS, Sex, UnitState, type UnitStore } from '../entities/units';
 import { Flora } from '../world/terrain';
 import { DeathCause, STATE_TIMEOUT_TICKS, THINK_INTERVAL, giveUp, killUnit, type AiContext } from './context';
 import { Move, moveToward, pickWanderTarget } from './movement';
@@ -44,6 +44,17 @@ const MATE_SEARCH = 24;
 const SCENT_FACTOR = 2.5;
 /** Hasta dónde persigue una presa antes de rendirse (respecto al olfato). */
 const CHASE_FACTOR = 1.2;
+/** Alarma: al huir, un herbívoro avisa a los de su especie que tiene a esta distancia. */
+const ALARM_RADIUS = 6;
+/**
+ * Manada suelta: al pasear, un herbívoro solo tiende a acercarse al más cercano de su especie
+ * (si está a más de HERD_NEAR y a menos de HERD_SEEK). Con la dispersión de los apiñados, quedan
+ * grupitos sueltos en vez de animales sueltos o piñas.
+ */
+const HERD_CHANCE = 0.35;
+const HERD_NEAR = 5;
+const HERD_SEEK = 18;
+const HERD_SPREAD = 2;
 
 /** Comportamiento de animales (herbívoros y depredadores); la vida común va en life.ts. */
 export function updateAnimal(ctx: AiContext, i: number, def: SpeciesDef): void {
@@ -67,10 +78,12 @@ function thinkHerbivore(ctx: AiContext, i: number, def: SpeciesDef): void {
   const threat = ctx.spatial.nearest(u, u.x[i], u.y[i], def.sight, (j) => isMonster(u.species[j]) || canHunt(SPECIES[u.species[j]], def));
   if (threat !== NO_UNIT) {
     flee(ctx, i, threat);
+    alarm(ctx, i, threat);
     return;
   }
   const s = u.state[i];
-  if (s === UnitState.EAT || s === UnitState.MATE || s === UnitState.SEEK_FOOD) return;
+  // Quien huye (por haber visto al depredador o por la alarma de la manada) sigue hasta su destino.
+  if (s === UnitState.EAT || s === UnitState.MATE || s === UnitState.SEEK_FOOD || s === UnitState.FLEE) return;
   if (isHungry(u, i, def)) {
     seekFood(ctx, i, def);
     return;
@@ -117,6 +130,46 @@ function flee(ctx: AiContext, i: number, threat: number): void {
   u.target[i] = NO_UNIT;
 }
 
+/** Los de su especie cercanos que aún no huyen se asustan con él (cada uno huye del depredador por su lado). */
+function alarm(ctx: AiContext, i: number, threat: number): void {
+  const u = ctx.units;
+  const sp = u.species[i];
+  ctx.spatial.forEachInRadius(u, u.x[i], u.y[i], ALARM_RADIUS, (j) => {
+    if (j === i || u.species[j] !== sp || u.state[j] === UnitState.FLEE || u.state[j] === UnitState.MATE) return;
+    // Los sujetos por el imán o a bordo no están en el mapa: no se enteran.
+    if ((u.status[j] & OFFMAP_FLAGS) !== 0) return;
+    flee(ctx, j, threat);
+    // Cambia de estado fuera de su turno: el contador de su estado anterior no debe cortarle la huida.
+    u.stateTicks[j] = 0;
+  });
+}
+
+/**
+ * Busca al más cercano de su especie y, si está algo lejos, va a su lado (dentro de su hábitat
+ * y sólo si allí no hay ya un grupo que lo volvería a dispersar). Devuelve true si va.
+ */
+function joinHerd(ctx: AiContext, i: number, def: SpeciesDef): boolean {
+  const u = ctx.units;
+  const sp = u.species[i];
+  const mate = ctx.spatial.nearest(u, u.x[i], u.y[i], HERD_SEEK, (j) => j !== i && u.species[j] === sp);
+  if (mate === NO_UNIT) return false;
+  const dx = u.x[mate] - u.x[i];
+  const dy = u.y[mate] - u.y[i];
+  if (dx * dx + dy * dy <= HERD_NEAR * HERD_NEAR) return false;
+  const tx = Math.floor(u.x[mate] + ctx.rng.range(-HERD_SPREAD, HERD_SPREAD)) + 0.5;
+  const ty = Math.floor(u.y[mate] + ctx.rng.range(-HERD_SPREAD, HERD_SPREAD)) + 0.5;
+  if (!ctx.world.isWalkableAt(tx, ty) || !inHabitat(def, ctx.world, ctx.world.idx(Math.floor(tx), Math.floor(ty)))) return false;
+  let crowd = 0;
+  ctx.spatial.forEachInRadius(u, tx, ty, CROWD_RADIUS, (j) => {
+    if (j !== i && u.species[j] === sp) crowd++;
+  });
+  if (crowd >= DISPERSE_LIMIT - 1) return false;
+  u.tx[i] = tx;
+  u.ty[i] = ty;
+  u.state[i] = UnitState.WANDER;
+  return true;
+}
+
 /** Pasea cerca; un animal (con `def`) prefiere los destinos de su hábitat. */
 export function wander(ctx: AiContext, i: number, radius: number, def?: SpeciesDef): void {
   const u = ctx.units;
@@ -129,6 +182,7 @@ export function wander(ctx: AiContext, i: number, radius: number, def?: SpeciesD
     u.state[i] = pickWanderTarget(ctx.world, u, i, ctx.rng, radius) ? UnitState.WANDER : UnitState.IDLE;
     return;
   }
+  if (def.diet === 'herbivore' && ctx.rng.chance(HERD_CHANCE) && joinHerd(ctx, i, def)) return;
   // Se queda con el primer destino de su hábitat; si no hay ninguno, con el último pisable.
   let found = false;
   for (let k = 0; k < HABITAT_TRIES; k++) {

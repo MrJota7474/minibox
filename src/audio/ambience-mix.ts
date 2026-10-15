@@ -19,7 +19,20 @@ export interface AmbienceLevels {
   sea: number;
   wind: number;
   birds: number;
+  /** Balidos y voces de herbívoros a la vista (0-1). */
+  bleats: number;
+  /** Aullidos de lobo (0-1): sólo si hay lobos a la vista. */
+  howls: number;
 }
+
+/** Animales a la vista (los cuenta el juego cada vez que actualiza el ambiente). */
+export interface VisibleAnimals {
+  herbivores: number;
+  wolves: number;
+}
+
+/** Herbívoros a la vista con los que los balidos suenan al máximo. */
+const FULL_HERD = 12;
 
 /** Casillas que se miran por eje (16 × 16 = 256 por muestra). */
 const SAMPLES_PER_AXIS = 16;
@@ -55,8 +68,8 @@ export function sampleView(world: World, view: ViewRect): ViewSample {
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 /** Mezcla del ambiente para lo que se ve, la estación y lo cerca que está la cámara. */
-export function ambienceMix(sample: ViewSample, season: number, zoom: number): AmbienceLevels {
-  if (sample.total === 0) return { sea: 0, wind: BASE_WIND, birds: 0 };
+export function ambienceMix(sample: ViewSample, season: number, zoom: number, animals: VisibleAnimals = { herbivores: 0, wolves: 0 }): AmbienceLevels {
+  if (sample.total === 0) return { sea: 0, wind: BASE_WIND, birds: 0, bleats: 0, howls: 0 };
   const water = sample.water / sample.total;
   const forest = sample.forest / sample.total;
   const cold = sample.cold / sample.total;
@@ -67,5 +80,8 @@ export function ambienceMix(sample: ViewSample, season: number, zoom: number): A
     sea: clamp01(Math.sqrt(water) * (0.5 + 0.5 * near)),
     wind: clamp01(BASE_WIND + cold * 0.8 + (winter ? WINTER_WIND : 0)),
     birds: clamp01(Math.sqrt(forest) * near * (winter ? 0.15 : 1)),
+    // Los animales sólo se oyen de cerca; los lobos, también de algo más lejos.
+    bleats: clamp01((animals.herbivores / FULL_HERD) * near),
+    howls: animals.wolves > 0 ? clamp01(0.4 + 0.6 * near) : 0,
   };
 }

@@ -150,6 +150,20 @@ describe('ambiente', () => {
     }
   });
 
+  it('se oyen balidos si hay herbívoros a la vista y aullidos sólo si hay lobos', () => {
+    const sample = { water: 0, forest: 0, cold: 0, total: 256 };
+    const quiet = ambienceMix(sample, Season.SUMMER, 10);
+    expect(quiet.bleats).toBe(0);
+    expect(quiet.howls).toBe(0);
+    const herd = ambienceMix(sample, Season.SUMMER, 12, { herbivores: 12, wolves: 0 });
+    expect(herd.bleats).toBeCloseTo(1, 5);
+    expect(herd.howls).toBe(0);
+    const wolves = ambienceMix(sample, Season.SUMMER, 12, { herbivores: 0, wolves: 2 });
+    expect(wolves.howls).toBeGreaterThan(0.5);
+    // De lejos, los balidos apenas se oyen.
+    expect(ambienceMix(sample, Season.SUMMER, 2, { herbivores: 12, wolves: 0 }).bleats).toBeLessThan(0.3);
+  });
+
   it('la muestra de la vista cuenta agua, bosque y frío', () => {
     const w = new World(32, 32);
     for (let i = 0; i < w.size; i++) {

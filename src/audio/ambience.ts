@@ -20,6 +20,11 @@ const WIND_FREQ = 520;
 const GUST_DEPTH = 260;
 /** Probabilidad de un gorjeo en cada actualización (cada ~250 ms) con los pájaros al máximo. */
 const CHIRP_CHANCE = 0.3;
+/** Probabilidad de un balido o de un aullido por actualización con la capa al máximo. */
+const BLEAT_CHANCE = 0.06;
+const HOWL_CHANCE = 0.012;
+const BLEAT_GAIN = 0.03;
+const HOWL_GAIN = 0.04;
 
 interface Layer {
   /** Volumen general de la capa (lo que cambia con la vista). */
@@ -37,6 +42,8 @@ export class Ambience {
   private readonly sea: Layer;
   private readonly wind: Layer;
   private birds = 0;
+  private bleats = 0;
+  private howls = 0;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -88,7 +95,31 @@ export class Ambience {
     this.sea.level.gain.setTargetAtTime(levels ? levels.sea * SEA_MAX : 0, now, LEVEL_GLIDE_S);
     this.wind.level.gain.setTargetAtTime(levels ? levels.wind * WIND_MAX : 0, now, LEVEL_GLIDE_S);
     this.birds = levels ? levels.birds : 0;
+    this.bleats = levels ? levels.bleats : 0;
+    this.howls = levels ? levels.howls : 0;
     if (this.birds > 0.02 && Math.random() < this.birds * CHIRP_CHANCE) this.chirp();
+    if (this.bleats > 0.02 && Math.random() < this.bleats * BLEAT_CHANCE) this.bleat();
+    if (this.howls > 0 && Math.random() < this.howls * HOWL_CHANCE) this.howl();
+  }
+
+  /** Balido: tres golpes de voz que tiemblan y bajan, cada animal en su tono. */
+  private bleat(): void {
+    const f = 330 + Math.random() * 160;
+    const gain = BLEAT_GAIN * (0.6 + this.bleats * 0.4);
+    for (let k = 0; k < 3; k++) {
+      const from = f * (1 - k * 0.05);
+      this.tones.tone('sawtooth', from, from * 0.92, 0.13, gain, k * 0.11);
+      this.tones.tone('square', from * 1.01, from * 0.93, 0.12, gain * 0.35, k * 0.11);
+    }
+  }
+
+  /** Aullido de lobo: sube despacio, se sostiene y cae. */
+  private howl(): void {
+    const f = 240 + Math.random() * 60;
+    const gain = HOWL_GAIN * this.howls;
+    this.tones.tone('sine', f, f * 1.9, 0.6, gain);
+    this.tones.tone('sine', f * 1.9, f * 1.6, 1.1, gain, 0.55);
+    this.tones.tone('triangle', f * 1.9, f * 1.6, 1.1, gain * 0.3, 0.55);
   }
 
   /** Gorjeo: dos a cuatro notas agudas que suben, cada pájaro en su tono. */
