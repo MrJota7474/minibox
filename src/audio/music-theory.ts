@@ -6,7 +6,7 @@ import { Season } from '../world/climate';
  * Es lógica pura (el azar llega como función) para poder probarla; el motor que la hace
  * sonar está en music.ts. No forma parte de la simulación.
  */
-export type Mood = 'calm' | 'winter' | 'tension';
+export type Mood = 'calm' | 'winter' | 'tension' | 'festival';
 export type Voice = 'pad' | 'bass' | 'melody' | 'drum' | 'handdrum';
 /** Instrumento de la melodía: cada raza tiene el suyo. */
 export type Instrument = 'bell' | 'flute' | 'lute' | 'marimba' | 'horn';
@@ -52,6 +52,8 @@ export const MOOD_STYLES: Readonly<Record<Mood, MoodStyle>> = {
   winter: { bpm: 58, root: 57, scale: MINOR, pentatonic: [0, 3, 5, 7, 10], progression: [0, 5, 2, 6], melodyChance: 0.26, walkingBass: false, drums: false, handDrum: false, instrument: 'bell' },
   // Guerra o monstruos: la menor, más rápido, con tambor grave.
   tension: { bpm: 92, root: 57, scale: MINOR, pentatonic: [0, 3, 5, 7, 10], progression: [0, 0, 5, 6], melodyChance: 0.38, walkingBass: true, drums: true, handDrum: false, instrument: 'bell' },
+  // Fiesta: mayor y deprisa, melodía abundante, tambor y pandero.
+  festival: { bpm: 112, root: 60, scale: MAJOR, pentatonic: [0, 2, 4, 7, 9], progression: [0, 3, 4, 0], melodyChance: 0.55, walkingBass: true, drums: true, handDrum: true, instrument: 'bell' },
 };
 
 /** Lo que cada raza cambia de la música: escala, tempo, registro e instrumentos. */
@@ -95,7 +97,7 @@ export function styleFor(mood: Mood, race: number | null): MoodStyle {
   const base = MOOD_STYLES[mood];
   const f = race === null ? undefined : RACE_FLAVORS[race];
   if (!f) return base;
-  const tonal = mood === 'calm' || f.allMoods === true;
+  const tonal = mood === 'calm' || mood === 'festival' || f.allMoods === true;
   return {
     ...base,
     bpm: Math.round(base.bpm * (f.bpmMul ?? 1)),
@@ -104,7 +106,7 @@ export function styleFor(mood: Mood, race: number | null): MoodStyle {
     pentatonic: tonal && f.pentatonic ? f.pentatonic : base.pentatonic,
     progression: tonal && f.progression ? f.progression : base.progression,
     drums: base.drums || f.drums === true,
-    handDrum: f.handDrum === true,
+    handDrum: base.handDrum || f.handDrum === true,
     instrument: f.instrument,
   };
 }
@@ -146,8 +148,9 @@ export const PHRASE_BARS = 8;
 const TENSION_MONSTERS = 6;
 
 /** Qué ambiente musical toca según cómo va el mundo. */
-export function moodFor(state: { wars: number; monsters: number; season: number }): Mood {
+export function moodFor(state: { wars: number; monsters: number; season: number; festival?: boolean }): Mood {
   if (state.wars > 0 || state.monsters >= TENSION_MONSTERS) return 'tension';
+  if (state.festival) return 'festival';
   if (state.season === Season.WINTER) return 'winter';
   return 'calm';
 }

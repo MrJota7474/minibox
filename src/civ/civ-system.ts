@@ -15,6 +15,7 @@ import {
   JOB_COUNT,
   Job,
   RESOURCE_COUNT,
+  Resource,
   hallLevelName,
   type Building,
   type BuildingTypeId,
@@ -22,6 +23,10 @@ import {
 } from './model';
 import { KingdomSystem } from './kingdoms';
 
+/** Fiestas: aldeas a partir de este tamaño, comida que hace falta y que cuesta el banquete (por habitante). */
+const FEAST_MIN_POP = 3;
+const FEAST_FOOD_NEEDED = 3;
+const FEAST_FOOD_COST = 1;
 /** Lo que trae una ofrenda divina a cada aldea (comida, madera, piedra, hierro, oro). */
 const OFFERING: readonly number[] = [40, 20, 12, 4, 3];
 import { boatsHash, updateBoats, wreckBoatsIn, type Boat } from './boats';
@@ -30,7 +35,7 @@ import { canPlace, clearFootprint, findBuildSpot } from './placement';
 import { planVillage } from './planner';
 import { assignClans, buildBonus, createCulture, onShrineBuilt, societyHash, type Clan, type Culture, type Religion } from './society';
 
-export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era' | 'monster' | 'culture' | 'faith' | 'dynasty';
+export type CivEventType = 'founded' | 'abandoned' | 'upgraded' | 'war' | 'peace' | 'alliance' | 'conquest' | 'rebellion' | 'king' | 'fallen' | 'voyage' | 'shipwreck' | 'era' | 'monster' | 'culture' | 'faith' | 'dynasty' | 'festival';
 
 export interface ChronicleEntry {
   readonly tick: number;
@@ -76,6 +81,9 @@ export class CivSystem {
   readonly buildings: Building[] = [];
   /** Avisos para la interfaz (no forman parte del estado determinista). */
   readonly events: CivEvent[] = [];
+  /** Aldeas de fiesta y hasta qué tick (sólo para el dibujo y la música: no se guarda ni cuenta en el hash). */
+  private readonly festive = new Set<number>();
+  private festiveUntil = -1;
   /** Crónica del mundo: los últimos acontecimientos con su fecha. */
   readonly chronicle: ChronicleEntry[] = [];
   readonly kingdoms: KingdomSystem;
@@ -154,6 +162,42 @@ export class CivSystem {
     const w = this.units.work[i];
     if (w >= 0 && w < this.world.size) this.world.reserved[w] = 0;
     this.units.work[i] = -1;
+  }
+
+  /**
+   * Noche de fiesta (ver civ/festival.ts): las aldeas con comida de sobra y sin guerra celebran un
+   * banquete que sacia a sus vecinos. Devuelve cuántas lo celebran.
+   */
+  celebrate(ctx: AiContext, reason: string, until: number): number {
+    this.festive.clear();
+    this.festiveUntil = until;
+    const u = ctx.units;
+    let first: Village | null = null;
+    for (const v of this.villages) {
+      if (!v.alive || v.population < FEAST_MIN_POP) continue;
+      if (v.resources[Resource.FOOD] < v.population * FEAST_FOOD_NEEDED) continue;
+      if (v.kingdom >= 0 && this.kingdoms.activeWarsOf(v.kingdom).length > 0) continue;
+      v.resources[Resource.FOOD] -= v.population * FEAST_FOOD_COST;
+      this.festive.add(v.id);
+      first ??= v;
+    }
+    if (!first) return 0;
+    for (let i = 0; i < u.highWater; i++) {
+      if (u.alive[i] !== 0 && u.village[i] >= 0 && this.festive.has(u.village[i])) u.hunger[i] = SPECIES[u.species[i]].maxHunger;
+    }
+    if (this.festive.size === 1) this.addEvent('festival', first.id, `Fiesta en ${first.name}: ${reason}`);
+    else this.addEvent('festival', first.id, `Fiesta en ${this.festive.size} aldeas: ${reason}`);
+    return this.festive.size;
+  }
+
+  /** ¿Está de fiesta la aldea? */
+  isFestive(village: number): boolean {
+    return this.tick < this.festiveUntil && this.festive.has(village);
+  }
+
+  /** ¿Hay alguna aldea de fiesta? */
+  anyFestive(): boolean {
+    return this.tick < this.festiveUntil && this.festive.size > 0;
   }
 
   addEvent(type: CivEventType, village: number, text: string): void {

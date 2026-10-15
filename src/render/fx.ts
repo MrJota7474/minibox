@@ -79,12 +79,15 @@ interface Style {
   size?: number;
 }
 
+/** Probabilidad por fotograma de que salten chispas de una hoguera en fiesta. */
+const FESTIVE_SPARK_CHANCE = 0.45;
 const STYLES: Readonly<Record<string, Style>> = {
   explosion: { colors: ['#ffd04a', '#ff8a2a', '#e84a1a', '#fff2b0'], shape: 'square', speed: 6, rise: -1, gravity: 4 },
   debris: { colors: ['#5a4a40', '#7a6a5a', '#3a2e26'], shape: 'square', speed: 5, rise: -4, gravity: 10 },
   smoke: { colors: ['#6a6a6a', '#8a8a8a', '#4a4a4a'], shape: 'square', speed: 0.6, rise: -1.6, gravity: 0 },
   sparkle: { colors: ['#fff6b0', '#ffd04a', '#ffffff'], shape: 'star', speed: 2.5, rise: -1, gravity: 0 },
   heal: { colors: ['#ffffff', '#c8f0ff', '#9be38a'], shape: 'cross', speed: 1, rise: -1.6, gravity: 0 },
+  festive: { colors: ['#ff5a6a', '#ffd04a', '#5ad0ff', '#a0ff6a', '#ff9af0', '#ffffff'], shape: 'square', speed: 1.3, rise: 2.2, gravity: 0.5, size: 0.14 },
   curse: { colors: ['#a35ce8', '#6a2aa8', '#d090ff'], shape: 'skull', speed: 1, rise: -1.2, gravity: 0 },
   plague: { colors: ['#8be04a', '#5aa82a', '#c8f08a'], shape: 'bubble', speed: 1, rise: -1.2, gravity: 0 },
   madness: { colors: ['#ff3a3a', '#a81a1a', '#ff8a8a'], shape: 'star', speed: 2, rise: -0.8, gravity: 0 },
@@ -387,6 +390,7 @@ export class FxLayer {
   ambient(u: UnitStore, civ: CivSystem): void {
     const c = this.camera;
     if (c.zoom < 8) return;
+    this.festiveSparks(civ);
     const right = c.left + c.viewW / c.zoom;
     const bottom = c.top + c.viewH / c.zoom;
     let budget = AMBIENT_BUDGET;
@@ -662,6 +666,19 @@ export class FxLayer {
     ctx.beginPath();
     ctx.ellipse(sx, sy, r, r * 0.8, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  /** Chispas de colores que saltan de las hogueras de las aldeas en fiesta. */
+  private festiveSparks(civ: CivSystem): void {
+    if (this.reducedMotion || !civ.anyFestive()) return;
+    for (const v of civ.villages) {
+      if (!v.alive || !civ.isFestive(v.id)) continue;
+      const hall = civ.building(v.hallId);
+      if (!hall) continue;
+      const x = hall.x + hall.w / 2;
+      const y = hall.y + hall.h / 2;
+      if (this.visible(x, y, 3) && Math.random() < FESTIVE_SPARK_CHANCE) this.burst(x, y - 0.6, 2, 'festive', 1.2);
+    }
   }
 
   /** Tormenta de arena: polvo ocre espeso con jirones que corren en la dirección del viento. */

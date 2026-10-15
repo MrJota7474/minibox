@@ -13,6 +13,8 @@ const GLOW_PX = 64;
 const MAX_FIRE_LIGHTS = 300;
 /** Margen del velo de noche (más que el mayor temblor de la cámara). */
 const SHAKE_PAD = 24;
+/** Cuánto crece el halo de la hoguera en las fiestas. */
+const FEAST_GLOW = 1.6;
 
 /** Radio (en casillas) y fuerza de la luz de cada edificio de noche. */
 function lightOf(type: number, level: number): { r: number; a: number } | null {
@@ -68,8 +70,10 @@ export class NightLayer {
     const bottom = c.top + c.viewH / c.zoom;
     for (const b of this.civ.buildings) {
       if (!b.alive || b.level < 1 || b.underConstruction) continue;
-      const l = lightOf(b.type, b.level);
-      if (!l) continue;
+      const base = lightOf(b.type, b.level);
+      if (!base) continue;
+      // En las fiestas la hoguera arde más alta y alumbra más lejos.
+      const l = b.type === BuildingType.HALL && this.civ.isFestive(b.village) ? { r: base.r * FEAST_GLOW, a: 1 } : base;
       const cx = b.x + b.w / 2;
       const cy = b.y + b.h / 2;
       if (cx + l.r < c.left || cy + l.r < c.top || cx - l.r > right || cy - l.r > bottom) continue;

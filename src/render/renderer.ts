@@ -91,6 +91,9 @@ const TERRAIN_CHUNKS_PER_FRAME = 8;
 const CAMEL_HUMP_Y = CELL_H - 16;
 /** Centro de la joroba en el dibujo (columnas 5 a 9). */
 const CAMEL_HUMP_X = 7.5;
+/** Distancia a la hoguera (casillas) a la que se baila en las fiestas y paso de baile (pierna adelantada). */
+const DANCE_RADIUS = 4.5;
+const DANCE_STEP = 1;
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
@@ -369,6 +372,16 @@ export class Renderer {
     return this.units.age[i] < this.adultTicks[species] ? scale * 0.7 : scale * this.speciesScale[species];
   }
 
+  /** Aldeano de una aldea en fiesta que descansa junto a la hoguera: baila. */
+  private dances(i: number): boolean {
+    const u = this.units;
+    if (u.state[i] !== UnitState.IDLE || u.village[i] < 0 || !this.civ.isFestive(u.village[i])) return false;
+    const v = this.civ.villages[u.village[i]];
+    const dx = u.x[i] - v.cx - 0.5;
+    const dy = u.y[i] - v.cy - 0.5;
+    return dx * dx + dy * dy <= DANCE_RADIUS * DANCE_RADIUS;
+  }
+
   /** Postura según lo que hace: caminar, trabajar, luchar o comer. */
   private poseOf(i: number, tick: number): number {
     const u = this.units;
@@ -389,8 +402,10 @@ export class Renderer {
     const sp = u.species[i];
     const s = this.unitScale(i, baseScale);
     const moving = u.x[i] !== u.px[i] || u.y[i] !== u.py[i];
-    const flip = u.x[i] < u.px[i] || (!moving && u.tx[i] < u.x[i]);
-    const pose = this.poseOf(i, tick);
+    const dancing = this.dances(i);
+    // Al bailar se dan la vuelta a compás.
+    const flip = dancing ? (((tick >> 3) + i) & 1) === 1 : u.x[i] < u.px[i] || (!moving && u.tx[i] < u.x[i]);
+    const pose = dancing ? (((tick >> 1) + i) & 1 ? Pose.RAISE : DANCE_STEP) : this.poseOf(i, tick);
     const k = this.civ.kingdoms.kingdomOfUnit(i);
     const cloth = k >= 0 ? this.civ.kingdoms.kingdoms[k].colorIndex : CLOTH_COUNT - 1;
     const cell = this.atlas.cell(sp, cloth, pose, flip);

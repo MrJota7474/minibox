@@ -266,7 +266,7 @@ export class Game {
     const season = sim.climate.seasonAt(sim.tick, sim.laws.seasons);
     // La raza de las aldeas que se ven (o la más poblada) da color a la música.
     const race = this.camera ? dominantRace(sim.civ.villages, this.view(this.camera)) : null;
-    this.sound.setMusic(moodFor({ wars: counts.wars, monsters: counts.monsters, season }), race);
+    this.sound.setMusic(moodFor({ wars: counts.wars, monsters: counts.monsters, season, festival: sim.civ.anyFestive() }), race);
   }
 
   /** Ambiente según lo que se ve (o silencio si está desactivado o no hay mundo). */

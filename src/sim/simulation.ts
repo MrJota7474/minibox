@@ -1,3 +1,4 @@
+import { NIGHT_LEN, festivalReason, festivalStartFor } from '../civ/festival';
 import { DEATH_CAUSE_COUNT, type AiContext, type SimStats } from '../ai/context';
 import { inHabitat } from '../ai/habitat';
 import { stepMigrations } from '../ai/migration';
@@ -185,8 +186,17 @@ export class Simulation {
     stepMonsterSpawns(this.ctx, this.rngMonster);
     stepMigrations(this.ctx, this.rngAi);
     this.civ.update(this.ctx);
+    this.startFestival();
     updateUnits(this.ctx);
     this.tick++;
+  }
+
+  /** Primera noche de cada estación: fiesta en las aldeas que pueden permitírsela. */
+  private startFestival(): void {
+    const { seasonTicks, seasonOffset } = this.climate;
+    if (festivalStartFor(this.tick, seasonTicks, seasonOffset) !== this.tick) return;
+    const season = this.climate.seasonAt(this.tick, this.laws.seasons);
+    this.civ.celebrate(this.ctx, festivalReason(season, this.laws.seasons), this.tick + NIGHT_LEN);
   }
 
   stateHash(): number {
