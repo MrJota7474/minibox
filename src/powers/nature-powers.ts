@@ -1,7 +1,7 @@
 import { DeathCause, killUnit, type AiContext } from '../ai/context';
 import { SPECIES, Species } from '../entities/species';
 import type { Rng } from '../core/rng';
-import { BIOME_INFO, Biome, Flora, Terrain, isFertileTerrain } from '../world/terrain';
+import { BIOME_INFO, Biome, Flora, Terrain, isFertileTerrain, type BiomeId } from '../world/terrain';
 import { treeNeighbors } from '../world/vegetation';
 import type { World } from '../world/world';
 import type { HazardSystem } from './hazards';
@@ -177,6 +177,84 @@ export function stepSandstorm(e: Effect, ctx: AiContext, rng: Rng, civ: Building
   }
 }
 
+// ---------- Clima de zona: reverdecer y sequía ----------
+
+const CLIMATE_INTERVAL = 10;
+/** No brota un retoño con tantos árboles pegados (bosques sin apiñar). */
+const MAX_TREE_NEIGHBORS = 3;
+const CLIMATE_TILES = 10;
+/** Probabilidad de que una casilla tocada cambie de bioma un paso. */
+const CLIMATE_SHIFT_CHANCE = 0.3;
+const GREEN_GRASS_GAIN = 40;
+const GREEN_SAPLING_CHANCE = 0.05;
+const GREEN_FARM_GROWTH = 3;
+const DROUGHT_GRASS_LOSS = 35;
+const DROUGHT_FARM_LOSS = -4;
+const DROUGHT_SAPLING_LOSS = 0.3;
+/** Probabilidad de que la hierba seca prenda en cada casilla tocada por la sequía. */
+const DROUGHT_FIRE_CHANCE = 0.006;
+
+/** Un paso hacia lo verde (el yermo maldito también se cura) y un paso hacia lo seco. */
+const GREENER: Readonly<Partial<Record<number, BiomeId>>> = {
+  [Biome.DESERT]: Biome.SAVANNA,
+  [Biome.SAVANNA]: Biome.GRASS,
+  [Biome.BLIGHT]: Biome.GRASS,
+};
+const DRIER: Readonly<Partial<Record<number, BiomeId>>> = {
+  [Biome.FOREST]: Biome.GRASS,
+  [Biome.JUNGLE]: Biome.SAVANNA,
+  [Biome.SWAMP]: Biome.GRASS,
+  [Biome.GRASS]: Biome.SAVANNA,
+  [Biome.SAVANNA]: Biome.DESERT,
+};
+
+/** Casilla al azar del círculo del efecto (el sorteo es en un cuadrado: se descartan las esquinas), o -1. */
+function tileInCircle(e: Effect, w: World, randomTile: () => number): number {
+  const i = randomTile();
+  if (i < 0) return -1;
+  const x = i % w.width;
+  const dx = x + 0.5 - e.x;
+  const dy = (i - x) / w.width + 0.5 - e.y;
+  return dx * dx + dy * dy <= e.r * e.r ? i : -1;
+}
+
+/** Reverdecer: durante un rato la zona pasa del desierto a la sabana y de ahí a la pradera; brota hierba y algún retoño. */
+export function stepGreening(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingDamage, randomTile: () => number): void {
+  if (ctx.tick % CLIMATE_INTERVAL !== 0) return;
+  const w = ctx.world;
+  civ.tendFarmsIn(e.x, e.y, e.r, GREEN_FARM_GROWTH);
+  for (let k = 0; k < CLIMATE_TILES; k++) {
+    const i = tileInCircle(e, w, randomTile);
+    if (i < 0 || w.isWaterIdx(i) || !isFertileTerrain(w.terrain[i])) continue;
+    const next = GREENER[w.biome[i]];
+    if (next !== undefined && rng.chance(CLIMATE_SHIFT_CHANCE)) w.setBiome(i, next);
+    w.setGrass(i, Math.min(BIOME_INFO[w.biome[i]].grassMax, w.grass[i] + GREEN_GRASS_GAIN));
+    if (w.flora[i] === Flora.NONE && w.buildingAt[i] === 0 && rng.chance(GREEN_SAPLING_CHANCE)) {
+      const x = i % w.width;
+      if (treeNeighbors(w, x, (i - x) / w.width) < MAX_TREE_NEIGHBORS) w.setFlora(i, Flora.SAPLING);
+    }
+  }
+}
+
+/** Sequía: la hierba se seca, las cosechas se marchitan, la tierra pasa de pradera a sabana y a desierto, y a veces prende. */
+export function stepDrought(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingDamage, randomTile: () => number): void {
+  if (ctx.tick % CLIMATE_INTERVAL !== 0) return;
+  const w = ctx.world;
+  civ.tendFarmsIn(e.x, e.y, e.r, DROUGHT_FARM_LOSS);
+  for (let k = 0; k < CLIMATE_TILES; k++) {
+    const i = tileInCircle(e, w, randomTile);
+    if (i < 0 || w.isWaterIdx(i) || !isFertileTerrain(w.terrain[i])) continue;
+    const next = DRIER[w.biome[i]];
+    if (next !== undefined && rng.chance(CLIMATE_SHIFT_CHANCE)) w.setBiome(i, next);
+    // La hierba no pasa del tope del bioma (más seco) en el que queda.
+    w.setGrass(i, Math.min(BIOME_INFO[w.biome[i]].grassMax, w.grass[i] - DROUGHT_GRASS_LOSS));
+    if (w.flora[i] === Flora.SAPLING && rng.chance(DROUGHT_SAPLING_LOSS)) w.setFlora(i, Flora.NONE);
+    else if (w.flora[i] === Flora.BERRY_BUSH) w.setFlora(i, Flora.BUSH);
+    // Sólo prende lo que puede arder (hierba, plantas o edificios), no la tierra pelada.
+    if (rng.chance(DROUGHT_FIRE_CHANCE) && ctx.hazards.isFlammable(i)) ctx.hazards.ignite(i);
+  }
+}
+
 // ---------- Langostas ----------
 
 const LOCUST_SPEED = 0.12;
@@ -229,7 +307,6 @@ export function fertility(ctx: AiContext, cx: number, cy: number, r: number): vo
 
 const RAIN_SAPLING_CHANCE = 0.06;
 const RAIN_FARM_GROWTH = 40;
-const MAX_TREE_NEIGHBORS = 3;
 
 /** Lluvia fértil: hierba a tope, bayas de nuevo, algún retoño, cosechas adelantadas y el fuego apagado. */
 export function fertileRain(w: World, hazards: HazardSystem, cx: number, cy: number, r: number, rng: Rng, civ: BuildingDamage): void {

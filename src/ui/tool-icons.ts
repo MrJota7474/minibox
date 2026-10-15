@@ -189,6 +189,25 @@ const POWER_DRAW: Readonly<Record<string, (p: Pix) => void>> = {
     p.rect(2, 10, 5, 1, '#8ac0f0');
     p.rect(9, 11, 5, 1, '#8ac0f0');
   },
+  drought: (p) => {
+    // Sol abrasador sobre tierra agrietada.
+    p.ellipse(8, 5, 3.5, 3.5, '#ffb030');
+    p.ellipse(8, 5, 2, 2, '#ffe070');
+    for (const [x, y] of [[8, 0], [2, 5], [14, 5], [3, 1], [13, 1]]) p.set(x, y, '#ffb030');
+    p.rect(0, 11, 16, 5, '#b88a50');
+    for (const [x, y, w] of [[2, 12, 3], [7, 13, 2], [11, 12, 3], [4, 14, 2], [9, 15, 3]] as const) p.rect(x, y, w, 1, '#6a4a2a');
+  },
+  greening: (p) => {
+    // Brote verde sobre tierra que pasa de seca a húmeda.
+    p.rect(0, 12, 8, 4, '#c8a060');
+    p.rect(8, 12, 8, 4, '#4f8a3a');
+    p.rect(7, 6, 2, 6, '#3f9a3a');
+    p.ellipse(5, 6, 3, 1.6, '#62c03b');
+    p.ellipse(11, 4, 3, 1.6, '#62c03b');
+    p.set(4, 6, '#a0e070');
+    p.set(10, 4, '#a0e070');
+    for (const [x, y] of [[2, 2], [14, 8], [1, 9]]) p.set(x, y, '#9ae0ff');
+  },
   sandstorm: (p) => {
     // Remolino de polvo sobre dunas.
     p.rect(0, 13, 16, 3, '#d8b070');

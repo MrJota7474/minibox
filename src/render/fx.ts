@@ -109,6 +109,7 @@ const STYLES: Readonly<Record<string, Style>> = {
   sprout: { colors: ['#9be38a', '#62ab3b', '#c8f08a'], shape: 'square', speed: 0.8, rise: -1.4, gravity: 0, size: 0.16 },
   gold: { colors: ['#ffd04a', '#fff2a0', '#f2c14e'], shape: 'star', speed: 2.2, rise: -1.6, gravity: 1 },
   snowfall: { colors: ['#ffffff', '#e8f0f6', '#c8e4ff'], shape: 'square', speed: 0.6, rise: 0.6, gravity: 0.4, size: 0.15 },
+  leaf: { colors: ['#62c03b', '#9be38a', '#3f9a3a', '#d8f0a0'], shape: 'square', speed: 0.6, rise: 0.9, gravity: 0.2, size: 0.12 },
   sand: { colors: ['#e8c890', '#d8b070', '#c89a58', '#f0dcb0'], shape: 'square', speed: 1.4, rise: 0.2, gravity: 0.1, size: 0.12 },
   swarm: { colors: ['#5a4a20', '#8a7a30', '#3a2e14'], shape: 'square', speed: 2.4, rise: 0, gravity: 0, size: 0.1 },
 };
@@ -221,6 +222,12 @@ export class FxLayer {
           const d = Math.sqrt(Math.random()) * e.r;
           this.burst(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, 1, 'snowfall', 2);
         }
+      }
+      if ((e.kind === 'greening' || e.kind === 'drought') && this.visible(e.x, e.y, e.r) && Math.random() < 0.6) {
+        // Hojas que brotan o polvo que se levanta por la zona.
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.sqrt(Math.random()) * e.r;
+        this.burst(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, 1, e.kind === 'greening' ? 'leaf' : 'dust', 0.4);
       }
       if (e.kind === 'sandstorm' && this.visible(e.x, e.y, e.r)) {
         // Granos de arena por todo el muro de polvo.
@@ -578,6 +585,8 @@ export class FxLayer {
       else if (e.kind === 'blizzard') this.drawBlizzard(ctx, sx, sy, e.r * z, time);
       else if (e.kind === 'locusts') this.drawSwarm(ctx, sx, sy, e.r * z, time);
       else if (e.kind === 'sandstorm') this.drawSandstorm(ctx, sx, sy, e.r * z, time, e.dx, e.dy);
+      else if (e.kind === 'greening') this.drawClimate(ctx, sx, sy, e.r * z, time, '90,200,90');
+      else if (e.kind === 'drought') this.drawClimate(ctx, sx, sy, e.r * z, time, '230,150,60');
     }
     for (const m of this.meteors) this.drawMeteor(ctx, m);
     for (const r of this.rings) {
@@ -666,6 +675,22 @@ export class FxLayer {
     ctx.beginPath();
     ctx.ellipse(sx, sy, r, r * 0.8, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  /** Clima de zona: un velo suave del color del cambio (verde al reverdecer, ocre en la sequía) que late despacio. */
+  private drawClimate(ctx: CanvasRenderingContext2D, sx: number, sy: number, r: number, time: number, rgb: string): void {
+    const pulse = 0.16 + Math.sin(time / 700) * 0.04;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(1, 0.8);
+    const g = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
+    g.addColorStop(0, `rgba(${rgb},${pulse})`);
+    g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 
   /** Chispas de colores que saltan de las hogueras de las aldeas en fiesta. */

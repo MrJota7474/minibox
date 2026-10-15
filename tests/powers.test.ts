@@ -17,7 +17,7 @@ import { defaultLaws } from '../src/sim/laws';
 import { neutralClimate } from '../src/world/climate';
 import { Simulation } from '../src/sim/simulation';
 import { deserialize, describe as describeSave, serialize } from '../src/persistence/snapshot';
-import { Biome, Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
+import { BIOME_INFO, Biome, Flora, TERRAIN_INFO, Terrain } from '../src/world/terrain';
 import { World } from '../src/world/world';
 
 const SIZE = 64;
@@ -398,6 +398,62 @@ describe('desastres y poderes de la naturaleza', () => {
     expect(deserts()).toBeGreaterThan(before);
   });
 
+  it('reverdecer convierte poco a poco el desierto en sabana y la sabana en pradera', () => {
+    const r = rig();
+    const w = r.ctx.world;
+    for (let i = 0; i < w.size; i++) {
+      w.setBiome(i, Biome.DESERT);
+      w.setGrass(i, 0);
+    }
+    apply(r, 'greening', 32, 32, 5);
+    expect(r.powers.effects.some((e) => e.kind === 'greening')).toBe(true);
+    run(r, 300);
+    expect(r.powers.effects.some((e) => e.kind === 'greening')).toBe(false);
+    let savanna = 0;
+    let grass = 0;
+    for (let i = 0; i < w.size; i++) {
+      if (w.biome[i] === Biome.SAVANNA) savanna++;
+      if (w.biome[i] === Biome.GRASS) grass++;
+    }
+    expect(savanna + grass).toBeGreaterThan(20);
+    expect(grass).toBeGreaterThan(0);
+    // Lejos de la zona, el desierto sigue igual.
+    expect(w.biome[w.idx(2, 2)]).toBe(Biome.DESERT);
+  });
+
+  it('la sequía seca la pradera, quita las bayas y vuelve la tierra sabana', () => {
+    const r = rig();
+    const w = r.ctx.world;
+    for (let y = 26; y < 38; y++) for (let x = 26; x < 38; x++) w.setFlora(w.idx(x, y), Flora.BERRY_BUSH);
+    apply(r, 'drought', 32, 32, 5);
+    run(r, 300);
+    let savanna = 0;
+    let berries = 0;
+    for (let y = 26; y < 38; y++) {
+      for (let x = 26; x < 38; x++) {
+        const i = w.idx(x, y);
+        if (w.biome[i] === Biome.SAVANNA || w.biome[i] === Biome.DESERT) savanna++;
+        if (w.flora[i] === Flora.BERRY_BUSH) berries++;
+      }
+    }
+    expect(savanna).toBeGreaterThan(10);
+    expect(berries).toBeLessThan(144);
+    // La hierba no pasa del tope de su bioma, y fuera del círculo nada cambia.
+    for (let i = 0; i < w.size; i++) expect(w.grass[i]).toBeLessThanOrEqual(BIOME_INFO[w.biome[i]].grassMax);
+    expect(w.biome[w.idx(32 + 12, 32 + 12)]).toBe(Biome.GRASS);
+  });
+
+  it('el clima de zona no cambia la arena ni la roca', () => {
+    const r = rig();
+    const w = r.ctx.world;
+    for (let y = 26; y < 38; y++) for (let x = 26; x < 38; x++) w.setHeight(w.idx(x, y), TERRAIN_INFO[Terrain.SAND].paintHeight);
+    const before = Array.from({ length: 144 }, (_, k) => w.biome[w.idx(26 + (k % 12), 26 + Math.floor(k / 12))]);
+    apply(r, 'drought', 32, 32, 2);
+    run(r, 300);
+    const after = Array.from({ length: 144 }, (_, k) => w.biome[w.idx(26 + (k % 12), 26 + Math.floor(k / 12))]);
+    expect(after).toEqual(before);
+  });
+
   it('las langostas devoran la hierba sin herir a nadie', () => {
     const r = rig();
     const s = sheep(r, 32.5, 32.5);
@@ -487,10 +543,12 @@ describe('desastres y poderes de la naturaleza', () => {
     expect(sim.powers.fx.at(-1)?.kind).toBe('smoke');
   });
 
-  it('una partida con ventisca, tormenta de arena y langostas en marcha se guarda y continúa igual', () => {
+  it('una partida con ventisca, tormenta de arena, reverdecer, sequía y langostas en marcha se guarda y continúa igual', () => {
     const sim = new Simulation({ seedText: 'naturaleza', size: 96, capacity: 300, populate: true });
     sim.apply({ type: 'power', power: 'blizzard', x: 40, y: 40, size: 5 });
     sim.apply({ type: 'power', power: 'sandstorm', x: 20, y: 60, size: 4 });
+    sim.apply({ type: 'power', power: 'greening', x: 70, y: 20, size: 4 });
+    sim.apply({ type: 'power', power: 'drought', x: 70, y: 70, size: 4 });
     sim.apply({ type: 'power', power: 'locusts', x: 60, y: 50, size: 3 });
     for (let t = 0; t < 30; t++) sim.step();
     const loaded = deserialize(serialize(sim, describeSave(sim, 'Naturaleza', 1)));

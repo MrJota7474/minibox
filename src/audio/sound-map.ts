@@ -191,7 +191,7 @@ export function soundForCommand(c: Command): SoundId | null {
       return 'click';
     case 'power':
       if (c.power === 'fire' || c.power === 'lava') return 'fire';
-      if (c.power === 'earthquake' || c.power === 'tornado' || c.power === 'acid-rain' || c.power === 'volcano' || c.power === 'blizzard' || c.power === 'sandstorm') return 'rumble';
+      if (c.power === 'earthquake' || c.power === 'tornado' || c.power === 'acid-rain' || c.power === 'volcano' || c.power === 'blizzard' || c.power === 'sandstorm' || c.power === 'drought') return 'rumble';
       if (c.power === 'locusts') return 'plague';
       return null;
     default:

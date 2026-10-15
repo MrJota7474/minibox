@@ -11,7 +11,7 @@ import { BIOME_INFO, FLORA_NAMES, TERRAIN_INFO } from '../world/terrain';
  * o manipulado, y una referencia fuera de rango haría fallar la simulación en cada frame.
  */
 const STATE_COUNT = Object.keys(UnitState).length;
-const EFFECT_KINDS: readonly string[] = ['earthquake', 'tornado', 'acid-rain', 'volcano', 'blizzard', 'locusts', 'sandstorm'];
+const EFFECT_KINDS: readonly string[] = ['earthquake', 'tornado', 'acid-rain', 'volcano', 'blizzard', 'locusts', 'sandstorm', 'drought', 'greening'];
 const MAX_EFFECTS = 24;
 const MAX_HELD = 30;
 const MAX_LEVEL = 8;
