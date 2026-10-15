@@ -59,6 +59,15 @@ const GRIDS: Readonly<Record<string, readonly string[]>> = {
   madness: ['..RRRRRR..', '.RR....RR.', '.R..RR..R.', '.R.R..R.R.', '.R.R.RR.R.', '.R..R...R.', '.RR....R..', '..RRRRR...', '..........', '..........'],
   heal: ['....WW....', '..W.WW.W..', '...WWWW...', 'WWWWWWWWWW', '...WWWW...', '..W.WW.W..', '....WW....', '..........', '..........', '..........'],
   magnet: ['.RR....RR.', '.RR....RR.', '.WW....WW.', '.RR....RR.', '.RR....RR.', '.RRR..RRR.', '..RRRRRR..', '...RRRR...', '..........', '..........'],
+  // Iconos del menú principal.
+  globe: ['...gggg...', '..gGGgbg..', '.gGggbbbg.', '.ggbbbgGg.', '.gbbbggGg.', '.gbbgggGg.', '..gbggGg..', '...gggg...', '..........', '..........'],
+  save: ['.kkkkkkkk.', '.koooookk.', '.koooookk.', '.kkkkkkkk.', '.kssssssk.', '.ksyyyysk.', '.ksyyyysk.', '.kkkkkkkk.', '..........', '..........'],
+  book: ['.bbbbbbbb.', '.boooooob.', '.bo.kk.ob.', '.boooooob.', '.bo.kk.ob.', '.boooooob.', '.bbbbbbbb.', '..........', '..........', '..........'],
+  scroll: ['.yyyyyyy..', 'y.ooooooy.', '..okkkko..', '..oooooo..', '..okkkko..', '..oooooo..', '.yyyyyyyy.', '..........', '..........', '..........'],
+  gear: ['....ss....', '.s.ssss.s.', '..ssssss..', '.sss..sss.', 'sss....sss', '.sss..sss.', '..ssssss..', '.s.ssss.s.', '....ss....', '..........'],
+  keys: ['..........', 'kkkkkkkkkk', 'koookoookk', 'kkkkkkkkkk', 'kookooookk', 'kkkkkkkkkk', 'koooooooko', 'kkkkkkkkkk', '..........', '..........'],
+  chart: ['.........y', '.......yy.', '..g...y...', '..g..y.r..', '..gyy..r..', '..g..r.r..', '..g..r.r..', '.gggggggg.', '..........', '..........'],
+  back: ['..........', '...o......', '..oo......', '.oooooooo.', 'ooooooooo.', '.oooooooo.', '..oo......', '...o......', '..........', '..........'],
   chevron: ['..........', '..........', '.o......o.', '..o....o..', '...o..o...', '....oo....', '..........', '..........', '..........', '..........'],
 };
 

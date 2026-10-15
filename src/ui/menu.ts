@@ -4,6 +4,7 @@ import { chronicleContent } from './chronicle';
 import { eraContent, lawsContent, seasonLengthContent } from './laws-panel';
 import { el } from './dom';
 import { helpContent } from './help';
+import { gridIcon } from './icons';
 import { savesContent, type SaveActions } from './saves-panel';
 import { settingsContent, type Settings } from './settings';
 
@@ -23,82 +24,77 @@ export interface MenuActions {
   setSettings(s: Settings): void;
 }
 
-/** Menú principal (☰): nuevo mundo, partidas, pantalla completa, rendimiento, crónica, leyes, ajustes y controles. */
+/** Una sección del menú: o se abre en el propio panel (con su título y un botón para volver) o es una acción directa. */
+interface Section {
+  icon: string;
+  label: string;
+  content?: () => HTMLElement;
+  run?: () => void;
+}
+
+/**
+ * Menú principal (☰): una cuadrícula de secciones con icono. Las que tienen contenido
+ * (partidas, crónica, leyes, ajustes, controles) se abren dentro del panel; las demás son
+ * acciones directas.
+ */
 export class Menu {
   readonly root: HTMLElement;
-  private readonly help: HTMLElement;
-  private readonly chronicleBox: HTMLElement;
-  private readonly lawsBox: HTMLElement;
-  private readonly savesBox: HTMLElement;
-  private readonly settingsBox: HTMLElement;
+  private readonly grid: HTMLElement;
+  private readonly view: HTMLElement;
+  private readonly viewTitle: HTMLElement;
+  private readonly viewBody: HTMLElement;
 
   constructor(actions: MenuActions) {
-    this.help = helpContent();
-    this.help.hidden = true;
-    this.chronicleBox = el('div', { class: 'chronicle-box', attrs: { hidden: '' } });
-    this.lawsBox = el('div', { class: 'laws-box', attrs: { hidden: '' } });
-    this.savesBox = el('div', { class: 'saves-box', attrs: { hidden: '' } });
-    this.settingsBox = el('div', { class: 'settings-box', attrs: { hidden: '' } });
-    const item = (label: string, fn: () => void): HTMLButtonElement =>
-      el('button', {
-        class: 'btn btn-text menu-item',
-        text: label,
-        attrs: { type: 'button' },
-        onClick: () => {
-          fn();
-        },
-      });
+    const act = (fn: () => void) => () => {
+      this.close();
+      fn();
+    };
+    const sections: Section[] = [
+      { icon: 'globe', label: 'Nuevo mundo', run: act(() => actions.newWorld()) },
+      { icon: 'save', label: 'Partidas', content: () => savesContent(actions.saves) },
+      { icon: 'book', label: 'Crónica', content: () => chronicleContent(actions.chronicle()) },
+      { icon: 'scroll', label: 'Leyes del mundo', content: () => this.lawsSection(actions) },
+      { icon: 'gear', label: 'Ajustes', content: () => settingsContent(actions.settings(), (s) => actions.setSettings(s)) },
+      { icon: 'keys', label: 'Controles', content: () => helpContent() },
+      ...(document.fullscreenEnabled ? [{ icon: 'fullscreen', label: 'Pantalla completa', run: act(() => actions.toggleFullscreen()) }] : []),
+      { icon: 'chart', label: 'Rendimiento', run: act(() => actions.togglePerf()) },
+    ];
+
+    this.grid = el(
+      'div',
+      { class: 'menu-grid' },
+      sections.map((s, k) => {
+        const b = el('button', { class: 'btn menu-tile', attrs: { type: 'button' }, onClick: () => (s.content ? this.openSection(s.label, s.content()) : s.run?.()) }, [
+          el('img', { attrs: { src: gridIcon(s.icon), alt: '' } }),
+          el('span', { class: 'menu-tile-label', text: s.label }),
+        ]);
+        // Orden de entrada: los botones aparecen uno tras otro.
+        b.style.setProperty('--i', String(k));
+        return b;
+      }),
+    );
+    this.viewTitle = el('h3', { class: 'menu-view-title' });
+    this.viewBody = el('div', { class: 'menu-view-body' });
+    this.view = el('div', { class: 'menu-view', attrs: { hidden: '' } }, [
+      el('div', { class: 'menu-view-head' }, [
+        el('button', { class: 'btn btn-mini menu-back', title: 'Volver', attrs: { type: 'button', 'aria-label': 'Volver' }, onClick: () => this.showGrid() }, [
+          el('img', { attrs: { src: gridIcon('back'), alt: '' } }),
+        ]),
+        this.viewTitle,
+      ]),
+      this.viewBody,
+    ]);
     this.root = el('div', { class: 'modal', attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Menú', hidden: '' } }, [
       el('div', { class: 'panel menu' }, [
-        el('h2', { text: 'MiniBox' }),
-        item('Nuevo mundo', () => {
-          this.close();
-          actions.newWorld();
-        }),
-        item('Guardar / cargar', () => {
-          this.savesBox.hidden = !this.savesBox.hidden;
-          if (!this.savesBox.hidden) this.savesBox.replaceChildren(savesContent(actions.saves));
-        }),
-        this.savesBox,
-        document.fullscreenEnabled
-          ? item('Pantalla completa', () => {
-              this.close();
-              actions.toggleFullscreen();
-            })
-          : null,
-        item('Mostrar/ocultar rendimiento', () => {
-          this.close();
-          actions.togglePerf();
-        }),
-        item('Crónica del mundo', () => {
-          this.chronicleBox.hidden = !this.chronicleBox.hidden;
-          if (!this.chronicleBox.hidden) this.chronicleBox.replaceChildren(chronicleContent(actions.chronicle()));
-        }),
-        this.chronicleBox,
-        item('Leyes del mundo', () => {
-          const laws = actions.laws();
-          this.lawsBox.hidden = !this.lawsBox.hidden || !laws;
-          const era = actions.era();
-          if (!this.lawsBox.hidden && laws) {
-            const seasons = actions.seasonTicks();
-            this.lawsBox.replaceChildren(
-              lawsContent(laws, (law, value) => actions.setLaw(law, value)),
-              seasons === null ? '' : seasonLengthContent(seasons, (t) => actions.setSeasonTicks(t)),
-              era === null ? '' : eraContent(era, (e) => actions.setEra(e)),
-            );
-          }
-        }),
-        this.lawsBox,
-        item('Ajustes', () => {
-          this.settingsBox.hidden = !this.settingsBox.hidden;
-          if (!this.settingsBox.hidden) this.settingsBox.replaceChildren(settingsContent(actions.settings(), (s) => actions.setSettings(s)));
-        }),
-        this.settingsBox,
-        item('Controles', () => {
-          this.help.hidden = !this.help.hidden;
-        }),
-        this.help,
-        item('Volver al juego', () => this.close()),
+        el('div', { class: 'menu-head' }, [
+          el('h2', { class: 'menu-title', text: 'MiniBox' }),
+          el('button', { class: 'btn btn-mini', title: 'Cerrar', attrs: { type: 'button', 'aria-label': 'Cerrar el menú' }, onClick: () => this.close() }, [
+            el('img', { attrs: { src: gridIcon('close'), alt: '' } }),
+          ]),
+        ]),
+        this.grid,
+        this.view,
+        el('button', { class: 'btn btn-primary menu-resume', text: 'Volver al juego', attrs: { type: 'button' }, onClick: () => this.close() }),
       ]),
     ]);
     this.root.addEventListener('click', (e) => {
@@ -106,17 +102,39 @@ export class Menu {
     });
   }
 
+  private lawsSection(actions: MenuActions): HTMLElement {
+    const laws = actions.laws();
+    if (!laws) return el('p', { class: 'menu-empty', text: 'Crea un mundo para cambiar sus leyes.' });
+    const era = actions.era();
+    const seasons = actions.seasonTicks();
+    return el('div', { class: 'laws-box' }, [
+      lawsContent(laws, (law, value) => actions.setLaw(law, value)),
+      seasons === null ? '' : seasonLengthContent(seasons, (t) => actions.setSeasonTicks(t)),
+      era === null ? '' : eraContent(era, (e) => actions.setEra(e)),
+    ]);
+  }
+
+  private openSection(title: string, body: HTMLElement): void {
+    this.viewTitle.textContent = title;
+    this.viewBody.replaceChildren(body);
+    this.grid.hidden = true;
+    this.view.hidden = false;
+  }
+
+  private showGrid(): void {
+    this.view.hidden = true;
+    this.viewBody.replaceChildren();
+    this.grid.hidden = false;
+  }
+
   open(): void {
+    this.showGrid();
     this.root.hidden = false;
   }
 
   close(): void {
     this.root.hidden = true;
-    this.help.hidden = true;
-    this.chronicleBox.hidden = true;
-    this.lawsBox.hidden = true;
-    this.savesBox.hidden = true;
-    this.settingsBox.hidden = true;
+    this.showGrid();
   }
 
   get isOpen(): boolean {

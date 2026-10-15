@@ -25,6 +25,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase M (fauna, edificios y música)** — llegan el **ciervo**, la **cabra montés**, el **dromedario**, el **zorro** y el **oso**, cada uno en su paisaje. Los animales ya no forman manadas enormes: cada especie cabe hasta donde da su hábitat, se reparte, y si alguna casi desaparece llegan otros de fuera. Las aldeas lucen sombras, casas de dos tonos, jardineras, banderas que ondean, hogueras encendidas y andamios. Y suena **música** compuesta al momento: tranquila en paz, lenta en invierno y tensa en la guerra.
 - **Fase N (naturaleza)** — bosques más naturales, con claros y árboles a distintas distancias en vez de una cuadrícula, y la mitad de animales: el mapa ya no se ve abarrotado.
 - **Fase P (desastres y poderes)** — tres desastres nuevos: **maremoto** (una ola que barre la costa), **ventisca** (frío que hiela cosechas y deja nieve) y **langostas** (una nube que devora los campos); y dos poderes: **lluvia fértil**, que reverdece la tierra, y **ofrenda**, que llena los almacenes de una aldea.
+- **Fase O (menús)** — el menú principal se rediseña como una cuadrícula de secciones con icono; cada una se abre dentro del panel con su título y un botón para volver.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 

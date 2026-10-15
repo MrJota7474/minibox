@@ -755,6 +755,80 @@ img {
   padding: 4px 8px;
 }
 
+/* ---------- Menú principal: cuadrícula de secciones ---------- */
+.menu-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.menu .menu-title {
+  flex: 1;
+  margin: 0;
+  font-size: 26px;
+  color: var(--accent-strong);
+  text-shadow: 2px 2px 0 #7a4f1d;
+}
+.menu-head .btn-mini img,
+.menu-back img {
+  width: 20px;
+  height: 20px;
+}
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+}
+.menu-tile {
+  min-height: 78px;
+  gap: 6px;
+  padding: 10px 6px;
+  background: linear-gradient(180deg, #453526, var(--panel-2));
+  animation: pop-in 0.22s ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 25ms);
+}
+.menu-tile img {
+  width: 30px;
+  height: 30px;
+  filter: drop-shadow(1px 1px 0 rgba(0, 0, 0, 0.5));
+}
+.menu-tile-label {
+  font-size: 13px;
+  line-height: 1.15;
+  text-align: center;
+}
+.menu-tile:hover {
+  border-color: var(--accent);
+}
+.menu-view-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid var(--edge);
+}
+.menu-view-title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--accent-strong);
+}
+.menu-view:not([hidden]) {
+  animation: slide-in 0.18s ease-out;
+}
+.menu-view-body {
+  display: grid;
+  gap: 8px;
+}
+.menu-empty {
+  margin: 8px 0;
+  color: var(--muted);
+}
+.menu-resume {
+  width: 100%;
+  margin-top: 14px;
+}
+
 /* ---------- Acabado: marcos, brillos y animaciones ---------- */
 /* Marco de pixel art: borde exterior oscuro, bisel claro por dentro y sombra. */
 .panel {
