@@ -1,5 +1,5 @@
-import type { AiContext } from '../ai/context';
-import { SPECIES } from '../entities/species';
+import { DeathCause, killUnit, type AiContext } from '../ai/context';
+import { SPECIES, Species } from '../entities/species';
 import type { Rng } from '../core/rng';
 import { BIOME_INFO, Biome, Flora, Terrain, isFertileTerrain } from '../world/terrain';
 import { treeNeighbors } from '../world/vegetation';
@@ -9,8 +9,9 @@ import { damageInRadius, type BuildingDamage, type Effect } from './disasters';
 import { Status } from './status';
 
 /**
- * Desastres y poderes de la naturaleza (Fase P): maremoto, ventisca, langostas y lluvia
- * fértil. Todo determinista: el azar llega del flujo de los poderes.
+ * Desastres y poderes de la naturaleza (fases P, U y X): maremoto, ventisca, langostas,
+ * tormenta de arena, lluvia fértil y fertilidad. Todo determinista: el azar llega del flujo
+ * de los poderes.
  */
 
 /** Visita las casillas del círculo (centro y radio en casillas). */
@@ -112,6 +113,67 @@ export function stepBlizzard(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingD
     w.setGrass(i, w.grass[i] - BLIZZARD_GRASS_LOSS);
     ctx.hazards.extinguish(i);
     if (isFertileTerrain(w.terrain[i]) && w.biome[i] !== Biome.SNOW && rng.chance(BLIZZARD_SNOW_CHANCE)) w.setBiome(i, Biome.SNOW);
+  }
+}
+
+// ---------- Tormenta de arena ----------
+
+const SAND_SPEED = 0.07;
+const SAND_TURN_INTERVAL = 60;
+/** Cuánto se tuerce el rumbo de la tormenta cada vez (mucho menos que las langostas: avanza recta). */
+const SAND_WOBBLE = 0.3;
+const SAND_INTERVAL = 10;
+const SAND_DAMAGE = 1;
+const SAND_TILES = 8;
+const SAND_GRASS_LOSS = 25;
+const SAND_FARM_LOSS = -5;
+const SAND_SAPLING_LOSS = 0.4;
+/** Probabilidad de que una casilla fértil junto al desierto quede convertida en arena. */
+const SAND_DUNE_CHANCE = 0.3;
+const NEIGHBORS: readonly (readonly [number, number])[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+/** Los hechos al desierto (dromedarios y razas a las que no afecta el calor) aguantan la arena. */
+export function sandProof(species: number): boolean {
+  return species === Species.CAMEL || SPECIES[species]?.race?.heatProof === true;
+}
+
+function nextToDesert(w: World, i: number): boolean {
+  const x = i % w.width;
+  const y = (i - x) / w.width;
+  return NEIGHBORS.some(([dx, dy]) => w.inBounds(x + dx, y + dy) && w.biome[w.idx(x + dx, y + dy)] === Biome.DESERT);
+}
+
+/**
+ * Tormenta de arena: un muro de polvo que avanza casi recto. Hiere poco a poco a quien no está
+ * hecho al desierto, entierra hierba, retoños y cosechas, apaga el fuego y deja arena al borde
+ * de los desiertos.
+ */
+export function stepSandstorm(e: Effect, ctx: AiContext, rng: Rng, civ: BuildingDamage, randomTile: () => number): void {
+  const w = ctx.world;
+  if (ctx.tick % SAND_TURN_INTERVAL === 0) {
+    e.dx += (rng.float() - 0.5) * SAND_WOBBLE;
+    e.dy += (rng.float() - 0.5) * SAND_WOBBLE;
+    const len = Math.sqrt(e.dx * e.dx + e.dy * e.dy) || 1;
+    e.dx /= len;
+    e.dy /= len;
+  }
+  e.x = Math.min(w.width - 1, Math.max(1, e.x + e.dx * SAND_SPEED));
+  e.y = Math.min(w.height - 1, Math.max(1, e.y + e.dy * SAND_SPEED));
+  if (ctx.tick % SAND_INTERVAL !== 0) return;
+  const u = ctx.units;
+  ctx.spatial.forEachInRadius(u, e.x, e.y, e.r, (j) => {
+    if (u.alive[j] === 0 || (u.status[j] & Status.HELD) !== 0 || sandProof(u.species[j])) return;
+    u.hp[j] -= SAND_DAMAGE;
+    if (u.hp[j] <= 0) killUnit(ctx, j, DeathCause.DISASTER);
+  });
+  civ.tendFarmsIn(e.x, e.y, e.r, SAND_FARM_LOSS);
+  for (let k = 0; k < SAND_TILES; k++) {
+    const i = randomTile();
+    if (i < 0 || w.isWaterIdx(i)) continue;
+    w.setGrass(i, w.grass[i] - SAND_GRASS_LOSS);
+    ctx.hazards.extinguish(i);
+    if (w.flora[i] === Flora.SAPLING && rng.chance(SAND_SAPLING_LOSS)) w.setFlora(i, Flora.NONE);
+    if (isFertileTerrain(w.terrain[i]) && w.biome[i] !== Biome.DESERT && nextToDesert(w, i) && rng.chance(SAND_DUNE_CHANCE)) w.setBiome(i, Biome.DESERT);
   }
 }
 

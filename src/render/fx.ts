@@ -106,6 +106,7 @@ const STYLES: Readonly<Record<string, Style>> = {
   sprout: { colors: ['#9be38a', '#62ab3b', '#c8f08a'], shape: 'square', speed: 0.8, rise: -1.4, gravity: 0, size: 0.16 },
   gold: { colors: ['#ffd04a', '#fff2a0', '#f2c14e'], shape: 'star', speed: 2.2, rise: -1.6, gravity: 1 },
   snowfall: { colors: ['#ffffff', '#e8f0f6', '#c8e4ff'], shape: 'square', speed: 0.6, rise: 0.6, gravity: 0.4, size: 0.15 },
+  sand: { colors: ['#e8c890', '#d8b070', '#c89a58', '#f0dcb0'], shape: 'square', speed: 1.4, rise: 0.2, gravity: 0.1, size: 0.12 },
   swarm: { colors: ['#5a4a20', '#8a7a30', '#3a2e14'], shape: 'square', speed: 2.4, rise: 0, gravity: 0, size: 0.1 },
 };
 /** Partículas con las que aparece cada monstruo recién nacido. */
@@ -216,6 +217,14 @@ export class FxLayer {
           const a = Math.random() * Math.PI * 2;
           const d = Math.sqrt(Math.random()) * e.r;
           this.burst(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, 1, 'snowfall', 2);
+        }
+      }
+      if (e.kind === 'sandstorm' && this.visible(e.x, e.y, e.r)) {
+        // Granos de arena por todo el muro de polvo.
+        for (let k = 0; k < 4; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * e.r;
+          this.burst(e.x + Math.cos(a) * d, e.y + Math.sin(a) * d, 1, 'sand', 1.5);
         }
       }
       if (e.kind === 'locusts' && this.visible(e.x, e.y, e.r)) this.burst(e.x + (Math.random() - 0.5) * e.r * 1.6, e.y + (Math.random() - 0.5) * e.r * 1.6, 3, 'swarm', 0.8);
@@ -564,6 +573,7 @@ export class FxLayer {
       else if (e.kind === 'volcano') this.drawVolcano(ctx, sx, sy, z, time);
       else if (e.kind === 'blizzard') this.drawBlizzard(ctx, sx, sy, e.r * z, time);
       else if (e.kind === 'locusts') this.drawSwarm(ctx, sx, sy, e.r * z, time);
+      else if (e.kind === 'sandstorm') this.drawSandstorm(ctx, sx, sy, e.r * z, time, e.dx, e.dy);
     }
     for (const m of this.meteors) this.drawMeteor(ctx, m);
     for (const r of this.rings) {
@@ -652,6 +662,33 @@ export class FxLayer {
     ctx.beginPath();
     ctx.ellipse(sx, sy, r, r * 0.8, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  /** Tormenta de arena: polvo ocre espeso con jirones que corren en la dirección del viento. */
+  private drawSandstorm(ctx: CanvasRenderingContext2D, sx: number, sy: number, r: number, time: number, dx: number, dy: number): void {
+    const pulse = 0.45 + Math.sin(time / 400) * 0.05;
+    const g = ctx.createRadialGradient(sx, sy, r * 0.1, sx, sy, r);
+    g.addColorStop(0, `rgba(196,140,70,${pulse + 0.2})`);
+    g.addColorStop(0.65, `rgba(206,156,86,${pulse})`);
+    g.addColorStop(1, 'rgba(210,165,95,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, r, r * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Jirones: rayas que cruzan el círculo a favor del viento.
+    ctx.strokeStyle = 'rgba(240,215,160,0.45)';
+    ctx.lineWidth = Math.max(1, r * 0.03);
+    const len = r * 0.5;
+    for (let k = 0; k < 14; k++) {
+      const t = ((time / 900 + k * 0.137) % 1) * 2 - 1;
+      const side = ((k * 53) % 100) / 50 - 1;
+      const px = sx + (dx * t - dy * side * 0.8) * r * 0.8;
+      const py = sy + (dy * t + dx * side * 0.8) * r * 0.65;
+      ctx.beginPath();
+      ctx.moveTo(px - dx * len * 0.5, py - dy * len * 0.5);
+      ctx.lineTo(px + dx * len * 0.5, py + dy * len * 0.5);
+      ctx.stroke();
+    }
   }
 
   /** Langostas: nube oscura que se arremolina. */

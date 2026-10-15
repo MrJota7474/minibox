@@ -366,6 +366,38 @@ describe('desastres y poderes de la naturaleza', () => {
     expect(!u.isAlive(s) || u.hp[s] < SPECIES[Species.SHEEP].maxHp).toBe(true);
   });
 
+  it('la tormenta de arena avanza, hiere a quien no está hecho al desierto y deja arena junto al desierto', () => {
+    const r = rig();
+    const w = r.ctx.world;
+    // Mitad oeste desierto, mitad este pradera.
+    for (let i = 0; i < w.size; i++) if (i % SIZE < 32) w.setBiome(i, Biome.DESERT);
+    const deserts = (): number => {
+      let n = 0;
+      for (let i = 0; i < w.size; i++) if (w.biome[i] === Biome.DESERT) n++;
+      return n;
+    };
+    const before = deserts();
+    const u = r.ctx.units;
+    const opts = (sp: number) => ({ sex: 0, ageTicks: SPECIES[sp].adultTicks, generation: 0, thinkOffset: 0 });
+    const human = u.spawn(Species.HUMAN, 32.5, 32.5, opts(Species.HUMAN));
+    const dune = u.spawn(Species.DUNEFOLK, 33.5, 32.5, opts(Species.DUNEFOLK));
+    const camel = u.spawn(Species.CAMEL, 32.5, 33.5, opts(Species.CAMEL));
+    apply(r, 'sandstorm', 32, 32, 5);
+    const storm = r.powers.effects.find((e) => e.kind === 'sandstorm');
+    expect(storm).toBeDefined();
+    const start = { x: storm?.x ?? 0, y: storm?.y ?? 0 };
+    run(r, 10);
+    expect(u.hp[human]).toBeLessThan(SPECIES[Species.HUMAN].maxHp);
+    expect(u.hp[dune]).toBe(SPECIES[Species.DUNEFOLK].maxHp);
+    expect(u.hp[camel]).toBe(SPECIES[Species.CAMEL].maxHp);
+    run(r, 100);
+    // Avanza casi recta: tras 110 ticks se ha movido varias casillas.
+    expect(Math.hypot((storm?.x ?? 0) - start.x, (storm?.y ?? 0) - start.y)).toBeGreaterThan(5);
+    run(r, 200);
+    expect(r.powers.effects.some((e) => e.kind === 'sandstorm')).toBe(false);
+    expect(deserts()).toBeGreaterThan(before);
+  });
+
   it('las langostas devoran la hierba sin herir a nadie', () => {
     const r = rig();
     const s = sheep(r, 32.5, 32.5);
@@ -455,9 +487,10 @@ describe('desastres y poderes de la naturaleza', () => {
     expect(sim.powers.fx.at(-1)?.kind).toBe('smoke');
   });
 
-  it('una partida con ventisca y langostas en marcha se guarda y continúa igual', () => {
+  it('una partida con ventisca, tormenta de arena y langostas en marcha se guarda y continúa igual', () => {
     const sim = new Simulation({ seedText: 'naturaleza', size: 96, capacity: 300, populate: true });
     sim.apply({ type: 'power', power: 'blizzard', x: 40, y: 40, size: 5 });
+    sim.apply({ type: 'power', power: 'sandstorm', x: 20, y: 60, size: 4 });
     sim.apply({ type: 'power', power: 'locusts', x: 60, y: 50, size: 3 });
     for (let t = 0; t < 30; t++) sim.step();
     const loaded = deserialize(serialize(sim, describeSave(sim, 'Naturaleza', 1)));

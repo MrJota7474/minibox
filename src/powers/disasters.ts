@@ -7,7 +7,7 @@ import { Flora, TERRAIN_INFO, Terrain, isPlant } from '../world/terrain';
 import type { World } from '../world/world';
 import type { BuildingHazards, HazardSystem } from './hazards';
 import { Status, bless, curse, heal, infect, madden, smite } from './status';
-import { fertileRain, fertility, stepBlizzard, stepLocusts, tsunami } from './nature-powers';
+import { fertileRain, fertility, stepBlizzard, stepLocusts, stepSandstorm, tsunami } from './nature-powers';
 
 export type PowerId =
   | 'lightning'
@@ -26,6 +26,7 @@ export type PowerId =
   | 'heal'
   | 'tsunami'
   | 'blizzard'
+  | 'sandstorm'
   | 'locusts'
   | 'rain'
   | 'offering'
@@ -42,7 +43,7 @@ export interface FxEvent {
 }
 
 /** Desastres que duran varios ticks. */
-export type EffectKind = 'earthquake' | 'tornado' | 'acid-rain' | 'volcano' | 'blizzard' | 'locusts';
+export type EffectKind = 'earthquake' | 'tornado' | 'acid-rain' | 'volcano' | 'blizzard' | 'locusts' | 'sandstorm';
 export interface Effect {
   readonly kind: EffectKind;
   x: number;
@@ -95,7 +96,7 @@ const PEACE_BASE = 3;
 const PEACE_PER_BRUSH = 0.6;
 const OFFERING_BASE = 2;
 const OFFERING_PER_BRUSH = 0.5;
-const EFFECT_TTL: Readonly<Record<EffectKind, number>> = { earthquake: 150, tornado: 300, 'acid-rain': 240, volcano: 500, blizzard: 300, locusts: 400 };
+const EFFECT_TTL: Readonly<Record<EffectKind, number>> = { earthquake: 150, tornado: 300, 'acid-rain': 240, volcano: 500, blizzard: 300, locusts: 400, sandstorm: 300 };
 
 /**
  * Poderes de dios y desastres. Todo se aplica mediante comandos de la simulación
@@ -147,6 +148,7 @@ export class PowerSystem {
       case 'volcano':
       case 'blizzard':
       case 'locusts':
+      case 'sandstorm':
         this.startEffect(power, cx, cy, brush, rng);
         break;
       case 'tsunami': {
@@ -242,7 +244,7 @@ export class PowerSystem {
     const angle = rng.int(8);
     const dirs: readonly (readonly [number, number])[] = [[1, 0], [0.7, 0.7], [0, 1], [-0.7, 0.7], [-1, 0], [-0.7, -0.7], [0, -1], [0.7, -0.7]];
     const r =
-      kind === 'earthquake' ? 10 + brush : kind === 'acid-rain' ? 4 + brush * 0.5 : kind === 'tornado' ? 2.2 : kind === 'blizzard' ? 5 + brush * 0.6 : kind === 'locusts' ? 3 + brush * 0.2 : 3 + brush * 0.3;
+      kind === 'earthquake' ? 10 + brush : kind === 'acid-rain' ? 4 + brush * 0.5 : kind === 'tornado' ? 2.2 : kind === 'blizzard' || kind === 'sandstorm' ? 5 + brush * 0.6 : kind === 'locusts' ? 3 + brush * 0.2 : 3 + brush * 0.3;
     this.effects.push({ kind, x: cx, y: cy, r, ttl: EFFECT_TTL[kind], dx: dirs[angle][0], dy: dirs[angle][1] });
     if (kind === 'volcano') this.raiseCone(cx, cy, r);
     this.emit(kind === 'volcano' ? 'smoke' : 'explosion', cx, cy, kind === 'earthquake' ? 0 : 1);
@@ -269,6 +271,7 @@ export class PowerSystem {
       else if (e.kind === 'acid-rain') this.stepAcid(e, ctx, rng);
       else if (e.kind === 'blizzard') stepBlizzard(e, ctx, rng, civ, () => this.randomTile(e, rng));
       else if (e.kind === 'locusts') stepLocusts(e, ctx, rng, civ, () => this.randomTile(e, rng));
+      else if (e.kind === 'sandstorm') stepSandstorm(e, ctx, rng, civ, () => this.randomTile(e, rng));
       else this.stepVolcano(e, ctx, rng);
     }
     for (let k = this.effects.length - 1; k >= 0; k--) if (this.effects[k].ttl <= 0) this.effects.splice(k, 1);

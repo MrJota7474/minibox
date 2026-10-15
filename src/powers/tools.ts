@@ -115,6 +115,7 @@ export const TOOLS: readonly ToolDef[] = [
   power('desastres', 'volcano', 'Volcán'),
   power('desastres', 'tsunami', 'Maremoto', 900),
   power('desastres', 'blizzard', 'Ventisca'),
+  power('desastres', 'sandstorm', 'Tormenta de arena'),
   power('desastres', 'locusts', 'Langostas'),
   power('desastres', 'fire', 'Fuego', 150, true),
   power('desastres', 'lava', 'Lava', 150, true),

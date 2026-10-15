@@ -189,6 +189,16 @@ const POWER_DRAW: Readonly<Record<string, (p: Pix) => void>> = {
     p.rect(2, 10, 5, 1, '#8ac0f0');
     p.rect(9, 11, 5, 1, '#8ac0f0');
   },
+  sandstorm: (p) => {
+    // Remolino de polvo sobre dunas.
+    p.rect(0, 13, 16, 3, '#d8b070');
+    p.ellipse(5, 13, 5, 1.6, '#e8c890');
+    p.ellipse(12, 14, 4, 1.4, '#c89a58');
+    p.rect(2, 3, 10, 2, '#c8a060');
+    p.rect(4, 6, 10, 2, '#d8b478');
+    p.rect(1, 9, 9, 2, '#b88a50');
+    for (const [x, y] of [[13, 3], [15, 6], [11, 9], [7, 11]]) p.set(x, y, '#f0d8a8');
+  },
   locusts: (p) => {
     for (const [x, y] of [[3, 3], [7, 2], [11, 4], [5, 6], [9, 7], [13, 6], [3, 9], [7, 10], [11, 11], [5, 13], [9, 14]]) {
       p.set(x, y, '#5a4a20');
