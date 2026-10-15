@@ -3,6 +3,7 @@ import { hashMix } from '../core/hash';
 import type { Rng } from '../core/rng';
 import { SPECIES } from '../entities/species';
 import { NO_UNIT, type UnitStore } from '../entities/units';
+import { makeOasis } from '../world/oasis';
 import { Flora, TERRAIN_INFO, Terrain, isPlant } from '../world/terrain';
 import type { World } from '../world/world';
 import type { BuildingHazards, HazardSystem } from './hazards';
@@ -29,6 +30,7 @@ export type PowerId =
   | 'sandstorm'
   | 'locusts'
   | 'rain'
+  | 'oasis'
   | 'offering'
   | 'fertility'
   | 'peace';
@@ -88,6 +90,8 @@ const EDGE_FIRE_STRENGTH = 2;
 /** Radios de los poderes de la naturaleza (base + por tamaño de pincel). */
 const TSUNAMI_BASE = 5;
 const TSUNAMI_PER_BRUSH = 0.7;
+const OASIS_BASE = 3;
+const OASIS_PER_BRUSH = 0.6;
 const RAIN_BASE = 3;
 const RAIN_PER_BRUSH = 0.6;
 const FERTILITY_BASE = 2;
@@ -155,6 +159,12 @@ export class PowerSystem {
         const r = TSUNAMI_BASE + brush * TSUNAMI_PER_BRUSH;
         // Tierra adentro no hay ola: sólo se ve (y suena) si de verdad barre una costa.
         if (tsunami(this.world, cx, cy, r, ctx, rng, civ)) this.emit('wave', cx, cy, r);
+        break;
+      }
+      case 'oasis': {
+        const r = OASIS_BASE + brush * OASIS_PER_BRUSH;
+        // Sólo se celebra si de verdad brota agua (sobre el agua o entre edificios no hay oasis).
+        if (makeOasis(this.world, cx, cy, r, rng) > 0) this.emit('rain', cx, cy, r);
         break;
       }
       case 'rain': {

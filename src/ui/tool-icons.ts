@@ -207,6 +207,16 @@ const POWER_DRAW: Readonly<Record<string, (p: Pix) => void>> = {
     }
     p.rect(1, 15, 14, 1, '#62ab3b');
   },
+  oasis: (p) => {
+    // Charca azul entre arena, con una palmera.
+    p.rect(0, 12, 16, 4, '#e0c080');
+    p.ellipse(8, 12.5, 6, 2.2, '#3a8ad0');
+    p.ellipse(7, 12, 3.5, 1, '#6ab4f0');
+    p.rect(11, 4, 1, 8, '#8a5a2a');
+    p.rect(12, 6, 1, 2, '#8a5a2a');
+    for (const [x, y, w] of [[8, 3, 4], [12, 3, 4], [9, 2, 3], [13, 4, 3], [10, 5, 2]] as const) p.rect(x, y, w, 1, '#3f9a3a');
+    p.set(11, 3, '#62c03b');
+  },
   rain: (p) => {
     p.ellipse(8, 4, 6, 2.6, '#6a8ab0');
     p.ellipse(6, 3, 3.4, 1.8, '#8aaad0');

@@ -36,6 +36,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase X (tormenta de arena)** — un muro de polvo cruza el mapa: hiere poco a poco, entierra hierba y cosechas y deja arena junto a los desiertos; los dunarios y los dromedarios la aguantan.
 - **Fase Y (caravanas)** — los mercaderes dunarios viajan con un dromedario de carga detrás, con los fardos sobre la joroba.
 - **Fase Z (música por raza)** — la música toma el color de la raza que se ve: laúd y darbuka en escala árabe para los dunarios, flauta para los silvanos, trompa grave para los petrinos, tambores para los colmilludos y marimba en escala de gamelán para los escamados.
+- **Fase AA (oasis)** — los desiertos grandes nacen con algún oasis: una charca con palmeras, hierba y bayas. También se puede crear uno con el poder «Oasis».
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 

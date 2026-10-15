@@ -1,5 +1,6 @@
 import { Rng } from '../core/rng';
 import { fbm } from './noise';
+import { placeOases } from './oasis';
 import { treeNeighbors } from './vegetation';
 import { BIOME_INFO, Biome, Flora, SEA_LEVEL, Terrain, isFertileTerrain, terrainFromHeight, type BiomeId } from './terrain';
 import { World } from './world';
@@ -17,6 +18,8 @@ export function generateWorld(seed: number, width: number, height: number): Worl
   applyHeights(world, raw);
   assignBiomes(world, seed);
   seedVegetation(world, new Rng(seed ^ 0x5eed), seed);
+  // Con su propio flujo de azar: no cambia la vegetación del resto del mapa.
+  placeOases(world, new Rng(seed ^ 0x0a515));
   world.computeRegions();
   world.markAllDirty();
   return world;
