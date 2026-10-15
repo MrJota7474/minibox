@@ -120,7 +120,8 @@ export class FloraLayer {
   private render(cx: number, cy: number, season: number, sig: number, reuse: Entry | undefined): Entry {
     const canvas = reuse?.canvas ?? document.createElement('canvas');
     canvas.width = CHUNK_SIZE * PX + MARGIN_X * 2;
-    canvas.height = CHUNK_SIZE * PX + MARGIN_TOP;
+    // +1: la fila de abajo del sprite (el pie del tronco) cae un píxel por debajo de la casilla.
+    canvas.height = CHUNK_SIZE * PX + MARGIN_TOP + 1;
     const ctx = canvas.getContext('2d');
     if (!ctx) return { canvas, season, sig };
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -145,11 +146,10 @@ export class FloraLayer {
         if (hash2(tx, ty, 13) < 0.5) {
           ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, FLORA_W, FLORA_H, dx, dy, FLORA_W, FLORA_H);
         } else {
-          ctx.save();
-          ctx.translate(dx + FLORA_W, dy);
-          ctx.scale(-1, 1);
+          // Espejo con una sola transformación (más barato que save/restore por árbol).
+          ctx.setTransform(-1, 0, 0, 1, dx + FLORA_W, dy);
           ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, FLORA_W, FLORA_H, 0, 0, FLORA_W, FLORA_H);
-          ctx.restore();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
         }
       }
     }

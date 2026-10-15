@@ -117,10 +117,16 @@ const DEPOSITS: Readonly<Record<number, readonly [number, number, number]>> = {
   [Terrain.MOUNTAIN]: [0.06, 0.025, 0.008],
 };
 
-/** Arboledas y claros: escala del ruido y a partir de qué valor hay bosque denso. */
+/**
+ * Arboledas y claros: el ruido (media ~0,5) se convierte en un multiplicador de la densidad
+ * de árboles con media ~1: unos 0,2 en los claros y hasta 1,8 en las arboledas.
+ */
 const GROVE_SCALE = 0.07;
-const GROVE_THRESHOLD = 0.38;
-const GROVE_GAIN = 2.4;
+const GROVE_BASE = 0.2;
+const GROVE_CENTER = 0.3;
+const GROVE_GAIN = 4;
+const GROVE_MIN = 0.15;
+const GROVE_MAX = 1.8;
 /** Al generar, no se planta un árbol con tantos árboles ya pegados (los de arriba y a la izquierda). */
 const SEED_MAX_NEIGHBORS = 3;
 
@@ -141,9 +147,12 @@ function seedVegetation(world: World, rng: Rng, seed: number): void {
     const x = i % world.width;
     const y = (i - x) / world.width;
     // Más árboles en las arboledas y casi ninguno en los claros.
-    const grove = Math.min(1.6, Math.max(0.08, (fbm(x * GROVE_SCALE, y * GROVE_SCALE, seed + 3003, 3) - GROVE_THRESHOLD) * GROVE_GAIN));
+    const noise = fbm(x * GROVE_SCALE, y * GROVE_SCALE, seed + 3003, 3);
+    const grove = Math.min(GROVE_MAX, Math.max(GROVE_MIN, GROVE_BASE + (noise - GROVE_CENTER) * GROVE_GAIN));
+    // Los arbustos tienen su propio tramo (no dependen de las arboledas): ni claros llenos de bayas.
+    const bush = Math.max(info.treeDensity * GROVE_MAX, info.treeDensity);
     if (r < info.treeDensity * grove) {
       if (treeNeighbors(world, x, y) < SEED_MAX_NEIGHBORS) world.flora[i] = Flora.TREE;
-    } else if (r < info.treeDensity + info.bushDensity) world.flora[i] = Flora.BERRY_BUSH;
+    } else if (r >= bush && r < bush + info.bushDensity) world.flora[i] = Flora.BERRY_BUSH;
   }
 }
