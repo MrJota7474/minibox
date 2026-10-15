@@ -11,6 +11,7 @@ import type { ToolTone } from '../powers/tools';
 import { Status } from '../powers/status';
 import { BoatLayer } from './boat-layer';
 import { CaravanTrail, leadsCaravan } from './caravan';
+import { festiveLook } from './festive-look';
 import { CivLayer } from './civ-layer';
 import { FxLayer } from './fx';
 import { NightLayer } from './night';
@@ -91,9 +92,8 @@ const TERRAIN_CHUNKS_PER_FRAME = 8;
 const CAMEL_HUMP_Y = CELL_H - 16;
 /** Centro de la joroba en el dibujo (columnas 5 a 9). */
 const CAMEL_HUMP_X = 7.5;
-/** Distancia a la hoguera (casillas) a la que se baila en las fiestas y paso de baile (pierna adelantada). */
+/** Distancia a la hoguera (casillas) a la que se baila en las fiestas (cada raza con su paso: ver festive-look.ts). */
 const DANCE_RADIUS = 4.5;
-const DANCE_STEP = 1;
 
 export class Renderer {
   private readonly ctx: CanvasRenderingContext2D;
@@ -405,7 +405,9 @@ export class Renderer {
     const dancing = this.dances(i);
     // Al bailar se dan la vuelta a compás.
     const flip = dancing ? (((tick >> 3) + i) & 1) === 1 : u.x[i] < u.px[i] || (!moving && u.tx[i] < u.x[i]);
-    const pose = dancing ? (((tick >> 1) + i) & 1 ? Pose.RAISE : DANCE_STEP) : this.poseOf(i, tick);
+    // Cada aldeano baila como su raza (en una aldea mixta, cada cual a su manera); la decoración es la de la aldea.
+    const dance = festiveLook(sp).dance;
+    const pose = dancing ? dance[((tick >> 1) + i) & 1] : this.poseOf(i, tick);
     const k = this.civ.kingdoms.kingdomOfUnit(i);
     const cloth = k >= 0 ? this.civ.kingdoms.kingdoms[k].colorIndex : CLOTH_COUNT - 1;
     const cell = this.atlas.cell(sp, cloth, pose, flip);

@@ -1,3 +1,4 @@
+import { festiveLook } from './festive-look';
 import type { CivSystem } from '../civ/civ-system';
 import { BuildingType } from '../civ/model';
 import { Species, isMonster } from '../entities/species';
@@ -79,15 +80,19 @@ interface Style {
   size?: number;
 }
 
-/** Probabilidad por fotograma de que salten chispas de una hoguera en fiesta. */
-const FESTIVE_SPARK_CHANCE = 0.45;
 const STYLES: Readonly<Record<string, Style>> = {
   explosion: { colors: ['#ffd04a', '#ff8a2a', '#e84a1a', '#fff2b0'], shape: 'square', speed: 6, rise: -1, gravity: 4 },
   debris: { colors: ['#5a4a40', '#7a6a5a', '#3a2e26'], shape: 'square', speed: 5, rise: -4, gravity: 10 },
   smoke: { colors: ['#6a6a6a', '#8a8a8a', '#4a4a4a'], shape: 'square', speed: 0.6, rise: -1.6, gravity: 0 },
   sparkle: { colors: ['#fff6b0', '#ffd04a', '#ffffff'], shape: 'star', speed: 2.5, rise: -1, gravity: 0 },
   heal: { colors: ['#ffffff', '#c8f0ff', '#9be38a'], shape: 'cross', speed: 1, rise: -1.6, gravity: 0 },
-  festive: { colors: ['#ff5a6a', '#ffd04a', '#5ad0ff', '#a0ff6a', '#ff9af0', '#ffffff'], shape: 'square', speed: 1.3, rise: 2.2, gravity: 0.5, size: 0.14 },
+  // Festejos (ver festive-look.ts): «rise» negativo sube, «gravity» positiva hace caer.
+  festive: { colors: ['#ff5a6a', '#ffd04a', '#5ad0ff', '#a0ff6a', '#ff9af0', '#ffffff'], shape: 'square', speed: 1.3, rise: -2.4, gravity: 1.8, size: 0.14 },
+  lantern: { colors: ['#ffcf6a', '#ffb04a', '#ffe8a0'], shape: 'square', speed: 0.25, rise: -0.7, gravity: 0, size: 0.22 },
+  firework: { colors: ['#ffd04a', '#ff5a6a', '#5ad0ff', '#ffffff', '#a0ff6a'], shape: 'star', speed: 5, rise: -0.4, gravity: 1.6 },
+  feastEmber: { colors: ['#ff6a2a', '#ffb03a', '#ff3a1a'], shape: 'square', speed: 1, rise: -2.6, gravity: 0.7, size: 0.1 },
+  firefly: { colors: ['#a0ffe0', '#60f0c0', '#e0ffa0'], shape: 'square', speed: 0.7, rise: -0.15, gravity: 0, size: 0.08 },
+  incense: { colors: ['#c8b0e0', '#e0d0f0', '#ffd04a'], shape: 'square', speed: 0.4, rise: -1.1, gravity: 0, size: 0.16 },
   curse: { colors: ['#a35ce8', '#6a2aa8', '#d090ff'], shape: 'skull', speed: 1, rise: -1.2, gravity: 0 },
   plague: { colors: ['#8be04a', '#5aa82a', '#c8f08a'], shape: 'bubble', speed: 1, rise: -1.2, gravity: 0 },
   madness: { colors: ['#ff3a3a', '#a81a1a', '#ff8a8a'], shape: 'star', speed: 2, rise: -0.8, gravity: 0 },
@@ -113,6 +118,8 @@ const STYLES: Readonly<Record<string, Style>> = {
   sand: { colors: ['#e8c890', '#d8b070', '#c89a58', '#f0dcb0'], shape: 'square', speed: 1.4, rise: 0.2, gravity: 0.1, size: 0.12 },
   swarm: { colors: ['#5a4a20', '#8a7a30', '#3a2e14'], shape: 'square', speed: 2.4, rise: 0, gravity: 0, size: 0.1 },
 };
+/** Nombres de los estilos de partícula (para comprobar que los festejos usan estilos que existen). */
+export const PARTICLE_STYLES: readonly string[] = Object.keys(STYLES);
 /** Partículas con las que aparece cada monstruo recién nacido. */
 const BIRTH_FX: Readonly<Record<number, string>> = { [Species.PENANTE]: 'curse', [Species.ESCORIO]: 'explosion', [Species.CENAGOSO]: 'mud' };
 /** Casillas a la vista que se miran por frame en busca de biomas mágicos. */
@@ -702,7 +709,13 @@ export class FxLayer {
       if (!hall) continue;
       const x = hall.x + hall.w / 2;
       const y = hall.y + hall.h / 2;
-      if (this.visible(x, y, 3) && Math.random() < FESTIVE_SPARK_CHANCE) this.burst(x, y - 0.6, 2, 'festive', 1.2);
+      // Cada raza celebra a su manera (farolillos, fuegos artificiales, brasas, luciérnagas...).
+      const look = festiveLook(v.race);
+      if (!this.visible(x, y, 3 + look.height) || Math.random() >= look.chance) continue;
+      // Reparto en óvalo (la mitad en vertical), como el corro visto en perspectiva.
+      const ox = (Math.random() - 0.5) * 2 * look.spread;
+      const oy = (Math.random() - 0.5) * look.spread;
+      this.burst(x + ox, y + oy - look.height, look.count, look.particle, 1.2);
     }
   }
 
