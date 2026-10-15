@@ -1,5 +1,6 @@
 import { Rng } from '../core/rng';
 import { fbm } from './noise';
+import { treeNeighbors } from './vegetation';
 import { BIOME_INFO, Biome, Flora, SEA_LEVEL, Terrain, isFertileTerrain, terrainFromHeight, type BiomeId } from './terrain';
 import { World } from './world';
 
@@ -15,7 +16,7 @@ export function generateWorld(seed: number, width: number, height: number): Worl
   const raw = buildElevation(seed, width, height);
   applyHeights(world, raw);
   assignBiomes(world, seed);
-  seedVegetation(world, new Rng(seed ^ 0x5eed));
+  seedVegetation(world, new Rng(seed ^ 0x5eed), seed);
   world.computeRegions();
   world.markAllDirty();
   return world;
@@ -116,7 +117,14 @@ const DEPOSITS: Readonly<Record<number, readonly [number, number, number]>> = {
   [Terrain.MOUNTAIN]: [0.06, 0.025, 0.008],
 };
 
-function seedVegetation(world: World, rng: Rng): void {
+/** Arboledas y claros: escala del ruido y a partir de qué valor hay bosque denso. */
+const GROVE_SCALE = 0.07;
+const GROVE_THRESHOLD = 0.38;
+const GROVE_GAIN = 2.4;
+/** Al generar, no se planta un árbol con tantos árboles ya pegados (los de arriba y a la izquierda). */
+const SEED_MAX_NEIGHBORS = 3;
+
+function seedVegetation(world: World, rng: Rng, seed: number): void {
   for (let i = 0; i < world.size; i++) {
     const dep = DEPOSITS[world.terrain[i]];
     if (dep) {
@@ -130,7 +138,12 @@ function seedVegetation(world: World, rng: Rng): void {
     const b = world.biome[i];
     const r = rng.float();
     const info = BIOME_INFO[b];
-    if (r < info.treeDensity) world.flora[i] = Flora.TREE;
-    else if (r < info.treeDensity + info.bushDensity) world.flora[i] = Flora.BERRY_BUSH;
+    const x = i % world.width;
+    const y = (i - x) / world.width;
+    // Más árboles en las arboledas y casi ninguno en los claros.
+    const grove = Math.min(1.6, Math.max(0.08, (fbm(x * GROVE_SCALE, y * GROVE_SCALE, seed + 3003, 3) - GROVE_THRESHOLD) * GROVE_GAIN));
+    if (r < info.treeDensity * grove) {
+      if (treeNeighbors(world, x, y) < SEED_MAX_NEIGHBORS) world.flora[i] = Flora.TREE;
+    } else if (r < info.treeDensity + info.bushDensity) world.flora[i] = Flora.BERRY_BUSH;
   }
 }

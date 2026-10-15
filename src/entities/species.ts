@@ -125,7 +125,7 @@ export const SPECIES: readonly SpeciesDef[] = [
     breedCooldownTicks: Math.round(0.9 * year),
     meatValue: 700,
     color: '#efe9da',
-    animal: { bodySize: 2, preyMax: 0, habitat: { biomes: [Biome.GRASS, Biome.SAVANNA], tilesPer: 200 } },
+    animal: { bodySize: 2, preyMax: 0, habitat: { biomes: [Biome.GRASS, Biome.SAVANNA], tilesPer: 380 } },
   },
   {
     id: Species.RABBIT,
@@ -145,7 +145,7 @@ export const SPECIES: readonly SpeciesDef[] = [
     breedCooldownTicks: Math.round(0.8 * year),
     meatValue: 350,
     color: '#b8956a',
-    animal: { bodySize: 1, preyMax: 0, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.DESERT], tilesPer: 180 } },
+    animal: { bodySize: 1, preyMax: 0, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.DESERT], tilesPer: 340 } },
   },
   {
     id: Species.WOLF,
@@ -165,7 +165,7 @@ export const SPECIES: readonly SpeciesDef[] = [
     breedCooldownTicks: Math.round(1.2 * year),
     meatValue: 0,
     color: '#7d8590',
-    animal: { bodySize: 3, preyMax: 3, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.SNOW], tilesPer: 900 } },
+    animal: { bodySize: 3, preyMax: 3, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.SNOW], tilesPer: 1500 } },
   },
   civilized(Species.HUMAN, 'Humano', 'Humanos', { maxHp: 40, damage: 4, speed: 0.085, lifeYears: 70, adultYears: 16, breedYears: 2, color: '#e0b48a' }, { chop: 1, mine: 1, gather: 1.1, build: 1.1, farm: 1.2, trait: 'Se expanden rápido' }),
   civilized(Species.SILVAN, 'Silvano', 'Silvanos', { maxHp: 34, damage: 4, speed: 0.1, lifeYears: 140, adultYears: 24, breedYears: 4, color: '#9ccf6a' }, { chop: 1.3, mine: 0.7, gather: 1.4, build: 0.9, farm: 1, trait: 'Longevos y hábiles en el bosque' }),
@@ -174,11 +174,11 @@ export const SPECIES: readonly SpeciesDef[] = [
   monster(Species.PENANTE, 'Penante', 'Penantes', { maxHp: 34, damage: 6, speed: 0.06, sprint: 1.35, sight: 9, lifeYears: 7, color: '#b9a6e0' }, { undead: true, fiery: false, raze: 1, raidRadius: 48, restTicks: 0, trait: 'Alma en pena: el yermo la cura; la arboleda y la luz divina la deshacen' }),
   monster(Species.ESCORIO, 'Escorio', 'Escorios', { maxHp: 320, damage: 14, speed: 0.055, sprint: 1.25, sight: 10, lifeYears: 4, color: '#ff7a2a' }, { undead: false, fiery: true, raze: 4, raidRadius: 40, restTicks: 0, trait: 'Nacido de la lava: prende lo que golpea y al enfriarse queda en roca' }),
   monster(Species.CENAGOSO, 'Cenagoso', 'Cenagosos', { maxHp: 180, damage: 12, speed: 0.075, sprint: 1.5, sight: 11, lifeYears: 30, color: '#5a7a3a' }, { undead: false, fiery: false, raze: 3, raidRadius: 36, restTicks: Math.round(1.5 * year), trait: 'Bestia de los pantanos: asalta las aldeas y después se calma un tiempo' }),
-  wild(Species.DEER, 'Ciervo', 'Ciervos', 'herbivore', { maxHp: 26, damage: 1, speed: 0.11, sprint: 1.8, sight: 9, lifeYears: 10, adultYears: 1, maxHunger: 900, litterMax: 1, breedYears: 1, meatValue: 650, color: '#a0663a' }, { bodySize: 3, preyMax: 0, habitat: { biomes: [Biome.FOREST, Biome.JUNGLE, Biome.GROVE], tilesPer: 200 } }),
-  wild(Species.GOAT, 'Cabra montés', 'Cabras monteses', 'herbivore', { maxHp: 28, damage: 3, speed: 0.08, sprint: 1.6, sight: 8, lifeYears: 11, adultYears: 1, maxHunger: 900, litterMax: 2, breedYears: 1, meatValue: 550, color: '#d8cfc0' }, { bodySize: 2, preyMax: 0, habitat: { biomes: [Biome.SNOW], terrains: [Terrain.HILLS, Terrain.MOUNTAIN, Terrain.SUMMIT], tilesPer: 300 } }),
-  wild(Species.CAMEL, 'Dromedario', 'Dromedarios', 'herbivore', { maxHp: 50, damage: 2, speed: 0.075, sprint: 1.4, sight: 8, lifeYears: 25, adultYears: 2, maxHunger: 2400, litterMax: 1, breedYears: 1.8, meatValue: 1100, color: '#c99a5a' }, { bodySize: 4, preyMax: 0, habitat: { biomes: [Biome.DESERT, Biome.SAVANNA], tilesPer: 250 } }),
-  wild(Species.FOX, 'Zorro', 'Zorros', 'carnivore', { maxHp: 22, damage: 7, speed: 0.11, sprint: 1.8, sight: 9, lifeYears: 8, adultYears: 1, maxHunger: 1500, litterMax: 2, breedYears: 1, meatValue: 0, color: '#d8743a' }, { bodySize: 1, preyMax: 2, omnivore: true, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.SAVANNA], tilesPer: 700 } }),
-  wild(Species.BEAR, 'Oso', 'Osos', 'carnivore', { maxHp: 120, damage: 22, speed: 0.085, sprint: 2.1, sight: 10, lifeYears: 25, adultYears: 3, maxHunger: 3500, litterMax: 1, breedYears: 2.5, meatValue: 0, color: '#6a4a32' }, { bodySize: 4, preyMax: 4, omnivore: true, habitat: { biomes: [Biome.FOREST, Biome.SNOW], tilesPer: 1500 } }),
+  wild(Species.DEER, 'Ciervo', 'Ciervos', 'herbivore', { maxHp: 26, damage: 1, speed: 0.11, sprint: 1.8, sight: 9, lifeYears: 10, adultYears: 1, maxHunger: 900, litterMax: 1, breedYears: 1, meatValue: 650, color: '#a0663a' }, { bodySize: 3, preyMax: 0, habitat: { biomes: [Biome.FOREST, Biome.JUNGLE, Biome.GROVE], tilesPer: 360 } }),
+  wild(Species.GOAT, 'Cabra montés', 'Cabras monteses', 'herbivore', { maxHp: 28, damage: 3, speed: 0.08, sprint: 1.6, sight: 8, lifeYears: 11, adultYears: 1, maxHunger: 900, litterMax: 2, breedYears: 1, meatValue: 550, color: '#d8cfc0' }, { bodySize: 2, preyMax: 0, habitat: { biomes: [Biome.SNOW], terrains: [Terrain.HILLS, Terrain.MOUNTAIN, Terrain.SUMMIT], tilesPer: 520 } }),
+  wild(Species.CAMEL, 'Dromedario', 'Dromedarios', 'herbivore', { maxHp: 50, damage: 2, speed: 0.075, sprint: 1.4, sight: 8, lifeYears: 25, adultYears: 2, maxHunger: 2400, litterMax: 1, breedYears: 1.8, meatValue: 1100, color: '#c99a5a' }, { bodySize: 4, preyMax: 0, habitat: { biomes: [Biome.DESERT, Biome.SAVANNA], tilesPer: 420 } }),
+  wild(Species.FOX, 'Zorro', 'Zorros', 'carnivore', { maxHp: 22, damage: 7, speed: 0.11, sprint: 1.8, sight: 9, lifeYears: 8, adultYears: 1, maxHunger: 1500, litterMax: 2, breedYears: 1, meatValue: 0, color: '#d8743a' }, { bodySize: 1, preyMax: 2, omnivore: true, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.SAVANNA], tilesPer: 1200 } }),
+  wild(Species.BEAR, 'Oso', 'Osos', 'carnivore', { maxHp: 120, damage: 22, speed: 0.085, sprint: 2.1, sight: 10, lifeYears: 25, adultYears: 3, maxHunger: 3500, litterMax: 1, breedYears: 2.5, meatValue: 0, color: '#6a4a32' }, { bodySize: 4, preyMax: 4, omnivore: true, habitat: { biomes: [Biome.FOREST, Biome.SNOW], tilesPer: 2400 } }),
 ];
 
 interface WildBase {

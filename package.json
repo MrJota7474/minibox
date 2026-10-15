@@ -1,7 +1,7 @@
 {
   "name": "minibox",
   "private": true,
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "MiniBox: simulador de dios 2D por píxeles para navegador (PC y móvil).",
   "type": "module",
   "scripts": {

@@ -7,14 +7,17 @@ import { hash2 } from './pixel';
 /** Píxeles de sprite por casilla en la caché (el tamaño nativo del pixel art). */
 const PX = 12;
 /** Margen alrededor del chunk: las copas sobresalen hacia arriba y a los lados. */
-const MARGIN_X = 4;
-const MARGIN_TOP = FLORA_H - PX + 2;
+const MARGIN_X = 6;
+const MARGIN_TOP = FLORA_H - PX + 4;
 /** Chunks en caché como mínimo (cada uno ocupa ~0,6 MB); crece si la pantalla ve más. */
 const MIN_CACHED = 48;
 const CACHE_MARGIN = 12;
 /** Chunks que se pueden repintar por frame (al alejar la cámara aparecen poco a poco). */
 const RENDERS_PER_FRAME = 2;
 export const FLORA_MIN_ZOOM = 7;
+/** Desplazamiento máximo de cada planta dentro de su casilla (en píxeles del sprite). */
+const JITTER_X = 7;
+const JITTER_Y = 4;
 
 /** Adorno del suelo de una casilla sin plantas (matas, flores, guijarros, juncos) o NONE. */
 function decorFor(terrain: number, biome: number, r: number): number {
@@ -22,7 +25,7 @@ function decorFor(terrain: number, biome: number, r: number): number {
   if (!isFertileTerrain(terrain) || biome === Biome.DESERT || biome === Biome.BLIGHT) return Flora.NONE;
   if (biome === Biome.SWAMP) return r < 0.12 ? Decor.REEDS : Flora.NONE;
   if (r < 0.04 && biome !== Biome.SNOW) return Decor.FLOWERS;
-  return r < 0.22 ? Decor.TUFT : Flora.NONE;
+  return r < 0.12 ? Decor.TUFT : Flora.NONE;
 }
 
 interface Entry {
@@ -132,11 +135,22 @@ export class FloraLayer {
         if (f === Flora.NONE) continue;
         const cell = this.atlas.cell(f, w.biome[i], season, hash2(tx, ty) < 0.5 ? 0 : 1);
         if (!cell) continue;
-        // Pequeño desplazamiento por casilla para que los bosques no parezcan una cuadrícula.
-        const jitter = Math.round((hash2(tx, ty, 7) - 0.5) * 4);
-        const dx = MARGIN_X + (tx - x0) * PX + (PX - FLORA_W) / 2 + jitter;
-        const dy = MARGIN_TOP + (ty - y0 + 1) * PX - FLORA_H + 1;
-        ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, FLORA_W, FLORA_H, Math.round(dx), dy, FLORA_W, FLORA_H);
+        // Desplazamiento propio de cada planta (en los dos ejes) y espejo al azar: así los
+        // bosques no se ven en filas ni con todos los árboles iguales.
+        const jx = Math.round((hash2(tx, ty, 7) - 0.5) * JITTER_X);
+        // Sólo hacia arriba: hacia abajo se saldría del lienzo del chunk y se cortaría el tronco.
+        const jy = -Math.round(hash2(tx, ty, 9) * JITTER_Y);
+        const dx = Math.round(MARGIN_X + (tx - x0) * PX + (PX - FLORA_W) / 2 + jx);
+        const dy = MARGIN_TOP + (ty - y0 + 1) * PX - FLORA_H + 1 + jy;
+        if (hash2(tx, ty, 13) < 0.5) {
+          ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, FLORA_W, FLORA_H, dx, dy, FLORA_W, FLORA_H);
+        } else {
+          ctx.save();
+          ctx.translate(dx + FLORA_W, dy);
+          ctx.scale(-1, 1);
+          ctx.drawImage(this.atlas.canvas, cell.sx, cell.sy, FLORA_W, FLORA_H, 0, 0, FLORA_W, FLORA_H);
+          ctx.restore();
+        }
       }
     }
     return { canvas, season, sig };

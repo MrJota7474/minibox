@@ -20,6 +20,10 @@ const NEIGHBORS: readonly (readonly [number, number])[] = [
   [0, 1],
   [0, -1],
 ];
+/** Distancia máxima (en cada eje) a la que cae un retoño. */
+const SAPLING_REACH = 3;
+/** Un retoño no brota si ya hay tantos árboles (o retoños) en sus 8 vecinas: el bosque deja claros. */
+const MAX_TREE_NEIGHBORS = 3;
 
 /**
  * Procesa una porción del mapa por tick (actualización escalonada):
@@ -100,16 +104,37 @@ export class VegetationSystem {
     if (w.grass[j] > BIOME_INFO[biome].grassMax) w.setGrass(j, BIOME_INFO[biome].grassMax);
   }
 
+  /**
+   * El árbol suelta una semilla a una distancia y dirección al azar (no siempre a dos casillas en
+   * cruz, que dibujaba los bosques como un tablero de ajedrez). Sólo brota si no está apiñada.
+   */
   private spreadSapling(i: number, rng: Rng): void {
     const w = this.world;
     const x = i % w.width;
     const y = (i - x) / w.width;
-    const [dx, dy] = NEIGHBORS[rng.int(NEIGHBORS.length)];
-    const nx = x + dx * 2;
-    const ny = y + dy * 2;
+    const dx = rng.range(-SAPLING_REACH, SAPLING_REACH);
+    const dy = rng.range(-SAPLING_REACH, SAPLING_REACH);
+    if (dx === 0 && dy === 0) return;
+    const nx = x + dx;
+    const ny = y + dy;
     if (!w.inBounds(nx, ny)) return;
     const j = w.idx(nx, ny);
     // En los senderos y caminos no brota nada.
-    if (w.flora[j] === Flora.NONE && w.buildingAt[j] === 0 && w.road[j] < ROAD_PATH && isFertileTerrain(w.terrain[j])) w.setFlora(j, Flora.SAPLING);
+    if (w.flora[j] !== Flora.NONE || w.buildingAt[j] !== 0 || w.road[j] >= ROAD_PATH || !isFertileTerrain(w.terrain[j])) return;
+    if (treeNeighbors(w, nx, ny) >= MAX_TREE_NEIGHBORS) return;
+    w.setFlora(j, Flora.SAPLING);
   }
+}
+
+/** Árboles y retoños en las 8 casillas vecinas. */
+export function treeNeighbors(w: World, x: number, y: number): number {
+  let n = 0;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if ((dx === 0 && dy === 0) || !w.inBounds(x + dx, y + dy)) continue;
+      const f = w.flora[w.idx(x + dx, y + dy)];
+      if (f === Flora.TREE || f === Flora.SAPLING) n++;
+    }
+  }
+  return n;
 }

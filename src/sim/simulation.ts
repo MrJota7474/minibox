@@ -36,15 +36,15 @@ export interface SimulationOptions {
  * `size` es el pincel con el que se crean (7 → unos 4 animales; 5 → 2).
  */
 const INITIAL_GROUPS: readonly { species: SpeciesId; perTenThousand: number; size: number }[] = [
-  { species: Species.SHEEP, perTenThousand: 1.0, size: 7 },
-  { species: Species.RABBIT, perTenThousand: 1.0, size: 7 },
-  { species: Species.DEER, perTenThousand: 0.8, size: 7 },
-  { species: Species.GOAT, perTenThousand: 0.6, size: 7 },
-  { species: Species.CAMEL, perTenThousand: 0.5, size: 7 },
+  { species: Species.SHEEP, perTenThousand: 0.6, size: 7 },
+  { species: Species.RABBIT, perTenThousand: 0.6, size: 7 },
+  { species: Species.DEER, perTenThousand: 0.5, size: 7 },
+  { species: Species.GOAT, perTenThousand: 0.4, size: 7 },
+  { species: Species.CAMEL, perTenThousand: 0.3, size: 7 },
   // Los depredadores, en grupos de unos cuatro para que haya parejas.
-  { species: Species.WOLF, perTenThousand: 0.3, size: 7 },
-  { species: Species.FOX, perTenThousand: 0.3, size: 7 },
-  { species: Species.BEAR, perTenThousand: 0.15, size: 7 },
+  { species: Species.WOLF, perTenThousand: 0.2, size: 7 },
+  { species: Species.FOX, perTenThousand: 0.2, size: 7 },
+  { species: Species.BEAR, perTenThousand: 0.1, size: 7 },
 ];
 /** Tope del registro de comandos (evita que crezca sin límite en sesiones largas). */
 const MAX_LOGGED_COMMANDS = 200_000;

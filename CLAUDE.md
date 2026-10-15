@@ -19,7 +19,7 @@ Este archivo es el traspaso de contexto para cualquier sesión de Claude que tra
 | Copia local del usuario | `C:\Users\sscri\Documents\minibox` (Windows 11) |
 | Zips para itch.io | `release/minibox-<versión>-itch.zip` (no se suben al repo) |
 
-Versión actual: **0.15.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
+Versión actual: **0.16.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
 
 ## 3. Cómo se ejecuta
 
@@ -56,6 +56,7 @@ TypeScript (~6.0; typescript-eslint exige <6.1) + HTML5 Canvas 2D + Vite 8. Sin 
 | I (0.11.0) | Cultura (rasgo + saber → agricultura, albañilería, forja, medicina; asimilación), religión (santuario, preceptos, conversión; pesa en lealtad y opinión) y clanes (herencia paterna, sucesión dinástica, cambio de dinastía). Guardado MBX v5 |
 | K (0.13.0) | Puentes (calzada sobre el agua: los tienden los reinos en ríos y estrechos de hasta 8 casillas y el jugador con el pincel «Puente») y comercio (mercaderes que llevan excedentes entre aldeas no enemigas; oro para ambas y menos agravios entre reinos) |
 | J (0.12.0) | Caminos (senderos por desgaste, calzadas de los reinos y pincel «Calzada»; más velocidad al caminar) y sonido sintetizado con WebAudio (desastres, trabajo, combate, avisos, interfaz; volumen en ajustes). Guardado MBX v6 |
+| N (0.16.0) | Naturaleza: bosques irregulares con claros (retoños a distancia variable y sin apiñarse; arboledas por ruido al generar), árboles con desplazamiento y espejo, y la mitad de animales |
 | M (0.15.0) | Fauna: ciervo, cabra montés, dromedario, zorro y oso, cada animal con su hábitat y su cupo (menos animales y repartidos: dispersión, querencia, refugio y migración); edificios con sombra, variantes, jardineras, bandera que ondea, hoguera animada y andamios; música compuesta por código (calma, invierno, tensión) |
 | L (0.14.0) | Pulido: meteorito con zona chamuscada redonda y fuego que se apaga solo (fuerza de contagio), meteorito que cae con estela, nubecillas al morir, sprites con rebote y brillos, pincel y selección animados, menú de inicio con vista previa del mapa, paneles con marco y animaciones, sonido con panorámica y eco, ambiente (mar, viento, pájaros) |
 

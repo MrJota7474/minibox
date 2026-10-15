@@ -154,7 +154,9 @@ export function tileColor(world: World, i: number, season: number = Season.SUMME
   if (world.fire[i] > 0) return pack(FIRE_RGB[0], FIRE_RGB[1], FIRE_RGB[2]);
   if (f === Flora.TREE) {
     const tree = TREE_RGB[world.biome[i]];
-    c = seasonTint(lerp(baseColor(world, i), tree, 0.75), world, i, season, true);
+    // Suelo de bosque algo más oscuro (de lejos es lo único que se ve del bosque), pero sin
+    // llegar a un cuadrado verde por árbol: de cerca, el sprite ya lo dibuja.
+    c = seasonTint(lerp(baseColor(world, i), tree, 0.5), world, i, season, true);
   } else if (f !== Flora.NONE) {
     c = lerp(seasonTint(baseColor(world, i), world, i, season, false), FLORA_RGB[f], 0.55);
   } else {

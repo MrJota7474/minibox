@@ -493,3 +493,14 @@ Una pasada de acabado sobre lo que ya existe, sin mecánicas nuevas.
 - [Pro Game Guides — poderes de naturaleza y desastres](https://progameguides.com/guides/how-to-use-nature-and-disaster-powers-in-worldbox-god-simulator/)
 - [Pro Game Guides — hacer crecer civilizaciones](https://progameguides.com/guides/how-to-grow-civilizations-in-worldbox-god-simulator/)
 - [Game8 — avances de clanes y subespecies](https://indie.game8.co/news/worldbox-god-simulator-dev-teased-new-clan-features-as-part-of-an-upcoming-major-update/)
+
+### Plan de acción (después de M)
+Petición del usuario: seguir mejorando todo (menos animales en pantalla, árboles menos tupidos y simétricos, menús rediseñados, más razas, desastres y poderes, mejor IA, sonido y aspecto). Se hace por fases cortas, cada una probada, revisada y publicada por separado:
+
+| Fase | Contenido | Estado |
+|---|---|---|
+| **N — Naturaleza** | Bosques irregulares: los retoños caen a 1-3 casillas en cualquier dirección (antes, siempre a 2 en cruz: un tablero de ajedrez) y no brotan con 3 árboles al lado; al generar, arboledas y claros por ruido y densidad algo menor; árboles dibujados con desplazamiento en los dos ejes y espejo; suelo de bosque menos oscuro y menos matojos. Aún menos animales: cupos de hábitat casi el doble de grandes (oveja 1/380, conejo 1/340, ciervo 1/360, cabra 1/520, dromedario 1/420, lobo 1/1500, zorro 1/1200, oso 1/2400) y menos grupos iniciales: unos 110-180 animales en un mapa de 256×256 | hecha (0.16.0) |
+| **O — Menús** | Rediseño de menús e interfaz: menú principal con secciones e iconos, ajustes y leyes más claros, barra superior y herramientas más legibles | pendiente |
+| **P — Desastres y poderes** | Nuevos desastres (tsunami, ventisca, enjambre) y poderes (lluvia fértil, escudo divino, bendición de cosecha…) | pendiente |
+| **Q — Razas** | Una raza nueva con su arquitectura y rasgos | pendiente |
+| **R — IA y sonido** | Mejoras de la IA de aldeanos y animales (manadas que pastan juntas sin apiñarse, huida en grupo, descanso de noche…) y más sonidos | pendiente |

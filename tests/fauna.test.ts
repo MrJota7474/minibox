@@ -122,7 +122,7 @@ describe('hábitat', () => {
 
   it('el cupo sale del hábitat, con un mínimo para grupos puestos donde no les toca', () => {
     const w = makeWorld(Biome.GRASS);
-    expect(habitatCap(w, SPECIES[Species.SHEEP])).toBe(Math.floor((SIZE * SIZE) / 200));
+    expect(habitatCap(w, SPECIES[Species.SHEEP])).toBe(Math.floor((SIZE * SIZE) / 380));
     expect(habitatCap(w, SPECIES[Species.CAMEL])).toBe(4);
     expect(habitatCap(w, SPECIES[Species.HUMAN])).toBe(0);
   });

@@ -100,11 +100,11 @@ export interface BiomeInfo {
 
 export const BIOME_INFO: readonly BiomeInfo[] = [
   { name: 'Pradera', description: 'Hierba abundante para el ganado', grassMax: 200, grassRegrow: 14, treeSpread: 0.004, treeDensity: 0.03, bushDensity: 0.02, speed: 1, hunger: 1, farm: 1, vitality: 0, spread: 0 },
-  { name: 'Bosque', description: 'Mucha madera', grassMax: 130, grassRegrow: 10, treeSpread: 0.03, treeDensity: 0.35, bushDensity: 0.025, speed: 0.92, hunger: 1, farm: 0.9, vitality: 0, spread: 0 },
+  { name: 'Bosque', description: 'Mucha madera', grassMax: 130, grassRegrow: 10, treeSpread: 0.03, treeDensity: 0.3, bushDensity: 0.025, speed: 0.92, hunger: 1, farm: 0.9, vitality: 0, spread: 0 },
   { name: 'Desierto', description: 'Sin hierba: se pasa más hambre y los cultivos rinden poco', grassMax: 0, grassRegrow: 0, treeSpread: 0, treeDensity: 0.004, bushDensity: 0, speed: 1, hunger: 1.15, farm: 0.5, vitality: 0, spread: 0 },
   { name: 'Tundra nevada', description: 'Frío: más hambre, se camina despacio y los cultivos crecen la mitad', grassMax: 70, grassRegrow: 6, treeSpread: 0.006, treeDensity: 0.08, bushDensity: 0.005, speed: 0.85, hunger: 1.25, farm: 0.5, vitality: 0, spread: 0 },
   { name: 'Pantano', description: 'Se camina despacio, pero abundan las bayas', grassMax: 170, grassRegrow: 12, treeSpread: 0.01, treeDensity: 0.08, bushDensity: 0.08, speed: 0.7, hunger: 1, farm: 0.8, vitality: 0, spread: 0 },
-  { name: 'Selva', description: 'Árboles y bayas por todas partes; cosechas generosas', grassMax: 180, grassRegrow: 16, treeSpread: 0.05, treeDensity: 0.45, bushDensity: 0.06, speed: 0.85, hunger: 1, farm: 1.2, vitality: 0, spread: 0 },
+  { name: 'Selva', description: 'Árboles y bayas por todas partes; cosechas generosas', grassMax: 180, grassRegrow: 16, treeSpread: 0.05, treeDensity: 0.36, bushDensity: 0.06, speed: 0.85, hunger: 1, farm: 1.2, vitality: 0, spread: 0 },
   { name: 'Sabana', description: 'Hierba seca y árboles dispersos', grassMax: 150, grassRegrow: 10, treeSpread: 0.003, treeDensity: 0.015, bushDensity: 0.01, speed: 1.05, hunger: 1.05, farm: 0.9, vitality: 0, spread: 0 },
   { name: 'Arboleda mágica', description: 'Cura a quien la pisa, da cosechas enormes y se extiende poco a poco', grassMax: 220, grassRegrow: 18, treeSpread: 0.02, treeDensity: 0.15, bushDensity: 0.05, speed: 1, hunger: 0.8, farm: 1.3, vitality: 0.08, spread: 0.02 },
   { name: 'Yermo maldito', description: 'Hiere a quien lo pisa, marchita las plantas y se extiende', grassMax: 20, grassRegrow: 2, treeSpread: 0, treeDensity: 0, bushDensity: 0, speed: 0.9, hunger: 1.2, farm: 0.3, vitality: -0.06, spread: 0.02 },
