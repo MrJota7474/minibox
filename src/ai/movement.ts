@@ -1,9 +1,12 @@
 import type { Rng } from '../core/rng';
 import type { UnitStore } from '../entities/units';
+import { SPECIES } from '../entities/species';
 import { BIOME_INFO } from '../world/terrain';
 import { ROAD_PATH, ROAD_SPEED, roadLevel, type World } from '../world/world';
 
 const BIOME_SPEED: readonly number[] = BIOME_INFO.map((b) => b.speed);
+/** Especies a las que el barro y la espesura no frenan (los biomas lentos les cuentan como normales). */
+const MUD_WALKER: readonly boolean[] = SPECIES.map((s) => s.race?.mudWalker === true);
 
 export const Move = { MOVING: 0, ARRIVED: 1, BLOCKED: 2 } as const;
 export type MoveResult = (typeof Move)[keyof typeof Move];
@@ -15,7 +18,9 @@ export function moveToward(world: World, units: UnitStore, i: number, tx: number
   // El terreno que se pisa frena o acelera (pantano, nieve, sabana...).
   const tile = world.idx(Math.floor(x), Math.floor(y));
   // ...y por un sendero, un camino o una calzada se va más deprisa.
-  const speed = baseSpeed * (BIOME_SPEED[world.biome[tile]] ?? 1) * (world.road[tile] >= ROAD_PATH ? ROAD_SPEED[roadLevel(world.road[tile])] : 1);
+  const biomeSpeed = BIOME_SPEED[world.biome[tile]] ?? 1;
+  const ground = MUD_WALKER[units.species[i]] ? Math.max(1, biomeSpeed) : biomeSpeed;
+  const speed = baseSpeed * ground * (world.road[tile] >= ROAD_PATH ? ROAD_SPEED[roadLevel(world.road[tile])] : 1);
   const dx = tx - x;
   const dy = ty - y;
   const d2 = dx * dx + dy * dy;

@@ -6,6 +6,7 @@ const SYLLABLES: Readonly<Record<number, readonly string[]>> = {
   [Species.SILVAN]: ['ae', 'lin', 'thal', 'sil', 'wen', 'ny', 'ri', 'el', 'fae', 'lor', 'mi', 'ra', 'ith', 'van', 'la', 'yn'],
   [Species.PETRINO]: ['dur', 'gar', 'thor', 'bom', 'kaz', 'grim', 'bar', 'dun', 'rok', 'mur', 'brak', 'hil', 'dra', 'gon'],
   [Species.TUSKER]: ['gro', 'zug', 'mak', 'thar', 'ruk', 'gar', 'ok', 'bra', 'zog', 'kru', 'nak', 'ur', 'dash', 'mog'],
+  [Species.SCALEFOLK]: ['ssa', 'thi', 'ka', 'lis', 'zeth', 'ish', 'ra', 'sek', 'tha', 'ix', 'sul', 'vash', 'ke', 'ssi'],
 };
 
 const VILLAGE_SUFFIX: Readonly<Record<number, readonly string[]>> = {
@@ -13,6 +14,7 @@ const VILLAGE_SUFFIX: Readonly<Record<number, readonly string[]>> = {
   [Species.SILVAN]: ['dor', 'wen', 'thil', 'aris'],
   [Species.PETRINO]: ['heim', 'dum', 'rok', 'garde'],
   [Species.TUSKER]: ['grak', 'ruk', 'zor', 'mash'],
+  [Species.SCALEFOLK]: ['ssa', 'ith', 'kesh', 'zal'],
 };
 
 const CULTURE_SUFFIX: readonly string[] = ['ana', 'ense', 'ita', 'ica', 'ina'];

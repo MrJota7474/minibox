@@ -24,6 +24,7 @@ const TOUCH_CONTROLS: readonly (readonly [string, string])[] = [
 
 const VILLAGE_TIPS: readonly (readonly [string, string])[] = [
   ['Fundar una aldea', 'Suelta al menos 3 aldeanos de la misma raza juntos (pincel 5 o más) en tierra libre'],
+  ['Razas', 'Humanos (se expanden rápido), silvanos (longevos, buenos en el bosque), petrinos (mineros y constructores), colmilludos (fuertes y prolíficos) y escamados (grandes pescadores; el barro no los frena y no enferman de plaga)'],
   ['Recursos', 'Recolectores, leñadores, mineros, granjeros y cazadores llevan comida, madera, piedra, hierro y oro al almacén'],
   ['Crecer', 'Con casas libres y comida nacen niños; la aldea construye, mejora el ayuntamiento y amplía su territorio'],
   ['Colonos', 'Las aldeas grandes envían colonos que fundan nuevas aldeas'],

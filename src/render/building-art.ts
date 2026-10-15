@@ -11,10 +11,12 @@ export const BUILDING_PX = 8;
 
 interface Style {
   wall: string;
-  pattern: 'timber' | 'log' | 'stone' | 'hide';
+  pattern: 'timber' | 'log' | 'stone' | 'hide' | 'reed';
   trim: string;
   roof: string;
-  roofShape: 'gable' | 'dome' | 'flat' | 'tent';
+  roofShape: 'gable' | 'dome' | 'flat' | 'tent' | 'thatch';
+  /** Casas sobre pilotes (palafitos). */
+  stilts?: boolean;
   door: string;
   stone: string;
   accent: string;
@@ -28,9 +30,12 @@ const STYLES: Readonly<Record<number, Style>> = {
   [Species.SILVAN]: { wall: '#9a6a3a', pattern: 'log', trim: '#6a4422', roof: '#3f8a3a', roofShape: 'dome', door: '#4a3a22', stone: '#8aa08a', accent: '#e8e0a0', roofAlt: '#5e9a36', wallAlt: '#8a5e34' },
   [Species.PETRINO]: { wall: '#a8a39a', pattern: 'stone', trim: '#76726c', roof: '#5a5a66', roofShape: 'flat', door: '#4a4a52', stone: '#7a7a80', accent: '#f2a03d', roofAlt: '#6a5650', wallAlt: '#b4aea2' },
   [Species.TUSKER]: { wall: '#a87a4a', pattern: 'hide', trim: '#6a4a2a', roof: '#8a5a32', roofShape: 'tent', door: '#2a1a0a', stone: '#6a5a4a', accent: '#f4f0e4', roofAlt: '#7a5a3a', wallAlt: '#b88a58' },
+  [Species.SCALEFOLK]: { wall: '#b8a070', pattern: 'reed', trim: '#5a4a2a', roof: '#8a9a4a', roofShape: 'thatch', door: '#2a2a1a', stone: '#7a8a7a', accent: '#4fd0c0', roofAlt: '#a89a50', wallAlt: '#c8b080', stilts: true },
 };
 const WINDOW = '#f2d16b';
-const RACES = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER];
+const RACES = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER, Species.SCALEFOLK];
+/** Altura (px) de los pilotes de los palafitos. */
+const STILT_H = 2;
 /** Variantes de cada edificio (tejado y pared de otro tono). */
 export const BUILDING_VARIANTS = 2;
 const FLOWERS = ['#e8546a', '#f2d16b', '#f4b6c8'];
@@ -57,6 +62,11 @@ function wall(p: Pix, s: Style, x: number, y: number, w: number, h: number): voi
         p.rect(x, yy, w, 1, dark);
         for (let xx = x + ((yy - y) % 4 === 0 ? 1 : 3); xx < x + w; xx += 4) p.set(xx, yy + 1, dark);
       }
+      break;
+    case 'reed':
+      // Cañas en vertical, con una atadura a media altura.
+      for (let xx = x; xx < x + w; xx += 2) p.rect(xx, y, 1, h, dark);
+      p.rect(x, y + Math.floor(h / 2), w, 1, s.trim);
       break;
     case 'hide':
       for (let xx = x + 2; xx < x + w; xx += 4) p.rect(xx, y, 1, h, dark);
@@ -113,6 +123,29 @@ function gable(p: Pix, s: Style, x0: number, x1: number, base: number, color = s
   p.rect(x0 - 1, base + 1, x1 - x0 + 3, 1, shade(color, 0.6));
 }
 
+/** Tejado de paja cónico (escamados): empinado, con fleco colgando y un remate de conchas. */
+function thatch(p: Pix, s: Style, x0: number, x1: number, base: number): void {
+  const half = (x1 - x0) / 2;
+  const h = Math.ceil(half * 1.3);
+  const cx = (x0 + x1) / 2;
+  for (let k = 0; k < h; k++) {
+    const spread = half * (1 - k / h);
+    const a = Math.round(cx - spread);
+    const b = Math.round(cx + spread);
+    for (let x = a; x <= b; x++) p.set(x, base - k, (x + k) % 3 === 0 ? shade(s.roof, 0.8) : x < cx ? shade(s.roof, 1.1) : s.roof);
+  }
+  // Fleco bajo el alero.
+  for (let x = x0 - 1; x <= x1 + 1; x += 2) p.set(x, base + 1, shade(s.roof, 0.65));
+  p.set(Math.round(cx), base - h, s.accent);
+}
+
+/** Pilotes de un palafito bajo el suelo de la casa (desde `floor` hasta el suelo). */
+function stilts(p: Pix, s: Style, x0: number, x1: number, floor: number, ground: number): void {
+  for (const x of [x0 + 1, Math.round((x0 + x1) / 2), x1 - 1]) p.rect(x, floor + 1, 1, ground - floor, s.trim);
+  // Escalerilla hasta la puerta.
+  for (let y = floor + 1; y <= ground; y++) p.set(9, y, y % 2 === 0 ? s.trim : shade(s.trim, 1.3));
+}
+
 /** Techo abovedado de hojas (sólo la mitad de arriba: las paredes se ven debajo). */
 function dome(p: Pix, s: Style, cx: number, base: number, rx: number, ry: number): void {
   for (let y = Math.floor(base - ry); y <= base; y++) {
@@ -167,7 +200,8 @@ function chimney(p: Pix, s: Style, x: number, y: number): void {
 
 /** Casa de 2×2 casillas; cuanto más nivel, más grande y con más detalle. */
 function house(p: Pix, s: Style, level: number): void {
-  const g = p.h - 1;
+  // En los palafitos, la casa empieza unos píxeles por encima del suelo.
+  const g = p.h - 1 - (s.stilts ? STILT_H : 0);
   if (s.roofShape === 'tent') {
     tent(p, s, level >= 2 ? 1 : 2, level >= 2 ? 14 : 13, g, 9 + level * 2);
     if (level >= 3) {
@@ -179,6 +213,7 @@ function house(p: Pix, s: Style, level: number): void {
   const wallH = 4 + level;
   const x0 = level >= 2 ? 1 : 2;
   const x1 = level >= 2 ? 14 : 13;
+  if (s.stilts) stilts(p, s, x0, x1, g, p.h - 1);
   wall(p, s, x0, g - wallH + 1, x1 - x0 + 1, wallH);
   door(p, s, 8, g + 1, level >= 3 ? 5 : 4);
   if (level >= 2) windowAt(p, s, x0 + 2, g - wallH + 3);
@@ -194,6 +229,8 @@ function house(p: Pix, s: Style, level: number): void {
     // Las chozas humanas llevan techo de paja.
     gable(p, s, x0 - 1, x1 + 1, base, level === 1 ? '#c9a24a' : s.roof);
     if (level >= 3) chimney(p, s, x1 - 3, base - 6);
+  } else if (s.roofShape === 'thatch') {
+    thatch(p, s, x0 - 1, x1 + 1, base);
   } else if (s.roofShape === 'dome') {
     dome(p, s, (x0 + x1) / 2, base, (x1 - x0) / 2 + 1.5, 3 + level);
     if (level >= 3) {
@@ -215,6 +252,7 @@ function storage(p: Pix, s: Style): void {
   } else {
     wall(p, s, 1, g - 6, 14, 7);
     if (s.roofShape === 'dome') dome(p, s, 7.5, g - 7, 8, 5);
+    else if (s.roofShape === 'thatch') thatch(p, s, 0, 15, g - 7);
     else if (s.roofShape === 'flat') flatRoof(p, s, 1, 14, g - 7, 3);
     else gable(p, s, 0, 15, g - 7);
     // Portón de doble hoja.
@@ -263,9 +301,11 @@ function shrine(p: Pix, s: Style): void {
     p.set(7, g - 8, gold);
     p.set(8, g - 8, gold);
     if (s.roofShape === 'gable') gable(p, s, 2, 13, g - 11);
+    else if (s.roofShape === 'thatch') thatch(p, s, 2, 13, g - 11);
     else if (s.roofShape === 'dome') dome(p, s, 7.5, g - 11, 6, 5);
     else flatRoof(p, s, 3, 12, g - 11, 3);
-    top = s.roofShape === 'flat' ? g - 15 : g - 18;
+    // El pináculo arranca justo encima del tejado (el de paja es más alto).
+    top = s.roofShape === 'flat' ? g - 15 : s.roofShape === 'thatch' ? g - 20 : g - 18;
   }
   // Pináculo: un disco dorado sobre un vástago.
   p.rect(7, top, 2, 3, s.stone);
@@ -326,6 +366,22 @@ function hall(p: Pix, s: Style, level: number): void {
     for (const [x, y] of [[6, g - 22], [16, g - 19], [12, g - 24], [9, g - 18]]) p.set(x, y, '#f4b6c8');
     return;
   }
+  if (s.roofShape === 'thatch' && level >= 3) {
+    // Gran casa comunal de los escamados: más alta, con pilotes, tejado enorme y dos tótems.
+    const floor = g - STILT_H;
+    for (const x of [3, 8, 15, 20]) p.rect(x, floor + 1, 1, STILT_H, s.trim);
+    wall(p, s, 2, floor - 10, 20, 11);
+    door(p, s, 12, floor + 1, 6);
+    windowAt(p, s, 5, floor - 7);
+    windowAt(p, s, 17, floor - 7);
+    thatch(p, s, 0, 23, floor - 11);
+    for (const x of [0, 23]) {
+      p.rect(x, g - 13, 1, 14, s.trim);
+      p.rect(x, g - 15, 1, 2, s.accent);
+      p.set(x, g - 10, s.accent);
+    }
+    return;
+  }
   const stoneKeep = level >= 3;
   const ws: Style = stoneKeep && s.pattern !== 'stone' ? { ...s, pattern: 'stone', wall: '#a8a39a' } : s;
   const wallH = stoneKeep ? 12 : 9;
@@ -351,6 +407,8 @@ function hall(p: Pix, s: Style, level: number): void {
     p.rect(10, base - 14, 4, 4, s.wall);
     p.set(11, base - 12, s.accent);
     gable(p, s, 9, 14, base - 15);
+  } else if (s.roofShape === 'thatch') {
+    thatch(p, s, 1, 22, base);
   } else if (s.roofShape === 'dome') {
     dome(p, s, 11.5, base, 11, 7);
   } else {

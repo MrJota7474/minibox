@@ -18,6 +18,7 @@ export const Species = {
   CAMEL: 12,
   FOX: 13,
   BEAR: 14,
+  SCALEFOLK: 15,
 } as const;
 export type SpeciesId = (typeof Species)[keyof typeof Species];
 
@@ -68,6 +69,12 @@ export interface RaceTraits {
   gather: number;
   build: number;
   farm: number;
+  /** Comida de cada pesca (si falta, la de recolectar). */
+  fish?: number;
+  /** El barro del pantano y la espesura de la selva no los frenan. */
+  mudWalker?: boolean;
+  /** No enferman de plaga. */
+  plagueImmune?: boolean;
   /** Descripción corta para el inspector. */
   trait: string;
 }
@@ -179,6 +186,7 @@ export const SPECIES: readonly SpeciesDef[] = [
   wild(Species.CAMEL, 'Dromedario', 'Dromedarios', 'herbivore', { maxHp: 50, damage: 2, speed: 0.075, sprint: 1.4, sight: 8, lifeYears: 25, adultYears: 2, maxHunger: 2400, litterMax: 1, breedYears: 1.8, meatValue: 1100, color: '#c99a5a' }, { bodySize: 4, preyMax: 0, habitat: { biomes: [Biome.DESERT, Biome.SAVANNA], tilesPer: 420 } }),
   wild(Species.FOX, 'Zorro', 'Zorros', 'carnivore', { maxHp: 22, damage: 7, speed: 0.11, sprint: 1.8, sight: 9, lifeYears: 8, adultYears: 1, maxHunger: 1500, litterMax: 2, breedYears: 1, meatValue: 0, color: '#d8743a' }, { bodySize: 1, preyMax: 2, omnivore: true, habitat: { biomes: [Biome.GRASS, Biome.FOREST, Biome.SAVANNA], tilesPer: 1200 } }),
   wild(Species.BEAR, 'Oso', 'Osos', 'carnivore', { maxHp: 120, damage: 22, speed: 0.085, sprint: 2.1, sight: 10, lifeYears: 25, adultYears: 3, maxHunger: 3500, litterMax: 1, breedYears: 2.5, meatValue: 0, color: '#6a4a32' }, { bodySize: 4, preyMax: 4, omnivore: true, habitat: { biomes: [Biome.FOREST, Biome.SNOW], tilesPer: 2400 } }),
+  civilized(Species.SCALEFOLK, 'Escamado', 'Escamados', { maxHp: 46, damage: 6, speed: 0.09, lifeYears: 80, adultYears: 15, breedYears: 3, color: '#4fa08a' }, { chop: 0.9, mine: 0.8, gather: 1.3, build: 1, farm: 1, fish: 1.6, mudWalker: true, plagueImmune: true, trait: 'Pescadores de los pantanos: el barro no los frena y no enferman de plaga' }),
 ];
 
 interface WildBase {
@@ -287,7 +295,7 @@ function civilized(id: SpeciesId, name: string, plural: string, b: CivBase, race
   };
 }
 
-export const RACE_IDS: readonly SpeciesId[] = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER];
+export const RACE_IDS: readonly SpeciesId[] = [Species.HUMAN, Species.SILVAN, Species.PETRINO, Species.TUSKER, Species.SCALEFOLK];
 
 export const MONSTER_IDS: readonly SpeciesId[] = [Species.PENANTE, Species.ESCORIO, Species.CENAGOSO];
 

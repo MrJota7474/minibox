@@ -413,7 +413,8 @@ function fish(ctx: AiContext, i: number, def: SpeciesDef, b: Building): void {
   ctx.civ.releaseWork(i);
   if (b.growth < FISH_CATCH) return abandonTask(ctx, i);
   b.growth -= FISH_CATCH;
-  setCarry(u, i, Resource.FOOD, Math.round(FISH_FOOD * traitFor(def, 'gather')));
+  // Cada raza pesca con su destreza (los escamados, mucho mejor); si no tiene, la de recolectar.
+  setCarry(u, i, Resource.FOOD, Math.round(FISH_FOOD * (def.race?.fish ?? traitFor(def, 'gather'))));
   u.state[i] = UnitState.IDLE;
   u.think[i] = 1;
 }

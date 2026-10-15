@@ -1,6 +1,6 @@
 import { DeathCause, giveUp, killUnit, type AiContext } from '../ai/context';
 import { Move, moveToward, pickWanderTarget } from '../ai/movement';
-import { isMonster, type SpeciesDef } from '../entities/species';
+import { SPECIES, isMonster, type SpeciesDef } from '../entities/species';
 import { Trait, addTrait, traitMods } from '../entities/traits';
 import { ABOARD_FLAG, CURSED_FLAG, HELD_FLAG, NO_UNIT, UnitState, type UnitStore } from '../entities/units';
 
@@ -31,7 +31,7 @@ export function has(u: UnitStore, i: number, flag: number): boolean {
 
 /** Contagia la plaga (salvo a los inmunes, a los ya enfermos y a los monstruos). */
 export function infect(u: UnitStore, i: number): boolean {
-  if (has(u, i, Status.IMMUNE) || u.plague[i] > 0 || isMonster(u.species[i]) || traitMods(u.traits[i]).plagueImmune) return false;
+  if (has(u, i, Status.IMMUNE) || u.plague[i] > 0 || isMonster(u.species[i]) || traitMods(u.traits[i]).plagueImmune || SPECIES[u.species[i]].race?.plagueImmune) return false;
   u.plague[i] = PLAGUE_DURATION;
   return true;
 }

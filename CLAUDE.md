@@ -19,7 +19,7 @@ Este archivo es el traspaso de contexto para cualquier sesión de Claude que tra
 | Copia local del usuario | `C:\Users\sscri\Documents\minibox` (Windows 11) |
 | Zips para itch.io | `release/minibox-<versión>-itch.zip` (no se suben al repo) |
 
-Versión actual: **0.18.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
+Versión actual: **0.19.0** (hoja de ruta original completa; después, puentes y comercio, pulido, y fauna, edificios y música).
 
 ## 3. Cómo se ejecuta
 
@@ -28,7 +28,7 @@ npm install
 npm run dev          # servidor de desarrollo (vite --host)
 npm run build        # tsc --noEmit && vite build → dist/
 npm run build:itch   # build + zip con index.html en la raíz → release/
-npm test             # vitest run (327 pruebas, 24 archivos)
+npm test             # vitest run (333 pruebas, 25 archivos)
 npm run lint         # eslint (incluye reglas de determinismo)
 npm run coverage
 ```
@@ -56,6 +56,7 @@ TypeScript (~6.0; typescript-eslint exige <6.1) + HTML5 Canvas 2D + Vite 8. Sin 
 | I (0.11.0) | Cultura (rasgo + saber → agricultura, albañilería, forja, medicina; asimilación), religión (santuario, preceptos, conversión; pesa en lealtad y opinión) y clanes (herencia paterna, sucesión dinástica, cambio de dinastía). Guardado MBX v5 |
 | K (0.13.0) | Puentes (calzada sobre el agua: los tienden los reinos en ríos y estrechos de hasta 8 casillas y el jugador con el pincel «Puente») y comercio (mercaderes que llevan excedentes entre aldeas no enemigas; oro para ambas y menos agravios entre reinos) |
 | J (0.12.0) | Caminos (senderos por desgaste, calzadas de los reinos y pincel «Calzada»; más velocidad al caminar) y sonido sintetizado con WebAudio (desastres, trabajo, combate, avisos, interfaz; volumen en ajustes). Guardado MBX v6 |
+| Q (0.19.0) | Raza nueva: los Escamados (pescadores de pantano, el barro no los frena, inmunes a la plaga) con palafitos de caña |
 | O (0.18.0) | Menú principal rediseñado: cuadrícula de secciones con icono; cada sección se abre en el panel con título y botón de volver |
 | P (0.17.0) | Desastres maremoto, ventisca y langostas; poderes lluvia fértil y ofrenda (`powers/nature-powers.ts`), con iconos, efectos y sonido |
 | N (0.16.0) | Naturaleza: bosques irregulares con claros (retoños a distancia variable y sin apiñarse; arboledas por ruido al generar), árboles con desplazamiento y espejo, y la mitad de animales |
@@ -69,6 +70,11 @@ La hoja de ruta que eligió el usuario está **completa**. Ideas para seguir (si
 Además, **en cada fase seguir mejorando el aspecto visual** (petición explícita del usuario: «cada vez que se vaya viendo mejor»).
 
 Ideas abiertas: optimizar `tileColor` en `render/palette.ts` (~0,75 ms por chunk al repintar); en algún mundo los lobos se extinguen por azar (aceptado); los monstruos sólo tienen sprite de lado (como el resto de criaturas).
+
+### Notas de la Fase Q (raza nueva)
+
+- Una raza nueva se añade en: `Species` (número nuevo **al final** y su `civilized(...)` también **al final de `SPECIES`**: la lista se indexa por número; `tests/race.test.ts` lo comprueba), `RACE_IDS`, sílabas y sufijos en `civ/names.ts`, herramienta en `powers/tools.ts`, aspecto en `RACES` de `render/creature-art.ts` y estilo + lista `RACES` en `render/building-art.ts`.
+- Rasgos opcionales de raza: `fish` (pesca), `mudWalker` (los biomas lentos no frenan; `ai/movement.ts`) y `plagueImmune` (`powers/status.ts`).
 
 ### Notas de la Fase M (fauna, edificios y música)
 

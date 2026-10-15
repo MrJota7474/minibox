@@ -26,6 +26,7 @@ Simulador de dios 2D por píxeles para el navegador, jugable en PC y en celular.
 - **Fase N (naturaleza)** — bosques más naturales, con claros y árboles a distintas distancias en vez de una cuadrícula, y la mitad de animales: el mapa ya no se ve abarrotado.
 - **Fase P (desastres y poderes)** — tres desastres nuevos: **maremoto** (una ola que barre la costa), **ventisca** (frío que hiela cosechas y deja nieve) y **langostas** (una nube que devora los campos); y dos poderes: **lluvia fértil**, que reverdece la tierra, y **ofrenda**, que llena los almacenes de una aldea.
 - **Fase O (menús)** — el menú principal se rediseña como una cuadrícula de secciones con icono; cada una se abre dentro del panel con su título y un botón para volver.
+- **Fase Q (raza nueva)** — llegan los **Escamados**, gente-lagarto de los pantanos: grandes pescadores, el barro no los frena y no enferman de plaga. Viven en palafitos de caña y se gobiernan desde una gran casa comunal con tótems.
 
 Ver [DESIGN.md](DESIGN.md) para el diseño completo y las ideas para el futuro.
 

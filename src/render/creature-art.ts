@@ -32,8 +32,10 @@ interface RaceLook {
   torso: number;
   legs: number;
   width: number;
-  ears: 'round' | 'pointy';
-  hairStyle: 'short' | 'long' | 'cap' | 'mohawk';
+  ears: 'round' | 'pointy' | 'none';
+  hairStyle: 'short' | 'long' | 'cap' | 'mohawk' | 'crest';
+  /** Cola (color), que asoma por detrás. */
+  tail?: string;
   beard?: string;
   tusks?: boolean;
 }
@@ -43,6 +45,7 @@ const RACES: Readonly<Record<number, RaceLook>> = {
   [Species.SILVAN]: { skin: '#f0d6b4', hair: '#e8d070', eye: '#2f6b25', pants: '#2f5a2a', shoes: '#3a2a1a', head: 5, torso: 5, legs: 5, width: 4, ears: 'pointy', hairStyle: 'long' },
   [Species.PETRINO]: { skin: '#e0a878', hair: '#9a9aa2', eye: '#2a1d14', pants: '#5a4030', shoes: '#2e2018', head: 5, torso: 5, legs: 2, width: 7, ears: 'round', hairStyle: 'cap', beard: '#b0642a' },
   [Species.TUSKER]: { skin: '#7fa25a', hair: '#1f1a16', eye: '#d2405e', pants: '#5a3a1a', shoes: '#2a1a0a', head: 6, torso: 6, legs: 3, width: 7, ears: 'pointy', hairStyle: 'mohawk', tusks: true },
+  [Species.SCALEFOLK]: { skin: '#4fa08a', hair: '#e0a040', eye: '#f2d850', pants: '#3a5a4a', shoes: '#2a3a2a', head: 5, torso: 5, legs: 4, width: 5, ears: 'none', hairStyle: 'crest', tail: '#3f8a72' },
 };
 
 /** Dónde queda la mano delantera en cada postura (para colocar la herramienta). */
@@ -67,6 +70,15 @@ function drawHumanoid(p: Pix, look: RaceLook, cloth: string, pose: number): Hand
   const armTone = shade(cloth, 1.25);
   const walk = pose < 4 ? pose : 0;
   const swing = [0, 1, 0, -1][walk];
+
+  // Cola (escamados): baja por detrás y se balancea al andar.
+  if (look.tail) {
+    const sway = pose < 4 ? swing : 0;
+    p.set(left - 1, legTop - 1, look.tail);
+    p.set(left - 2, legTop, look.tail);
+    p.set(left - 3 + sway, legTop + 1, look.tail);
+    p.set(left - 4 + sway, legTop + 1, shade(look.tail, 0.8));
+  }
 
   // Brazo trasero (más oscuro, detrás del cuerpo).
   const backArmX = left - (pose < 4 ? swing : 0);
@@ -104,7 +116,11 @@ function drawHumanoid(p: Pix, look: RaceLook, cloth: string, pose: number): Hand
   p.set(hx + headW - 2, headTop + 2, '#ffffff');
   drawHair(p, look, hx, headTop, headW);
   // Las orejas, encima del pelo para que se vean.
-  if (look.ears === 'pointy') {
+  if (look.ears === 'none') {
+    // Sin orejas: escamas más oscuras en la mejilla.
+    p.set(hx + 1, headTop + 3, skinShade);
+    p.set(hx + 2, headTop + 2, skinShade);
+  } else if (look.ears === 'pointy') {
     p.set(hx, headTop + 2, look.skin);
     p.set(hx - 1, headTop + 1, look.skin);
     p.set(hx - 2, headTop, look.skin);
@@ -163,6 +179,12 @@ function drawHair(p: Pix, look: RaceLook, hx: number, top: number, w: number): v
       p.rect(hx - 1, top - 1, w + 2, 2, c);
       p.rect(hx, top - 2, w, 1, shade(c, 1.15));
       p.set(hx + w, top + 1, shade(c, 0.8));
+      break;
+    case 'crest':
+      // Cresta de púas sobre la cabeza y la nuca.
+      for (let k = 0; k < w; k += 2) p.set(hx + k, top - 1, c);
+      for (let k = 1; k < w; k += 2) p.set(hx + k, top - 2, shade(c, 1.2));
+      p.set(hx - 1, top + 1, c);
       break;
     case 'mohawk':
       p.rect(hx + 1, top - 2, w - 2, 2, c);
